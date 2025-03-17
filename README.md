@@ -9,7 +9,7 @@ D'ici un mois, le code sera plus propre et minimalement fonctionnel.
 
 ## D'ici un mois (18 avril)
 - Gestion de ressources (Buffer, image et sampler)
-- Graphique pipeline
+- Graphic pipeline
 - Intégrer ImGui
 - Être en mesure d'ouvrir une scène glTF
 - Compute pipeline
