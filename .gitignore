@@ -24,8 +24,6 @@ ARM64/
 
 # Ignore compiled binaries
 *.exe
-*.dll
-*.lib
 *.pdb
 *.ilk
 *.exp
