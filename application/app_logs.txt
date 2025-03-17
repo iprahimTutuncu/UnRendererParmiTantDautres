@@ -1,0 +1,10 @@
+[2025-03-16 16:02:59.447] [THSAN] [4036] [info] Logger initialized.
+[2025-03-16 16:03:00.278] [THSAN] [4036] [info] Vulkan instance created successfully.
+[2025-03-16 16:03:00.280] [THSAN] [4036] [info] Vulkan surface created successfully.
+[2025-03-16 16:03:00.288] [THSAN] [4036] [info] Selected Vulkan physical device: Intel(R) UHD Graphics 620
+[2025-03-16 16:03:00.307] [THSAN] [4036] [info] Vulkan logical device created successfully.
+[2025-03-16 16:03:00.309] [THSAN] [4036] [info] Setting desired swapchain format: VK_FORMAT_B8G8R8A8_UNORM
+[2025-03-16 16:03:00.356] [THSAN] [4036] [info] Swapchain created successfully: extent 800x600
+[2025-03-16 16:03:00.357] [THSAN] [4036] [info] Swapchain setup completed with 3 images
+[2025-03-16 16:03:00.358] [THSAN] [4036] [info] SDL3 Window created: Thsan Engine, (X: 800, Y: 600)
+[2025-03-16 16:03:02.556] [THSAN] [4036] [info] VkGpuDevice has been shutdown successfully, SDL_window can now be destroyed.

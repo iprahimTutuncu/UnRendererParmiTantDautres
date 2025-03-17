@@ -1,46 +1,52 @@
-# Build and output dir
+# Build directories
 bin/
-bin-dep/
 obj/
+Debug/
+Release/
+x64/
+x86/
+ARM/
+ARM64/
+.vs/
 
-# Visual Studio
-.vscode/
+# Ignore Visual Studio solution and project files
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
 *.suo
 *.user
-*.userosscache
-*.sln.docstates
+*.cache
+*.VC.db
+*.opendb
+*.ncb
+*.log
 
-
-*.obj
-*.o
+# Ignore compiled binaries
 *.exe
 *.dll
+*.lib
 *.pdb
 *.ilk
-*.idb
-*.lib
-*.a
 *.exp
-*.ipdb
-*.iobj
-*.tlog
-*.log
-*.cache
-*.pdb
-
-*.sdf
-*.opensdf
-*.VC.db
-
-*.bak
-*.swp
-*.swo
-*.swn
-
-*.VC.*
+*.idb
+*.obj
+*.tlb
 *.tlog
 *.lastbuildstate
 
-TestResults/
+# Ignore temporary and workspace files
+*.ipch
+*.iobj
+*.ipdb
+*.rsp
 
-*.dmp
+# Ignore Visual Studio Code settings
+.vscode/
+
+# Ignore JetBrains Rider/CLion settings
+.idea/
+
+# Ignore Windows-specific files
+Thumbs.db
+Desktop.ini
