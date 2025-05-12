@@ -17,7 +17,3 @@
 #include <unordered_set>
 #include <chrono>
 #include <thread>
-
-#ifdef PLATFORM_WINDOWS
-#include <Windows.h>
-#endif

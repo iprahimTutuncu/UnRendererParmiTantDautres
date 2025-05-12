@@ -1,5 +1,5 @@
 #pragma once
-namespace Thsan
+namespace Olaf
 {
     enum Key
     {

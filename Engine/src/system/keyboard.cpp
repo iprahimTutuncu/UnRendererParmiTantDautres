@@ -4,7 +4,7 @@
 
 #include <SDL3/SDL_keyboard.h>
 
-namespace Thsan
+namespace Olaf
 {
 	std::array<bool, Keyboard::keyCount> Keyboard::keys;
 	std::array<bool, Keyboard::keyCount> Keyboard::keysDown;
@@ -39,7 +39,7 @@ namespace Thsan
 
 	bool Keyboard::key(Key keyVal)
 	{
-		TS_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
+		OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
 		if (keyVal >= Key::kFirst && keyVal < keyCount)
 			return keys[keyVal];
 
@@ -48,7 +48,7 @@ namespace Thsan
 
 	bool Keyboard::keyDown(Key keyVal)
 	{
-		TS_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
+		OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
 		if (keyVal >= Key::kFirst && keyVal < keyCount)
 			return keysDown[keyVal];
 
@@ -57,7 +57,7 @@ namespace Thsan
 
 	bool Keyboard::keyUp(Key keyVal)
 	{
-		TS_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
+		OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
 		if (keyVal >= Key::kFirst && keyVal < keyCount)
 			return keysUp[keyVal];
 

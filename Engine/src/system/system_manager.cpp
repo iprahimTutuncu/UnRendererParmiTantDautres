@@ -1,28 +1,40 @@
 #include "pch.h"
+#include "options.h"
 #include "system/system_manager.h"
 #include "system/log_manager.h"
 #include "system/window.h"
+#include "system/event.h"
 
-namespace Thsan
+namespace Olaf
 {
-	void Thsan::SystemManager::init(std::shared_ptr<ControlSetting> controlSetting)
+	void Olaf::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback)
 	{
 		LogManager::init();
 
 		pWindow = Window::create(WindowAPI::SDL3);
 
-		if (!pWindow->init(800, 600, "Thsan Engine"))
+		if (!pWindow->init(options.screenWidth, options.screenHeight, "Olaf Engine"))
 		{
 			return;
 		}
+		pControlSetting = controlSetting;
+		this->onInput = onInputCallback;
 
 		pWindow->enableEventForHUD();
-
 	}
 
-	void Thsan::SystemManager::update()
+	void Olaf::SystemManager::update(Options& options, double dt)
 	{
+		std::vector<Event> events = pWindow->pollEvent();
+
+		for (Event e : events)
+			pControlSetting->handleInput(e);
+
+		pControlSetting->updateInput();
+
+		if(onInput) onInput(options, dt, pControlSetting->getInput());
 	}
+
 	void SystemManager::close()
 	{
 		if(pWindow)

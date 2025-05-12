@@ -1,18 +1,16 @@
 #pragma once
-
-#include "platform/vulkan/vk_gpu_device.h"
-#include "platform/system/window_sdl3.h"
-#include "graphics/gpu_device.h"
-#include "graphics/graphic_api.h"
-#include "system/event.h"
-#include "system/log.h"
-#include "system/window.h"
+#include <system/event.h>
+#include <system/window.h>
 
 #include <functional>
-#include <SDL3/SDL_render.h>
 
-namespace Thsan
+struct SDL_Window;
+struct SDL_GPUDevice;
+
+namespace Olaf
 {
+    class GpuDevice;
+
     class WindowSDL3 : public Window
     {
     public:
@@ -24,16 +22,18 @@ namespace Thsan
         void setSize(const int width, const int height) override;
         void close() override;
         bool isRunning() override;
-        void swapBuffers() override;
+        WindowHandle getWindow() override;
         std::vector<Event> pollEvent() override;
         void setResizeCallback(std::function<void(int, int)> callback) override;
 
-        std::shared_ptr<GpuDevice> getGpuDevice() override;
+        GpuHandle getGpuDevice() override;
 
     private:
+
         SDL_Window* sdlWindow{ nullptr };
-        SDL_Renderer* sdlRenderer{ nullptr };
-        std::shared_ptr<GpuDevice> gpu{ nullptr };
+        SDL_GPUDevice* sdlGPU{ nullptr };
+
         std::function<void(int, int)> resizeCallback{ nullptr };
+
     };
 }

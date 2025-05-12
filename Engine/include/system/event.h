@@ -1,7 +1,7 @@
 #pragma once
 #include "system/key_code.h"
 
-namespace Thsan 
+namespace Olaf 
 {
 	class Event 
 	{

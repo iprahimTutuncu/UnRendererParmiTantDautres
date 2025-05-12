@@ -6,7 +6,7 @@
 #include "system/keyboard.h"
 #include "system/event.h"
 
-namespace Thsan 
+namespace Olaf 
 {
 	enum InputState
 	{
@@ -52,7 +52,6 @@ namespace Thsan
 
 		std::vector<InputAction> getInput();
 	private:
-		//whoopsy doopsy
 		void handleInput(Event event); // create some way to pass event from game
 		void updateInput();
 

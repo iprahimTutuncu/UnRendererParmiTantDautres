@@ -786,21 +786,21 @@ typedef enum SDL_TransferCharacteristics
  */
 typedef enum SDL_MatrixCoefficients
 {
-    SDL_MATRIX_COEFFICIENTS_IDENTITY = 0,
-    SDL_MATRIX_COEFFICIENTS_BT709 = 1,              /**< ITU-R BT.709-6 */
-    SDL_MATRIX_COEFFICIENTS_UNSPECIFIED = 2,
-    SDL_MATRIX_COEFFICIENTS_FCC = 4,                /**< US FCC Title 47 */
-    SDL_MATRIX_COEFFICIENTS_BT470BG = 5,            /**< ITU-R BT.470-6 System B, G / ITU-R BT.601-7 625, functionally the same as SDL_MATRIX_COEFFICIENTS_BT601 */
-    SDL_MATRIX_COEFFICIENTS_BT601 = 6,              /**< ITU-R BT.601-7 525 */
-    SDL_MATRIX_COEFFICIENTS_SMPTE240 = 7,           /**< SMPTE 240M */
-    SDL_MATRIX_COEFFICIENTS_YCGCO = 8,
-    SDL_MATRIX_COEFFICIENTS_BT2020_NCL = 9,         /**< ITU-R BT.2020-2 non-constant luminance */
-    SDL_MATRIX_COEFFICIENTS_BT2020_CL = 10,         /**< ITU-R BT.2020-2 constant luminance */
-    SDL_MATRIX_COEFFICIENTS_SMPTE2085 = 11,         /**< SMPTE ST 2085 */
-    SDL_MATRIX_COEFFICIENTS_CHROMA_DERIVED_NCL = 12,
-    SDL_MATRIX_COEFFICIENTS_CHROMA_DERIVED_CL = 13,
-    SDL_MATRIX_COEFFICIENTS_ICTCP = 14,             /**< ITU-R BT.2100-0 ICTCP */
-    SDL_MATRIX_COEFFICIENTS_CUSTOM = 31
+    SDL_MATRIX_COEFFICIENOLAF_IDENTITY = 0,
+    SDL_MATRIX_COEFFICIENOLAF_BT709 = 1,              /**< ITU-R BT.709-6 */
+    SDL_MATRIX_COEFFICIENOLAF_UNSPECIFIED = 2,
+    SDL_MATRIX_COEFFICIENOLAF_FCC = 4,                /**< US FCC Title 47 */
+    SDL_MATRIX_COEFFICIENOLAF_BT470BG = 5,            /**< ITU-R BT.470-6 System B, G / ITU-R BT.601-7 625, functionally the same as SDL_MATRIX_COEFFICIENOLAF_BT601 */
+    SDL_MATRIX_COEFFICIENOLAF_BT601 = 6,              /**< ITU-R BT.601-7 525 */
+    SDL_MATRIX_COEFFICIENOLAF_SMPTE240 = 7,           /**< SMPTE 240M */
+    SDL_MATRIX_COEFFICIENOLAF_YCGCO = 8,
+    SDL_MATRIX_COEFFICIENOLAF_BT2020_NCL = 9,         /**< ITU-R BT.2020-2 non-constant luminance */
+    SDL_MATRIX_COEFFICIENOLAF_BT2020_CL = 10,         /**< ITU-R BT.2020-2 constant luminance */
+    SDL_MATRIX_COEFFICIENOLAF_SMPTE2085 = 11,         /**< SMPTE ST 2085 */
+    SDL_MATRIX_COEFFICIENOLAF_CHROMA_DERIVED_NCL = 12,
+    SDL_MATRIX_COEFFICIENOLAF_CHROMA_DERIVED_CL = 13,
+    SDL_MATRIX_COEFFICIENOLAF_ICTCP = 14,             /**< ITU-R BT.2100-0 ICTCP */
+    SDL_MATRIX_COEFFICIENOLAF_CUSTOM = 31
 } SDL_MatrixCoefficients;
 
 /**
@@ -829,7 +829,7 @@ typedef enum SDL_ChromaLocation
  *                       SDL_COLOR_RANGE_FULL,
  *                       SDL_COLOR_PRIMARIES_BT709,
  *                       SDL_TRANSFER_CHARACTERISTICS_SRGB,
- *                       SDL_MATRIX_COEFFICIENTS_IDENTITY,
+ *                       SDL_MATRIX_COEFFICIENOLAF_IDENTITY,
  *                       SDL_CHROMA_LOCATION_NONE)
  * ```
  *
@@ -939,7 +939,7 @@ typedef enum SDL_ChromaLocation
  *
  * \since This macro is available since SDL 3.2.0.
  */
-#define SDL_ISCOLORSPACE_MATRIX_BT601(cspace)        (SDL_COLORSPACEMATRIX(cspace) == SDL_MATRIX_COEFFICIENTS_BT601 || SDL_COLORSPACEMATRIX(cspace) == SDL_MATRIX_COEFFICIENTS_BT470BG)
+#define SDL_ISCOLORSPACE_MATRIX_BT601(cspace)        (SDL_COLORSPACEMATRIX(cspace) == SDL_MATRIX_COEFFICIENOLAF_BT601 || SDL_COLORSPACEMATRIX(cspace) == SDL_MATRIX_COEFFICIENOLAF_BT470BG)
 
 /**
  * A macro to determine if an SDL_Colorspace uses BT709 matrix coefficients.
@@ -951,7 +951,7 @@ typedef enum SDL_ChromaLocation
  *
  * \since This macro is available since SDL 3.2.0.
  */
-#define SDL_ISCOLORSPACE_MATRIX_BT709(cspace)        (SDL_COLORSPACEMATRIX(cspace) == SDL_MATRIX_COEFFICIENTS_BT709)
+#define SDL_ISCOLORSPACE_MATRIX_BT709(cspace)        (SDL_COLORSPACEMATRIX(cspace) == SDL_MATRIX_COEFFICIENOLAF_BT709)
 
 /**
  * A macro to determine if an SDL_Colorspace uses BT2020_NCL matrix
@@ -964,7 +964,7 @@ typedef enum SDL_ChromaLocation
  *
  * \since This macro is available since SDL 3.2.0.
  */
-#define SDL_ISCOLORSPACE_MATRIX_BT2020_NCL(cspace)   (SDL_COLORSPACEMATRIX(cspace) == SDL_MATRIX_COEFFICIENTS_BT2020_NCL)
+#define SDL_ISCOLORSPACE_MATRIX_BT2020_NCL(cspace)   (SDL_COLORSPACEMATRIX(cspace) == SDL_MATRIX_COEFFICIENOLAF_BT2020_NCL)
 
 /**
  * A macro to determine if an SDL_Colorspace has a limited range.
@@ -1015,7 +1015,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_FULL,
                                  SDL_COLOR_PRIMARIES_BT709,
                                  SDL_TRANSFER_CHARACTERISTICS_SRGB,
-                                 SDL_MATRIX_COEFFICIENTS_IDENTITY,
+                                 SDL_MATRIX_COEFFICIENOLAF_IDENTITY,
                                  SDL_CHROMA_LOCATION_NONE), */
 
     /* This is a linear colorspace and the default colorspace for floating point surfaces. On Windows this is the scRGB colorspace, and on Apple platforms this is kCGColorSpaceExtendedLinearSRGB for EDR content */
@@ -1024,7 +1024,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_FULL,
                                  SDL_COLOR_PRIMARIES_BT709,
                                  SDL_TRANSFER_CHARACTERISTICS_LINEAR,
-                                 SDL_MATRIX_COEFFICIENTS_IDENTITY,
+                                 SDL_MATRIX_COEFFICIENOLAF_IDENTITY,
                                  SDL_CHROMA_LOCATION_NONE), */
 
     /* HDR10 is a non-linear HDR colorspace and the default colorspace for 10-bit surfaces */
@@ -1033,7 +1033,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_FULL,
                                  SDL_COLOR_PRIMARIES_BT2020,
                                  SDL_TRANSFER_CHARACTERISTICS_PQ,
-                                 SDL_MATRIX_COEFFICIENTS_IDENTITY,
+                                 SDL_MATRIX_COEFFICIENOLAF_IDENTITY,
                                  SDL_CHROMA_LOCATION_NONE), */
 
     SDL_COLORSPACE_JPEG = 0x220004c6u, /**< Equivalent to DXGI_COLOR_SPACE_YCBCR_FULL_G22_NONE_P709_X601 */
@@ -1041,7 +1041,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_FULL,
                                  SDL_COLOR_PRIMARIES_BT709,
                                  SDL_TRANSFER_CHARACTERISTICS_BT601,
-                                 SDL_MATRIX_COEFFICIENTS_BT601,
+                                 SDL_MATRIX_COEFFICIENOLAF_BT601,
                                  SDL_CHROMA_LOCATION_NONE), */
 
     SDL_COLORSPACE_BT601_LIMITED = 0x211018c6u, /**< Equivalent to DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P601 */
@@ -1049,7 +1049,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_LIMITED,
                                  SDL_COLOR_PRIMARIES_BT601,
                                  SDL_TRANSFER_CHARACTERISTICS_BT601,
-                                 SDL_MATRIX_COEFFICIENTS_BT601,
+                                 SDL_MATRIX_COEFFICIENOLAF_BT601,
                                  SDL_CHROMA_LOCATION_LEFT), */
 
     SDL_COLORSPACE_BT601_FULL = 0x221018c6u, /**< Equivalent to DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P601 */
@@ -1057,7 +1057,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_FULL,
                                  SDL_COLOR_PRIMARIES_BT601,
                                  SDL_TRANSFER_CHARACTERISTICS_BT601,
-                                 SDL_MATRIX_COEFFICIENTS_BT601,
+                                 SDL_MATRIX_COEFFICIENOLAF_BT601,
                                  SDL_CHROMA_LOCATION_LEFT), */
 
     SDL_COLORSPACE_BT709_LIMITED = 0x21100421u, /**< Equivalent to DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709 */
@@ -1065,7 +1065,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_LIMITED,
                                  SDL_COLOR_PRIMARIES_BT709,
                                  SDL_TRANSFER_CHARACTERISTICS_BT709,
-                                 SDL_MATRIX_COEFFICIENTS_BT709,
+                                 SDL_MATRIX_COEFFICIENOLAF_BT709,
                                  SDL_CHROMA_LOCATION_LEFT), */
 
     SDL_COLORSPACE_BT709_FULL = 0x22100421u, /**< Equivalent to DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709 */
@@ -1073,7 +1073,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_FULL,
                                  SDL_COLOR_PRIMARIES_BT709,
                                  SDL_TRANSFER_CHARACTERISTICS_BT709,
-                                 SDL_MATRIX_COEFFICIENTS_BT709,
+                                 SDL_MATRIX_COEFFICIENOLAF_BT709,
                                  SDL_CHROMA_LOCATION_LEFT), */
 
     SDL_COLORSPACE_BT2020_LIMITED = 0x21102609u, /**< Equivalent to DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P2020 */
@@ -1081,7 +1081,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_LIMITED,
                                  SDL_COLOR_PRIMARIES_BT2020,
                                  SDL_TRANSFER_CHARACTERISTICS_PQ,
-                                 SDL_MATRIX_COEFFICIENTS_BT2020_NCL,
+                                 SDL_MATRIX_COEFFICIENOLAF_BT2020_NCL,
                                  SDL_CHROMA_LOCATION_LEFT), */
 
     SDL_COLORSPACE_BT2020_FULL = 0x22102609u, /**< Equivalent to DXGI_COLOR_SPACE_YCBCR_FULL_G22_LEFT_P2020 */
@@ -1089,7 +1089,7 @@ typedef enum SDL_Colorspace
                                  SDL_COLOR_RANGE_FULL,
                                  SDL_COLOR_PRIMARIES_BT2020,
                                  SDL_TRANSFER_CHARACTERISTICS_PQ,
-                                 SDL_MATRIX_COEFFICIENTS_BT2020_NCL,
+                                 SDL_MATRIX_COEFFICIENOLAF_BT2020_NCL,
                                  SDL_CHROMA_LOCATION_LEFT), */
 
     SDL_COLORSPACE_RGB_DEFAULT = SDL_COLORSPACE_SRGB, /**< The default colorspace for RGB surfaces if no colorspace is specified */

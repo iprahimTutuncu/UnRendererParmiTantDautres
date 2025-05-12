@@ -1,14 +1,17 @@
 #include "pch.h"
-#include "platform/vulkan/vk_gpu_device.h"
 #include "platform/system/window_sdl3.h"
-#include "graphics/gpu_device.h"
+
 #include "graphics/graphic_api.h"
 #include "system/event.h"
 #include "system/log.h"
 
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_render.h>
 
-namespace Thsan
+#include <GL/glew.h>
+#include <SDL3/SDL_gpu.h>
+
+namespace Olaf
 {
     bool WindowSDL3::init(const int width, const int height, const char* title)
     {
@@ -19,31 +22,53 @@ namespace Thsan
         this->title = title;
 
         windowAPI = WindowAPI::SDL3;
-        if (get_graphic_API() == GraphicAPI::Vulkan)
+
+        if (get_graphic_API() == GraphicAPI::SDL3)
         {
-            SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
-            sdlWindow = SDL_CreateWindow("Vulkan Engine", width, height, window_flags);
+            if (!SDL_Init(SDL_INIT_VIDEO))
+            {
+                OLAF_ERROR("SDL_Init failed: {}", SDL_GetError());
+                return false;
+            }
+
+            sdlGPU = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, "vulkan");
+            
+            int count = 0;
+            const char* drivers = SDL_GetGPUDeviceDriver(sdlGPU);
+            OLAF_INFO("Available GPU driver: {}", drivers);
+
+            if (!sdlGPU)
+            {
+                OLAF_ERROR("Failed to create SDL GPU Device: {}", SDL_GetError());
+                return false;
+            }
+
+            sdlWindow = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
+            if (!sdlWindow)
+            {
+                OLAF_ERROR("Failed to create SDL Window: {}", SDL_GetError());
+                SDL_DestroyGPUDevice(sdlGPU);
+                return false;
+            }
+
+            if (!SDL_ClaimWindowForGPUDevice(sdlGPU, sdlWindow))
+            {
+                OLAF_ERROR("Failed to claim SDL_Window for GPU Device: {}", SDL_GetError());
+                SDL_DestroyGPUDevice(sdlGPU);
+                SDL_DestroyWindow(sdlWindow);
+                return false;
+            }
+
+            OLAF_INFO("SDL3 GPU Window created using Vulkan backend.");
         }
         else
         {
-            TS_ERROR("I don't think any graphicAPI was specified");
+            OLAF_ERROR("I don't think any graphicAPI was specified");
             return false;
         }
 
-        if (!SDL_Init(SDL_INIT_VIDEO))
-        {
-            std::string error_msg = std::string(SDL_GetError());
-            TS_ERROR("SDL_Init failed: {}", error_msg);
-            return false;
-        }
 
-        DeviceCreation deviceCreationInfo;
-        deviceCreationInfo.set_window(width, height, sdlWindow, windowAPI);
-
-        gpu = GpuDevice::create();
-        gpu->init(deviceCreationInfo);
-
-        TS_INFO("SDL3 Window created: {}, (X: {}, Y: {})", title, width, height);
+        OLAF_INFO("SDL3 Window created: {}, (X: {}, Y: {})", title, width, height);
         return true;
     }
 
@@ -64,12 +89,11 @@ namespace Thsan
     {
         running = false;
 
-        if (sdlRenderer)
-            SDL_DestroyRenderer(sdlRenderer);
-
-        if (sdlWindow)
+        if (sdlWindow && sdlGPU)
         {
-            gpu->shutdown();
+            SDL_ReleaseWindowFromGPUDevice(sdlGPU, sdlWindow);
+            SDL_DestroyWindow(sdlWindow);
+            SDL_DestroyGPUDevice(sdlGPU);
         }
     }
 
@@ -78,14 +102,18 @@ namespace Thsan
         return running;
     }
 
-    void WindowSDL3::swapBuffers() 
+    WindowHandle WindowSDL3::getWindow()
     {
-        SDL_RenderPresent(sdlRenderer);
+        if (windowAPI == WindowAPI::SDL3)
+        {
+            return WindowHandle{ sdlWindow };
+        }
+        return WindowHandle();
     }
 
     std::vector<Event> WindowSDL3::pollEvent()
     {
-        std::vector<Thsan::Event> events;
+        std::vector<Olaf::Event> events;
         SDL_Event e;
 
         while (SDL_PollEvent(&e)) {
@@ -94,7 +122,8 @@ namespace Thsan
 
             Event tmp_event;
 
-            if (e.type == SDL_EVENT_QUIT) {
+            if (e.type == SDL_EVENT_QUIT) 
+            {
                 running = false;
             }
 
@@ -131,8 +160,14 @@ namespace Thsan
         resizeCallback = callback;
     }
 
-    std::shared_ptr<GpuDevice> WindowSDL3::getGpuDevice()
+    GpuHandle WindowSDL3::getGpuDevice()
     {
-        return gpu;
+        if (get_graphic_API() == GraphicAPI::SDL3)
+        {
+            return GpuHandle{ sdlGPU };
+        }
+
+        return GpuHandle{};
     }
+
 }

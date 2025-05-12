@@ -1,6 +1,6 @@
--- Root solution configuration
+
 workspace "UnRendererParmiTantDautres"
-    location "."  -- This places the solution in the root directory
+    location "."
     configurations { "Debug", "Release" }
     platforms { "Win64" }
 
@@ -9,31 +9,32 @@ workspace "UnRendererParmiTantDautres"
         architecture "x86_64"
         defines { "PLATFORM_WINDOWS" }
 
--- Path to third-party dependencies
 local thirdPartyPath = "thirdParty"
 local includePath = thirdPartyPath .. "/include"
 local libPath = thirdPartyPath .. "/lib"
 
--- Engine static library project
 project "Engine"
-    location "Engine"  -- The project files are now in the "Engine" folder
+    location "Engine"
     kind "StaticLib"
     language "C++"
     cppdialect "C++20"
     targetdir "bin/%{cfg.buildcfg}"
     objdir "obj/%{cfg.buildcfg}/%{prj.name}"
 
-    includedirs {
+    includedirs 
+    {
         "Engine/include", 
         includePath,
         includePath .. "/imgui"
     }
     
-    libdirs {
+    libdirs 
+    {
         libPath,
     }
 
-    files {
+    files 
+    {
         "Engine/**.h",
         "Engine/**.cpp",
 
@@ -46,14 +47,7 @@ project "Engine"
 
         -- ImGui SDL3 backend
         includePath .. "/imgui/backends/imgui_impl_sdl3.cpp",
-        includePath .. "/imgui/backends/imgui_impl_sdlgpu3.cpp",
-        includePath .. "/imgui/backends/imgui_impl_sdlrenderer3.cpp",
-        -- ImGui OpenGL3 backend
-        includePath .. "/imgui/backends/imgui_impl_opengl3.cpp",
-        -- ImGui Vulkan backend
-        includePath .. "/imgui/backends/imgui_impl_vulkan.cpp",
-        -- ImGui Vulkan bootstrap
-        includePath .. "/vk_bootstrap/VkBootstrap.cpp"
+        includePath .. "/imgui/backends/imgui_impl_sdlgpu3.cpp"
     }
 	
 	buildoptions { "/utf-8" }
@@ -101,7 +95,7 @@ project "Application"
     }
     
     links { "Engine" }
-    links { "SDL3", "vulkan-1", "glew32", "opengl32" }
+    links { "SDL3" }
 
     -- Precompiled header settings
     filter "action:vs*"

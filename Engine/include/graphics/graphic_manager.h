@@ -1,20 +1,25 @@
 #pragma once
-#include <memory>
+#include "options.h"
 
-namespace Thsan
+#include <memory>
+#include <functional>
+
+struct SDL_GPUDevice;
+
+namespace Olaf
 {
     class Window;
-    class GpuDevice;
 
     class GraphicsManager
     {
 
     public:
-        void init(std::shared_ptr<Window> window);
-        void update();
+        void init(const Options& options, std::shared_ptr<Window> window, std::function<void(Options&, GraphicsManager&, const double&)> onDrawCallback);
+        void update(Options& options, double dt);
         void close();
     private:
+        std::function<void(Options&, GraphicsManager&, const double&)> onDraw;
         std::shared_ptr<Window> pWindow;
-        std::shared_ptr<GpuDevice> pGpuDevice;
+        SDL_GPUDevice* gpu;
     };
 }
