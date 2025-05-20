@@ -1,6 +1,7 @@
 # Build directories
 bin/
 obj/
+build/
 Debug/
 Release/
 x64/
@@ -8,6 +9,7 @@ x86/
 ARM/
 ARM64/
 .vs/
+_deps/
 
 # Ignore Visual Studio solution and project files
 *.sln
@@ -48,3 +50,6 @@ ARM64/
 # Ignore Windows-specific files
 Thumbs.db
 Desktop.ini
+
+# Ignore LSP artifacts
+compile_commands.json
