@@ -1,6 +1,6 @@
 # Olaf Snow Simulator
 
-## Installation
+## Build (Windows)
 
 ### Visual Studio
 
@@ -10,12 +10,12 @@ If you encounter a problem, make sure your Visual Studio installation includes W
 
 ### CLI
 
-1. Make sure winget is installed by opening a command prompt and running `winget --version`.
+1. Make sure winget is installed by opening a command prompt and running `winget --version`.  
 1.1 If winget isn't installed, follow this tutorial https://www.youtube.com/watch?v=8BUA2vc-pXY
 
-2. Install CMake if need with `winget install -e --id Kitware.CMake`
+2. Install CMake if needed with `winget install -e --id Kitware.CMake`
 
-3. Install Ninja with `winget install -e --id Ninja-build.Ninja`.
+3. Install Ninja if needed with `winget install -e --id Ninja-build.Ninja`.
 
 4. Restart command prompt.
 
@@ -26,4 +26,4 @@ Alternatively, load x64 native tools and run the following:
 ```bash
 `cmake --preset [preset]`
 `cmake --build --preset [preset]`
-``
+```
