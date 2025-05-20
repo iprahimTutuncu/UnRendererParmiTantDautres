@@ -1,0 +1,50 @@
+{
+    "version": 8,
+    "configurePresets": [
+        {
+            "hidden": true,
+            "name": "common",
+            "displayName": "Common",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}"
+        },
+        { 
+            "name": "Debug",
+            "displayName": "Debug",
+            "inherits": "common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        { 
+            "name": "Release",
+            "displayName": "Release",
+            "inherits": "common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "RelWithDebInfo",
+            "displayName": "RelWithDebInfo",
+            "inherits": "common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "MinSizeRel",
+            "displayName": "MinSizeRel",
+            "inherits": "common",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "MinSizeRel"
+            }
+        }
+    ],
+    "buildPresets": [
+        { "name": "Debug",   "configurePreset": "Debug" },
+        { "name": "Release", "configurePreset": "Release" },
+        { "name": "RelWithDebInfo", "configurePreset": "RelWithDebInfo" },
+        { "name": "MinSizeRel",     "configurePreset": "MinSizeRel" }
+    ]
+}
