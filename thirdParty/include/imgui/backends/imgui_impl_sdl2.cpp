@@ -1,4 +1,3 @@
-#include "pch.h"
 
 // dear imgui: Platform Backend for SDL2
 // This needs to be used along with a Renderer (e.g. DirectX11, OpenGL3, Vulkan..)
