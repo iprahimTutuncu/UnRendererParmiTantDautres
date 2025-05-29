@@ -4,10 +4,9 @@
 #include <olaf/system/event.h>
 #include <olaf/system/log.h>
 
+#include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_render.h>
-
-#include <SDL3/SDL_gpu.h>
 
 namespace Olaf {
     bool WindowSDL3::init(const int width, const int height, const char* title) {

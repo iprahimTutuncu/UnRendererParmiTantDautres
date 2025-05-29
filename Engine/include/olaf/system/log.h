@@ -6,7 +6,7 @@
 #ifdef _WIN32
 #define OLAF_BREAK __debugbreak();
 #else
-#define OLAF_BREAK _builtin_trap();
+#define OLAF_BREAK __builtin_trap();
 #endif
 
 #ifdef DEBUG
