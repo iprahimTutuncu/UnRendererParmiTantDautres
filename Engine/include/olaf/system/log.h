@@ -3,7 +3,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-#if defined(PLATFORM_WINDOWS)
+#ifdef _WIN32
 #define OLAF_BREAK __debugbreak();
 #else
 #define OLAF_BREAK _builtin_trap();

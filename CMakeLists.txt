@@ -76,6 +76,9 @@ else()
     add_compile_options(-Wall -Wextra -pedantic)
 endif()
 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(DEBUG=1)
+endif()
 
 # go to the different modules
 add_subdirectory(Engine)
