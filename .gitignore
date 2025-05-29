@@ -23,6 +23,7 @@ _deps/
 *.opendb
 *.ncb
 *.log
+application/app_logs.txt
 
 # Ignore compiled binaries
 *.exe
@@ -53,3 +54,11 @@ Desktop.ini
 
 # Ignore LSP artifacts
 compile_commands.json
+
+# Ignore cmake VS Solution generated files
+*/cmake_install.cmake
+*/CMakeFiles/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
