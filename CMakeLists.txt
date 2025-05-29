@@ -73,7 +73,7 @@ add_subdirectory(thirdParty/spdlog)
 if (WIN32 OR MSVC)
     add_compile_options(/EHsc /W4)
 else()
-    add_compile_options(-Wall -Wextra -pedantic)
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
