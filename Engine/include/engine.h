@@ -1,19 +1,17 @@
 #pragma once
 
-#include "options.h"
-#include "system/window.h"
-#include "system/system_manager.h"
 #include "graphics/graphic_api.h"
 #include "graphics/graphic_manager.h"
+#include "options.h"
+#include "system/system_manager.h"
+#include "system/window.h"
 
 #include <memory>
-#include <vector>
 #include <thread>
+#include <vector>
 
-namespace Olaf
-{
-    class Engine
-    {
+namespace Olaf {
+    class Engine {
     public:
         Engine();
         ~Engine();
@@ -32,23 +30,21 @@ namespace Olaf
         virtual void onDraw(Options& options, GraphicsManager& graphicsManager, const double& deltaTime) = 0;
 
     private:
-
         void run();
 
         std::shared_ptr<Window> window;
-        std::atomic<bool> isRunning{ false };
+        std::atomic<bool> isRunning { false };
         std::shared_ptr<ControlSetting> controlSetting;
         std::shared_ptr<GraphicsManager> graphicsManager;
         std::shared_ptr<SystemManager> systemManager;
         std::thread graphicsThread;
 
-        double targetFrameRate{ 60.0 };
+        double targetFrameRate { 60.0 };
 
         Options options;
 
         int prevWidth;
         int prevHeight;
-
     };
-    
+
 }

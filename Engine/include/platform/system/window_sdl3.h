@@ -7,12 +7,10 @@
 struct SDL_Window;
 struct SDL_GPUDevice;
 
-namespace Olaf
-{
+namespace Olaf {
     class GpuDevice;
 
-    class WindowSDL3 : public Window
-    {
+    class WindowSDL3 : public Window {
     public:
         WindowSDL3() = default;
         ~WindowSDL3() = default;
@@ -29,11 +27,9 @@ namespace Olaf
         GpuHandle getGpuDevice() override;
 
     private:
+        SDL_Window* sdlWindow { nullptr };
+        SDL_GPUDevice* sdlGPU { nullptr };
 
-        SDL_Window* sdlWindow{ nullptr };
-        SDL_GPUDevice* sdlGPU{ nullptr };
-
-        std::function<void(int, int)> resizeCallback{ nullptr };
-
+        std::function<void(int, int)> resizeCallback { nullptr };
     };
 }

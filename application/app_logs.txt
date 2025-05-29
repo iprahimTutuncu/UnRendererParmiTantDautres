@@ -1,4 +1,0 @@
-[2025-05-12 03:27:14.346] [OLAF] [18664] [info] Logger initialized.
-[2025-05-12 03:27:15.295] [OLAF] [18664] [info] Available GPU driver: vulkan
-[2025-05-12 03:27:15.438] [OLAF] [18664] [info] SDL3 GPU Window created using Vulkan backend.
-[2025-05-12 03:27:15.438] [OLAF] [18664] [info] SDL3 Window created: Olaf Engine, (X: 1280, Y: 768)

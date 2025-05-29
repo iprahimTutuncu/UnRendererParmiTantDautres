@@ -1,51 +1,44 @@
-#include "pch.h"
-#include "options.h"
 #include "system/system_manager.h"
+#include "options.h"
+#include "pch.h"
+#include "system/event.h"
 #include "system/log_manager.h"
 #include "system/window.h"
-#include "system/event.h"
 
-namespace Olaf
-{
-	void Olaf::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback)
-	{
-		LogManager::init();
+namespace Olaf {
+    void Olaf::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback) {
+        LogManager::init();
 
-		pWindow = Window::create(WindowAPI::SDL3);
+        pWindow = Window::create(WindowAPI::SDL3);
 
-		if (!pWindow->init(options.screenWidth, options.screenHeight, "Olaf Engine"))
-		{
-			return;
-		}
-		pControlSetting = controlSetting;
-		this->onInput = onInputCallback;
+        if (!pWindow->init(options.screenWidth, options.screenHeight, "Olaf Engine")) {
+            return;
+        }
+        pControlSetting = controlSetting;
+        this->onInput = onInputCallback;
 
-		pWindow->enableEventForHUD();
-	}
+        pWindow->enableEventForHUD();
+    }
 
-	void Olaf::SystemManager::update(Options& options, double dt)
-	{
-		std::vector<Event> events = pWindow->pollEvent();
+    void Olaf::SystemManager::update(Options& options, double dt) {
+        std::vector<Event> events = pWindow->pollEvent();
 
-		for (Event e : events)
-			pControlSetting->handleInput(e);
+        for (Event e : events)
+            pControlSetting->handleInput(e);
 
-		pControlSetting->updateInput();
+        pControlSetting->updateInput();
 
-		if(onInput) onInput(options, dt, pControlSetting->getInput());
-	}
+        if (onInput) onInput(options, dt, pControlSetting->getInput());
+    }
 
-	void SystemManager::close()
-	{
-		if(pWindow)
-			pWindow->close();
+    void SystemManager::close() {
+        if (pWindow)
+            pWindow->close();
 
-		LogManager::shutdown();
-	}
+        LogManager::shutdown();
+    }
 
-
-	std::shared_ptr<Window> SystemManager::getWindow()
-	{
-		return pWindow;
-	}
+    std::shared_ptr<Window> SystemManager::getWindow() {
+        return pWindow;
+    }
 }

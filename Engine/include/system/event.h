@@ -1,26 +1,23 @@
 #pragma once
 #include "system/key_code.h"
 
-namespace Olaf 
-{
-	class Event 
-	{
-	public:
-		struct KeyEvent 
-		{
-			Key code;
-		};
+namespace Olaf {
+    class Event {
+    public:
+        struct KeyEvent {
+            Key code;
+        };
 
-		union {
-			KeyEvent key;
-		};
+        union {
+            KeyEvent key;
+        };
 
-		enum EventType {
-			None = 0,
-			KeyPressed = 1,
-			KeyReleased = 2
-		};
+        enum EventType {
+            None = 0,
+            KeyPressed = 1,
+            KeyReleased = 2
+        };
 
-		EventType type;
-	};
+        EventType type;
+    };
 }

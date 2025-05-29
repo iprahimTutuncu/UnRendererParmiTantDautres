@@ -1,22 +1,18 @@
 #pragma once
 
-namespace Olaf
-{
-	struct WindowOptions
-	{
-		int screenWidth{};
-		int screenHeight{};
-	};
+namespace Olaf {
+    struct WindowOptions {
+        int screenWidth {};
+        int screenHeight {};
+    };
 
-	struct RenderOptions
-	{
+    struct RenderOptions {
+    };
 
-	};
+    struct Options
 
-	struct Options
-
-	{
-		RenderOptions renderOptions;
-		WindowOptions windowOptions;
-	};
+    {
+        RenderOptions renderOptions;
+        WindowOptions windowOptions;
+    };
 }
