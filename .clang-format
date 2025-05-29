@@ -1,0 +1,22 @@
+---
+BasedOnStyle: WebKit
+AccessModifierOffset: "-4"
+AlignConsecutiveMacros: "true"
+AllowShortBlocksOnASingleLine: "true"
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: Empty
+DerivePointerAlignment: "true"
+IndentWidth: "4"
+NamespaceIndentation: All
+PointerAlignment: Left
+SpaceAfterCStyleCast: "false"
+SpaceAfterLogicalNot: "false"
+SpaceBeforeParens: ControlStatements
+SpacesInAngles: "false"
+SpacesInCStyleCastParentheses: "false"
+SpacesInParentheses: "false"
+SpacesInSquareBrackets: "false"
+BreakBeforeBinaryOperators: All
+BreakBeforeBraces: Attach
+InsertNewlineAtEOF: "true"
