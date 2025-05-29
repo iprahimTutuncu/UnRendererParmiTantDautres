@@ -1,79 +1,68 @@
-#include "pch.h"
-#include "system/keyboard.h"
-#include "system/log.h"
+#include <olaf/system/keyboard.h>
+#include <olaf/system/log.h>
 
 #include <SDL3/SDL_keyboard.h>
 
-namespace Olaf
-{
-	std::array<bool, Keyboard::keyCount> Keyboard::keys;
-	std::array<bool, Keyboard::keyCount> Keyboard::keysDown;
-	std::array<bool, Keyboard::keyCount> Keyboard::keysUp;
-	
-	void Keyboard::init()
-	{
-		std::fill(keys.begin(), keys.end(), false);
-		std::fill(keysDown.begin(), keysDown.end(), false);
-		std::fill(keysUp.begin(), keysUp.end(), false);
-	}
+namespace Olaf {
+    std::array<bool, Keyboard::keyCount> Keyboard::keys;
+    std::array<bool, Keyboard::keyCount> Keyboard::keysDown;
+    std::array<bool, Keyboard::keyCount> Keyboard::keysUp;
 
-	void Keyboard::update()
-	{
-		std::fill(keysDown.begin(), keysDown.end(), false);
-		std::fill(keysUp.begin(), keysUp.end(), false);
+    void Keyboard::init() {
+        std::fill(keys.begin(), keys.end(), false);
+        std::fill(keysDown.begin(), keysDown.end(), false);
+        std::fill(keysUp.begin(), keysUp.end(), false);
+    }
 
-		const bool* state = SDL_GetKeyboardState(nullptr); // does not exist in sdl3
+    void Keyboard::update() {
+        std::fill(keysDown.begin(), keysDown.end(), false);
+        std::fill(keysUp.begin(), keysUp.end(), false);
 
-		for (int i = Key::kFirst; i < keyCount; i++)
-		{
-			bool wasDown = keys[i];
-			keys[i] = state[i];
-			bool isDown = keys[i];
+        const bool* state = SDL_GetKeyboardState(nullptr); // does not exist in sdl3
 
-			if (wasDown && !isDown)
-				keysUp[i] = true;
-			else if (!wasDown && isDown)
-				keysDown[i] = true;
-		}
-	}
+        for (int i = Key::kFirst; i < keyCount; i++) {
+            bool wasDown = keys[i];
+            keys[i] = state[i];
+            bool isDown = keys[i];
 
-	bool Keyboard::key(Key keyVal)
-	{
-		OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
-		if (keyVal >= Key::kFirst && keyVal < keyCount)
-			return keys[keyVal];
+            if (wasDown && !isDown)
+                keysUp[i] = true;
+            else if (!wasDown && isDown)
+                keysDown[i] = true;
+        }
+    }
 
-		return false;
-	}
+    bool Keyboard::key(Key keyVal) {
+        OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
+        if (keyVal >= Key::kFirst && keyVal < keyCount)
+            return keys[keyVal];
 
-	bool Keyboard::keyDown(Key keyVal)
-	{
-		OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
-		if (keyVal >= Key::kFirst && keyVal < keyCount)
-			return keysDown[keyVal];
+        return false;
+    }
 
-		return false;
-	}
+    bool Keyboard::keyDown(Key keyVal) {
+        OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
+        if (keyVal >= Key::kFirst && keyVal < keyCount)
+            return keysDown[keyVal];
 
-	bool Keyboard::keyUp(Key keyVal)
-	{
-		OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
-		if (keyVal >= Key::kFirst && keyVal < keyCount)
-			return keysUp[keyVal];
+        return false;
+    }
 
-		return false;
-	}
+    bool Keyboard::keyUp(Key keyVal) {
+        OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
+        if (keyVal >= Key::kFirst && keyVal < keyCount)
+            return keysUp[keyVal];
 
-	bool is_key_pressed(Key keyVal)
-	{
-		return Keyboard::key(keyVal);
-	}
-	bool is_key_pressed_no_repeat(Key keyVal)
-	{
-		return Keyboard::keyDown(keyVal);
-	}
-	bool is_key_released(Key keyVal)
-	{
-		return  Keyboard::keyUp(keyVal);
-	}
+        return false;
+    }
+
+    bool is_key_pressed(Key keyVal) {
+        return Keyboard::key(keyVal);
+    }
+    bool is_key_pressed_no_repeat(Key keyVal) {
+        return Keyboard::keyDown(keyVal);
+    }
+    bool is_key_released(Key keyVal) {
+        return Keyboard::keyUp(keyVal);
+    }
 }

@@ -1,51 +1,44 @@
-#include "pch.h"
-#include "options.h"
-#include "system/system_manager.h"
-#include "system/log_manager.h"
-#include "system/window.h"
-#include "system/event.h"
+#include <olaf/system/system_manager.h>
 
-namespace Olaf
-{
-	void Olaf::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback)
-	{
-		LogManager::init();
+#include <olaf/options.h>
+#include <olaf/system/event.h>
+#include <olaf/system/log_manager.h>
+#include <olaf/system/window.h>
 
-		pWindow = Window::create(WindowAPI::SDL3);
+namespace Olaf {
+    void Olaf::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback) {
+        LogManager::init();
 
-		if (!pWindow->init(options.screenWidth, options.screenHeight, "Olaf Engine"))
-		{
-			return;
-		}
-		pControlSetting = controlSetting;
-		this->onInput = onInputCallback;
+        pWindow = Window::create(WindowAPI::SDL3);
 
-		pWindow->enableEventForHUD();
-	}
+        if (!pWindow->init(options.screenWidth, options.screenHeight, "Olaf Engine")) {
+            return;
+        }
+        pControlSetting = controlSetting;
+        this->onInput = onInputCallback;
 
-	void Olaf::SystemManager::update(Options& options, double dt)
-	{
-		std::vector<Event> events = pWindow->pollEvent();
+        pWindow->enableEventForHUD();
+    }
 
-		for (Event e : events)
-			pControlSetting->handleInput(e);
+    void Olaf::SystemManager::update(Options& options, double dt) {
+        std::vector<Event> events = pWindow->pollEvent();
 
-		pControlSetting->updateInput();
+        for (Event e : events)
+            pControlSetting->handleInput(e);
 
-		if(onInput) onInput(options, dt, pControlSetting->getInput());
-	}
+        pControlSetting->updateInput();
 
-	void SystemManager::close()
-	{
-		if(pWindow)
-			pWindow->close();
+        if (onInput) onInput(options, dt, pControlSetting->getInput());
+    }
 
-		LogManager::shutdown();
-	}
+    void SystemManager::close() {
+        if (pWindow)
+            pWindow->close();
 
+        LogManager::shutdown();
+    }
 
-	std::shared_ptr<Window> SystemManager::getWindow()
-	{
-		return pWindow;
-	}
+    std::shared_ptr<Window> SystemManager::getWindow() {
+        return pWindow;
+    }
 }
