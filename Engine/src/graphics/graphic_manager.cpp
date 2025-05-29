@@ -1,4 +1,5 @@
 #include <olaf/graphics/graphic_manager.h>
+
 #include <olaf/options.h>
 #include <olaf/system/log.h>
 #include <olaf/system/window.h>
