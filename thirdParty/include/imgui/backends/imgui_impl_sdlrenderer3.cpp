@@ -1,4 +1,3 @@
-#include "pch.h"
 // dear imgui: Renderer Backend for SDL_Renderer for SDL3
 // (Requires: SDL 3.0.0+)
 

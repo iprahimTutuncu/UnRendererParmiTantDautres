@@ -1,4 +1,3 @@
-#include "pch.h"
 // dear imgui: Renderer Backend for SDL_GPU
 // This needs to be used along with the SDL3 Platform Backend
 
