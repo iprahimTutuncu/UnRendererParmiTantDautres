@@ -18,7 +18,7 @@ endif()
 
 # Optimization
 if (WIN32 OR MSVC)
-    add_compile_options(/Ox /utf-8)
+    add_compile_options(/utf-8)
 else()
     add_compile_options(-march=native -mtune=native)
 endif()
@@ -71,7 +71,7 @@ add_subdirectory(thirdParty/spdlog)
 
 # Add warning flags for Windows and Linux
 if (WIN32 OR MSVC)
-    add_compile_options(/EHsc /W4 /WX)
+    add_compile_options(/EHsc /W4)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
