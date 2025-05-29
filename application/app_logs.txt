@@ -1,0 +1,7 @@
+[2025-05-29 18:30:25.890] [OLAF] [10520] [info] Logger initialized.
+[2025-05-29 18:30:26.715] [OLAF] [10520] [info] Available GPU driver: vulkan
+[2025-05-29 18:30:26.827] [OLAF] [10520] [info] SDL3 GPU Window created using Vulkan backend.
+[2025-05-29 18:30:26.827] [OLAF] [10520] [info] SDL3 Window created: Olaf Engine, (X: 1280, Y: 768)
+[2025-05-29 18:30:26.836] [OLAF] [10520] [error] Press Left to toggle wireframe mode
+[2025-05-29 18:30:26.836] [OLAF] [10520] [error] Press Down to toggle small viewport
+[2025-05-29 18:30:26.837] [OLAF] [10520] [error] Press Right to toggle scissor rect

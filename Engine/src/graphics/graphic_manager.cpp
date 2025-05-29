@@ -116,7 +116,7 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 	onDraw = onDrawCallback;
 	pWindow = window;
 
-	ubo.proj = glm::perspective(70.f, (float) options.windowOptions.screenWidth / (float) options.windowOptions.screenHeight, 0.000001f, 1000.f);
+	ubo.proj = glm::perspective(glm::radians(50.f), (float)options.windowOptions.screenWidth / (float)options.windowOptions.screenHeight, 0.000001f, 1000.f);
 	
 	ubo.view = glm::lookAt
 	(
@@ -190,6 +190,7 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 		pipelineCreateInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
 		pipelineCreateInfo.vertex_shader = vertexShader;
 		pipelineCreateInfo.fragment_shader = fragmentShader;
+		pipelineCreateInfo.vertex_input_state = vertexInputState;
 
 		pipelineCreateInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
 		FillPipeline = SDL_CreateGPUGraphicsPipeline(gpu, &pipelineCreateInfo);
@@ -318,7 +319,17 @@ void Olaf::GraphicsManager::update(Options& options, double dt)
 
 			// uniform data
 
-			ubo.model = glm::rotate(ubo.model, 5.f * (float) dt, glm::vec3(0.0, 1.0, 0.0));
+			float rotationSpeedDegPerSec = 90.0f;
+			float angleRadians = glm::radians(rotationSpeedDegPerSec * static_cast<float>(dt));
+			glm::vec3 rotationAxis = glm::vec3(0.0f, 1.0f, 0.0f);
+
+			ubo.model = glm::rotate(ubo.model, angleRadians, rotationAxis);
+
+			SDL_GPUBufferBinding binding = {};
+			binding.buffer = vertexBuffer;
+			binding.offset = 0;
+
+			SDL_BindGPUVertexBuffers(renderPass, 0, &binding, 1);
 			SDL_PushGPUVertexUniformData(cmdbuf, 0, &ubo, sizeof(ubo));
 			SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
 			SDL_EndGPURenderPass(renderPass);

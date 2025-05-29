@@ -43,6 +43,13 @@ namespace Olaf
         void close();
         void add(const Box* box);
         void remove(const Box* box);
+
+        //void add(const std::Vector<Particle>* particles);
+        //void remove(const std::Vector<Particle>* particles);
+
+        //void add(const Mesh* mesh);
+        //void remove(const Mesh* mesh);
+
     private:
         std::function<void(Options&, GraphicsManager&, const double&)> onDraw;
         std::shared_ptr<Window> pWindow;

@@ -6,6 +6,7 @@
 
 #include "graphics/graphic_api.h"
 #include <system/log_manager.h>
+#include <SDL3/SDL_timer.h>
 
 std::chrono::duration<double> frameDuration;
 
@@ -63,18 +64,15 @@ namespace Olaf
 
     void Engine::run()
     {
-        frameDuration = std::chrono::duration<double>(1.0 / targetFrameRate);
+        const double targetFrameMS = 1000.0 / static_cast<double>(targetFrameRate);
 
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        auto accumulator = std::chrono::duration<double>(0);
+        Uint64 frameStartMS = SDL_GetTicks();
 
         while (isRunning)
         {
-            auto newTime = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> frameTime = newTime - currentTime;
-            currentTime = newTime;
-
-            double deltaTime = frameTime.count();
+            Uint64 newTimeMS = SDL_GetTicks();
+            double deltaTime = static_cast<double>(newTimeMS - frameStartMS) / 1000.0;
+            frameStartMS = newTimeMS;
 
             int w = options.windowOptions.screenWidth;
             int h = options.windowOptions.screenHeight;
@@ -87,22 +85,25 @@ namespace Olaf
             prevWidth = w;
             prevHeight = h;
 
-            accumulator += frameTime;
-            while (accumulator >= frameDuration) 
-            {
-                onUpdate(options, deltaTime);
-                systemManager->update(options, deltaTime);
-                graphicsManager->update(options, deltaTime);
-
-                accumulator -= frameDuration;
-            }
+            onUpdate(options, deltaTime);
+            systemManager->update(options, deltaTime);
+            graphicsManager->update(options, deltaTime);
 
             isRunning.store(window->isRunning(), std::memory_order_relaxed);
+
+            Uint64 frameEndMS = SDL_GetTicks();
+            double elapsedMS = static_cast<double>(frameEndMS - frameStartMS);
+
+            if (elapsedMS < targetFrameMS)
+            {
+                SDL_Delay(static_cast<Uint32>(targetFrameMS - elapsedMS));
+            }
         }
 
         onExit();
         graphicsManager->close();
         systemManager->close();
     }
+
 
 }
