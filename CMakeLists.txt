@@ -57,7 +57,6 @@ target_include_directories(ImGui PUBLIC thirdParty/imgui)
 target_include_directories(ImGui PRIVATE thirdParty/imgui/backends)
 target_link_libraries(ImGui PRIVATE
     SDL3::SDL3
-    OpenGL::GL
 )
 
 # OpenGL Mathematics (GLM)
