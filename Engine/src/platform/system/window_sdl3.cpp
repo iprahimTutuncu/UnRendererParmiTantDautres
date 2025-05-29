@@ -95,8 +95,6 @@ namespace Olaf {
         SDL_Event e;
 
         while (SDL_PollEvent(&e)) {
-            if (isEventEnableForHUD)
-                ; // ImGui_ImplSDL3_ProcessEvent(&e); // SDL3 equivalent if available
 
             Event tmp_event;
 
