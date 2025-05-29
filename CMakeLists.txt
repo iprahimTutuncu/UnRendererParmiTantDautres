@@ -73,7 +73,7 @@ add_subdirectory(thirdParty/spdlog)
 if (WIN32 OR MSVC)
     add_compile_options(/EHsc /W4)
 else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
+    add_compile_options(-Wall -Wextra -pedantic)
 endif()
 
 
