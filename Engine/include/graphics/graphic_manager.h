@@ -55,6 +55,7 @@ namespace Olaf
         std::shared_ptr<Window> pWindow;
         SDL_GPUDevice* gpu;
         SDL_GPUBuffer* vertexBuffer;
+        SDL_GPUBuffer* indexBuffer;
         std::vector<const Box*> boxes;
 
         //très temporaire, j'va jsute tester mon shader

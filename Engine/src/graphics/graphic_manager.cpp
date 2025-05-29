@@ -215,43 +215,61 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 		OLAF_ERROR("Press Down to toggle small viewport");
 		OLAF_ERROR("Press Right to toggle scissor rect");
 		// Create the vertex buffer
+
 		SDL_GPUBufferCreateInfo vertexBufferInfo = {};
 		vertexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
-		vertexBufferInfo.size = sizeof(Vertex) * 3;
+		vertexBufferInfo.size = sizeof(Vertex) * 4;
 
 		vertexBuffer = SDL_CreateGPUBuffer(gpu, &vertexBufferInfo);
+
+		SDL_GPUBufferCreateInfo indexBufferInfo = {};
+		indexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_INDEX;
+		indexBufferInfo.size = sizeof(Uint16) * 6;
+
+		indexBuffer = SDL_CreateGPUBuffer(gpu, &indexBufferInfo);
 
 		// Create the transfer buffer
 		SDL_GPUTransferBufferCreateInfo transferBufferInfo = {};
 		transferBufferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-		transferBufferInfo.size = sizeof(Vertex) * 3;
+		transferBufferInfo.size = vertexBufferInfo.size + indexBufferInfo.size;  // Quad = 4 vertices
 
 		SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(gpu, &transferBufferInfo);
 
 		// Map the transfer buffer
 		Vertex* transferData = static_cast<Vertex*>(SDL_MapGPUTransferBuffer(gpu, transferBuffer, false));
 
-		// Fill in the vertex data (position, normal, texCoord)
-		transferData[0] = Vertex
-		{
-			{-1.0f, -1.0f, 0.0f},    // position
-			{0.0f,  0.0f, 1.0f},     // normal
-			{0.0f,  0.0f}            // texCoord
+		// Fill in the vertex data for a quad (2 triangles)
+		transferData[0] = Vertex{
+			{-1.0f, 1.0f, 0.0f},  
+			{0.0f,  0.0f, 1.0f},
+			{0.0f,  0.0f}
 		};
 
-		transferData[1] = Vertex
-		{
-			{1.0f, -1.0f, 0.0f},
-			{0.0f, 0.0f, 1.0f},
-			{1.0f, 0.0f}
+		transferData[1] = Vertex{
+			{ 1.0f, 1.0f, 0.0f}, 
+			{0.0f,  0.0f, 1.0f},
+			{1.0f,  0.0f}
 		};
 
-		transferData[2] = Vertex
-		{
-			{0.0f, 1.0f, 0.0f},
-			{0.0f, 0.0f, 1.0f},
-			{0.5f, 1.0f}
+		transferData[2] = Vertex{
+			{ 1.0f,  -1.0f, 0.0f},
+			{0.0f,  0.0f, 1.0f},
+			{1.0f,  1.0f}
 		};
+
+		transferData[3] = Vertex{
+			{-1.0f,  -1.0f, 0.0f}, 
+			{0.0f,  0.0f, 1.0f},
+			{0.0f,  1.0f}
+		};
+
+		Uint16* indexData = (Uint16*)&transferData[4];
+		indexData[0] = 0;
+		indexData[1] = 1;
+		indexData[2] = 2;
+		indexData[3] = 0;
+		indexData[4] = 2;
+		indexData[5] = 3;
 
 		SDL_UnmapGPUTransferBuffer(gpu, transferBuffer);
 
@@ -259,16 +277,27 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 		SDL_GPUCommandBuffer* uploadCmdBuf = SDL_AcquireGPUCommandBuffer(gpu);
 		SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(uploadCmdBuf);
 
-		SDL_GPUTransferBufferLocation transferLocation = {};
-		transferLocation.transfer_buffer = transferBuffer;
-		transferLocation.offset = 0;
+		SDL_GPUTransferBufferLocation vertexTransferLoc = {};
+		vertexTransferLoc.transfer_buffer = transferBuffer;
+		vertexTransferLoc.offset = 0;
 
-		SDL_GPUBufferRegion bufferRegion = {};
-		bufferRegion.buffer = vertexBuffer;
-		bufferRegion.offset = 0;
-		bufferRegion.size = sizeof(Vertex) * 3;
+		SDL_GPUBufferRegion vertexBufferRegion = {};
+		vertexBufferRegion.buffer = vertexBuffer;
+		vertexBufferRegion.offset = 0;
+		vertexBufferRegion.size = sizeof(Vertex) * 4;
 
-		SDL_UploadToGPUBuffer(copyPass, &transferLocation, &bufferRegion, false);
+		SDL_UploadToGPUBuffer(copyPass, &vertexTransferLoc, &vertexBufferRegion, false);
+
+		SDL_GPUTransferBufferLocation indexTransferLoc = {};
+		indexTransferLoc.transfer_buffer = transferBuffer;
+		indexTransferLoc.offset = sizeof(Vertex) * 4;
+
+		SDL_GPUBufferRegion indexBufferRegion = {};
+		indexBufferRegion.buffer = indexBuffer;
+		indexBufferRegion.offset = 0;
+		indexBufferRegion.size = sizeof(Uint16) * 6;
+		 
+		SDL_UploadToGPUBuffer(copyPass, &indexTransferLoc, &indexBufferRegion, false);
 
 		SDL_EndGPUCopyPass(copyPass);
 		SDL_SubmitGPUCommandBuffer(uploadCmdBuf);
@@ -329,9 +358,15 @@ void Olaf::GraphicsManager::update(Options& options, double dt)
 			binding.buffer = vertexBuffer;
 			binding.offset = 0;
 
+			SDL_GPUBufferBinding indexBinding = {};
+			indexBinding.buffer = indexBuffer;
+			indexBinding.offset = 0;
+
 			SDL_BindGPUVertexBuffers(renderPass, 0, &binding, 1);
+			SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+
 			SDL_PushGPUVertexUniformData(cmdbuf, 0, &ubo, sizeof(ubo));
-			SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
+			SDL_DrawGPUIndexedPrimitives(renderPass, 6, 1, 0, 0, 0);
 			SDL_EndGPURenderPass(renderPass);
 		}
 		SDL_SubmitGPUCommandBuffer(cmdbuf);
