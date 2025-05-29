@@ -60,8 +60,7 @@ target_link_libraries(ImGui PRIVATE
 )
 
 # OpenGL Mathematics (GLM)
-add_library(glm::glm INTERFACE IMPORTED)
-target_include_directories(glm::glm INTERFACE thirdParty/include)
+add_subdirectory(thirdParty/glm)
 
 # spdlog: Fast C++ logging library
 set(SPDLOG_ENABLE_PCH ON)
