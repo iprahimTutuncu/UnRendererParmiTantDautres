@@ -1,5 +1,4 @@
-#include "graphics/graphic_api.h"
-#include "pch.h"
+#include <olaf/graphics/graphic_api.h>
 
 namespace Olaf {
     GraphicAPI Graphics::graphicAPI = GraphicAPI::SDL3;

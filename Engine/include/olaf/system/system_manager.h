@@ -1,6 +1,6 @@
 #pragma once
-#include "control_setting.h"
-#include "options.h"
+#include <olaf/options.h>
+#include <olaf/system/control_setting.h>
 
 #include <functional>
 #include <memory>

@@ -1,11 +1,10 @@
-#include "pch.h"
-#include "engine.h"
-#include "system/window.h"
-#include "system/event.h"
-#include "system/control_setting.h"
 
-#include "graphics/graphic_api.h"
-#include <system/log_manager.h>
+#include <olaf/engine.h>
+#include <olaf/graphics/graphic_api.h>
+#include <olaf/system/control_setting.h>
+#include <olaf/system/event.h>
+#include <olaf/system/log_manager.h>
+#include <olaf/system/window.h>
 
 std::chrono::duration<double> frameDuration;
 

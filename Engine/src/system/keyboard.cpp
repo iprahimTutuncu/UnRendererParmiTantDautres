@@ -1,6 +1,5 @@
-#include "system/keyboard.h"
-#include "pch.h"
-#include "system/log.h"
+#include <olaf/system/keyboard.h>
+#include <olaf/system/log.h>
 
 #include <SDL3/SDL_keyboard.h>
 

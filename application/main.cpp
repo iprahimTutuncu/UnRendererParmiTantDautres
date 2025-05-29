@@ -1,5 +1,4 @@
-#include "pch.h"
-#include <engine.h>
+#include <olaf/engine.h>
 
 class Neige : public Olaf::Engine {
 public:
@@ -22,19 +21,26 @@ public:
     }
 
     void onInput(Olaf::Options& options, const double& deltaTime, const std::vector<Olaf::InputAction>& inputActions) override {
+        (void)options;
+        (void)deltaTime;
+        (void)inputActions;
     }
 
     void onUpdate(Olaf::Options& options, const double& deltaTime) override {
+        (void)options;
+        (void)deltaTime;
     }
 
     void onDraw(Olaf::Options& options, Olaf::GraphicsManager& graphicsManager, const double& deltaTime) override {
+        (void)options;
+        (void)graphicsManager;
+        (void)deltaTime;
     }
 };
 
-int main(int argc, char** argv) {
-    Olaf::Engine* engine = new Neige();
-    engine->init();
-    engine->start();
-    delete engine;
+int main() {
+    Neige engine;
+    engine.init();
+    engine.start();
     return 0;
 }

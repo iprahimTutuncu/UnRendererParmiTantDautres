@@ -1,23 +1,15 @@
-#include "pch.h"
-#include "options.h"
-#include "graphics/graphic_manager.h"
-#include "system/window.h"
+#include <olaf/graphics/graphic_manager.h>
+#include <olaf/options.h>
+#include <olaf/system/log.h>
+#include <olaf/system/window.h>
+
 #include <SDL3/SDL_gpu.h>
-#include <system/log.h>
-
-static SDL_GPUGraphicsPipeline *FillPipeline;
-static SDL_GPUGraphicsPipeline *LinePipeline;
-static SDL_GPUViewport SmallViewport = { 160, 120, 320, 240, 0.1f, 1.0f };
-static SDL_Rect ScissorRect = { 320, 240, 320, 240 };
-
-static bool UseWireframeMode = false;
-static bool UseSmallViewport = false;
-static bool UseScissorRect = false;
 
 void Olaf::GraphicsManager::init(
     const Options &options, std::shared_ptr<Window> window,
     std::function<void(Options &, GraphicsManager &, const double &)>
         onDrawCallback) {
+    (void)options;
     onDraw = onDrawCallback;
     pWindow = window;
 
@@ -40,7 +32,7 @@ void Olaf::GraphicsManager::update(Options &options, double dt) {
         }
 
         if (swapchainTexture != NULL) {
-            SDL_GPUColorTargetInfo colorTargetInfo = { 0 };
+            SDL_GPUColorTargetInfo colorTargetInfo = {};
             colorTargetInfo.texture = swapchainTexture;
             colorTargetInfo.clear_color = SDL_FColor { 0.3f, 0.4f, 0.5f, 1.0f };
             colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;

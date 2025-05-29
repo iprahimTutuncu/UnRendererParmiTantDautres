@@ -1,9 +1,8 @@
-#include "platform/system/window_sdl3.h"
-#include "pch.h"
+#include <olaf/platform/system/window_sdl3.h>
 
-#include "graphics/graphic_api.h"
-#include "system/event.h"
-#include "system/log.h"
+#include <olaf/graphics/graphic_api.h>
+#include <olaf/system/event.h>
+#include <olaf/system/log.h>
 
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_render.h>
@@ -13,8 +12,6 @@
 
 namespace Olaf {
     bool WindowSDL3::init(const int width, const int height, const char* title) {
-        bool success = false;
-
         this->width = width;
         this->height = height;
         this->title = title;
@@ -29,9 +26,10 @@ namespace Olaf {
 
             sdlGPU = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, "vulkan");
 
-            int count = 0;
+#ifdef DEBUG
             const char* drivers = SDL_GetGPUDeviceDriver(sdlGPU);
             OLAF_INFO("Available GPU driver: {}", drivers);
+#endif
 
             if (!sdlGPU) {
                 OLAF_ERROR("Failed to create SDL GPU Device: {}", SDL_GetError());

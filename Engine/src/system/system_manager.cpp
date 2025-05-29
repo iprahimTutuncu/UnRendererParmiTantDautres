@@ -1,9 +1,9 @@
-#include "system/system_manager.h"
-#include "options.h"
-#include "pch.h"
-#include "system/event.h"
-#include "system/log_manager.h"
-#include "system/window.h"
+#include <olaf/system/system_manager.h>
+
+#include <olaf/options.h>
+#include <olaf/system/event.h>
+#include <olaf/system/log_manager.h>
+#include <olaf/system/window.h>
 
 namespace Olaf {
     void Olaf::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback) {

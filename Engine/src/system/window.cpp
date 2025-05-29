@@ -1,7 +1,7 @@
-#include "system/window.h"
-#include "pch.h"
-#include "platform/system/window_sdl3.h"
-#include "system/log.h"
+#include <olaf/system/window.h>
+
+#include <olaf/platform/system/window_sdl3.h>
+#include <olaf/system/log.h>
 namespace Olaf {
     std::shared_ptr<Window> Olaf::Window::create(WindowAPI windowAPI) {
         if (windowAPI == WindowAPI::SDL3)

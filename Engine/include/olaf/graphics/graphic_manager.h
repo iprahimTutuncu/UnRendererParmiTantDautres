@@ -1,5 +1,5 @@
 #pragma once
-#include "options.h"
+#include <olaf/options.h>
 
 #include <functional>
 #include <memory>

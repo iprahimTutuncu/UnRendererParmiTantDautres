@@ -1,6 +1,8 @@
-#include "system/control_setting.h"
-#include "pch.h"
-#include "system/keyboard.h"
+#include <olaf/system/control_setting.h>
+
+#include <olaf/system/keyboard.h>
+
+#include <algorithm>
 
 namespace Olaf {
     void ControlSetting::add(Key inputKey, InputState inputState, InputAction inputAction) {

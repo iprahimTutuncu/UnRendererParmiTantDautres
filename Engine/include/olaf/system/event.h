@@ -1,5 +1,5 @@
 #pragma once
-#include "system/key_code.h"
+#include <olaf/system/key_code.h>
 
 namespace Olaf {
     class Event {

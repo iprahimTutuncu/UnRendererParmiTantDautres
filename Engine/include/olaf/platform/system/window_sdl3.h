@@ -1,6 +1,6 @@
 #pragma once
-#include <system/event.h>
-#include <system/window.h>
+#include <olaf/system/event.h>
+#include <olaf/system/window.h>
 
 #include <functional>
 

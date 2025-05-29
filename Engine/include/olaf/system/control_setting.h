@@ -1,10 +1,10 @@
 #pragma once
 
+#include <olaf/system/event.h>
+#include <olaf/system/keyboard.h>
+
 #include <map>
 #include <vector>
-
-#include "system/event.h"
-#include "system/keyboard.h"
 
 namespace Olaf {
     enum InputState {

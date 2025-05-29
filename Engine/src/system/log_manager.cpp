@@ -1,7 +1,5 @@
-#include "pch.h"
-
-#include "system/log.h"
-#include "system/log_manager.h"
+#include <olaf/system/log.h>
+#include <olaf/system/log_manager.h>
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>

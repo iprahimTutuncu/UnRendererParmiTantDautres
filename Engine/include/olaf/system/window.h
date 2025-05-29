@@ -1,8 +1,9 @@
 #pragma once
 
-#include "graphics/graphic_api.h"
+#include <olaf/graphics/graphic_api.h>
 
 #include <functional>
+#include <memory>
 #include <vector>
 
 namespace Olaf {

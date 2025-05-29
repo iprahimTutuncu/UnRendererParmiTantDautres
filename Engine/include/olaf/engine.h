@@ -1,14 +1,13 @@
 #pragma once
 
-#include "graphics/graphic_api.h"
-#include "graphics/graphic_manager.h"
-#include "options.h"
-#include "system/system_manager.h"
-#include "system/window.h"
+#include <olaf/graphics/graphic_api.h>
+#include <olaf/graphics/graphic_manager.h>
+#include <olaf/options.h>
+#include <olaf/system/system_manager.h>
+#include <olaf/system/window.h>
 
 #include <memory>
 #include <thread>
-#include <vector>
 
 namespace Olaf {
     class Engine {

@@ -1,7 +1,8 @@
 #pragma once
 
-#include <memory>
 #include <spdlog/spdlog.h>
+
+#include <memory>
 #include <string>
 
 class LogManager {
