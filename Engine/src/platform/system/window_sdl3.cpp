@@ -7,6 +7,7 @@
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_render.h>
+//#include <olaf/system/imgui/ImGuiSDLGPU.h>
 
 namespace Olaf {
     bool WindowSDL3::init(const int width, const int height, const char* title) {
@@ -53,6 +54,8 @@ namespace Olaf {
             OLAF_ERROR("I don't think any graphicAPI was specified");
             return false;
         }
+      //  ImGuiSDLGPU::getInstance(sdlGPU);
+      //  ImGuiSDLGPU::getInstance().initialize(sdlWindow);
 
         OLAF_INFO("SDL3 Window created: {}, (X: {}, Y: {})", title, width, height);
         return true;
@@ -97,6 +100,8 @@ namespace Olaf {
         while (SDL_PollEvent(&e)) {
 
             Event tmp_event;
+
+          //  ImGuiSDLGPU::getInstance().processEvent(&e);
 
             if (e.type == SDL_EVENT_QUIT) {
                 running = false;

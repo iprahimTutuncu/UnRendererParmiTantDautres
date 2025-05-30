@@ -27,11 +27,12 @@ namespace Olaf {
         virtual void onInput(Options& options, const double& deltaTime, const std::vector<InputAction>& inputActions) = 0;
         virtual void onUpdate(Options& options, const double& deltaTime) = 0;
         virtual void onDraw(Options& options, GraphicsManager& graphicsManager, const double& deltaTime) = 0;
-
+        
+        std::shared_ptr<Window> window;
     private:
         void run();
 
-        std::shared_ptr<Window> window;
+        
         std::atomic<bool> isRunning { false };
         std::shared_ptr<ControlSetting> controlSetting;
         std::shared_ptr<GraphicsManager> graphicsManager;
