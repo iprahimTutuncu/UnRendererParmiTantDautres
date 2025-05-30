@@ -13,7 +13,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 
 # Set build type
 if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "" FORCE)
+    set(CMAKE_BUILD_TYPE Debug)
 endif()
 
 # Optimization
@@ -76,7 +76,7 @@ else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"))
     add_compile_definitions(DEBUG=1)
 endif()
 
