@@ -7,7 +7,7 @@ namespace Olaf {
         if (windowAPI == WindowAPI::SDL3)
             return std::make_shared<WindowSDL3>();
 
-        OLAF_ASSERT("In Olaf::Window::create(WindowAPI windowAPI), no windowAPI seem to be available.", true);
+        OLAF_ASSERT(false, "In Olaf::Window::create(WindowAPI windowAPI), no windowAPI seem to be available.");
         return nullptr;
     }
 }
