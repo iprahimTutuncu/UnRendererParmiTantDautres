@@ -20,21 +20,13 @@ public:
     void onResume() override {
     }
 
-    void onInput(Olaf::Options& options, const double& deltaTime, const std::vector<Olaf::InputAction>& inputActions) override {
-        (void)options;
-        (void)deltaTime;
-        (void)inputActions;
+    void onInput([[maybe_unused]] Olaf::Options& options, [[maybe_unused]] const double& deltaTime, [[maybe_unused]] const std::vector<Olaf::InputAction>& inputActions) override {
     }
 
-    void onUpdate(Olaf::Options& options, const double& deltaTime) override {
-        (void)options;
-        (void)deltaTime;
+    void onUpdate([[maybe_unused]] Olaf::Options& options, [[maybe_unused]] const double& deltaTime) override {
     }
 
-    void onDraw(Olaf::Options& options, Olaf::GraphicsManager& graphicsManager, const double& deltaTime) override {
-        (void)options;
-        (void)graphicsManager;
-        (void)deltaTime;
+    void onDraw([[maybe_unused]] Olaf::Options& options, [[maybe_unused]] Olaf::GraphicsManager& graphicsManager, [[maybe_unused]] const double& deltaTime) override {
     }
 };
 
