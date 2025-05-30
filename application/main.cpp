@@ -48,12 +48,10 @@ public:
          imgui->render();
 
         //   SDL_Event event;
-        //while (SDL_PollEvent(&event)) {
-        //    imgui->processEvent(&event);
-
-        //    // Your own game input handling goes here, if needed
-        //    // ...
-        //}
+         auto events = window->pollEvent();
+         for (const auto& e : events) {
+             imgui->processEvent(&e.sdlEvent); 
+         }
     }
 
     void onDraw(Olaf::Options& options, Olaf::GraphicsManager& graphicsManager, const double& deltaTime) override {

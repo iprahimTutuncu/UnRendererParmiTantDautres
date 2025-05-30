@@ -100,7 +100,7 @@ namespace Olaf {
         while (SDL_PollEvent(&e)) {
 
             Event tmp_event;
-
+            tmp_event.sdlEvent = e; // <-- Add this line
           //  ImGuiSDLGPU::getInstance().processEvent(&e);
 
             if (e.type == SDL_EVENT_QUIT) {
