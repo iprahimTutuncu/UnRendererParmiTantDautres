@@ -6,7 +6,9 @@
 #include <system/log.h>
 #include <SDL3/SDL_filesystem.h>
 
+#include <stb_image/stb_image.h>
 #include <glm/ext.hpp>
+#include <graphics/image.h>
 
 static SDL_GPUGraphicsPipeline* FillPipeline;
 static SDL_GPUGraphicsPipeline* LinePipeline;
@@ -23,7 +25,6 @@ void InitializeAssetLoader()
 {
 	BasePath = SDL_GetBasePath();
 }
-
 
 SDL_GPUShader* LoadShader(
 	SDL_GPUDevice* device,
@@ -127,6 +128,9 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 	
 	ubo.model = glm::mat4(1.f);
 
+	Image image;
+	image.loadFromFile("media/images/sdl.png");
+
 	GpuHandle handle = pWindow->getGpuDevice();
 	if (get_graphic_API() == GraphicAPI::SDL3)
 	{
@@ -215,6 +219,14 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 		OLAF_ERROR("Press Down to toggle small viewport");
 		OLAF_ERROR("Press Right to toggle scissor rect");
 		// Create the vertex buffer
+
+		//Texture creation (to refactor to texture class)
+
+		SDL_GPUTextureCreateInfo textureCreateInfo;
+		textureCreateInfo.width = image.getWidth();
+		textureCreateInfo.height = image.getHeight();
+		textureCreateInfo.
+		auto texture = SDL_CreateGPUTexture(gpu, &textureCreateInfo);
 
 		SDL_GPUBufferCreateInfo vertexBufferInfo = {};
 		vertexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
