@@ -7,10 +7,9 @@
 #include <SDL3/SDL_gpu.h>
 
 void Olaf::GraphicsManager::init(
-    const Options &options, std::shared_ptr<Window> window,
+    [[maybe_unused]] const Options &options, std::shared_ptr<Window> window,
     std::function<void(Options &, GraphicsManager &, const double &)>
         onDrawCallback) {
-    (void)options;
     onDraw = onDrawCallback;
     pWindow = window;
 
