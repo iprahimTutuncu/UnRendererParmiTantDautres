@@ -8,6 +8,8 @@
 
 struct SDL_GPUDevice;
 struct SDL_GPUBuffer;
+struct SDL_GPUTexture;
+struct SDL_GPUSampler;
 
 namespace Olaf
 {
@@ -51,11 +53,14 @@ namespace Olaf
         //void remove(const Mesh* mesh);
 
     private:
+
         std::function<void(Options&, GraphicsManager&, const double&)> onDraw;
         std::shared_ptr<Window> pWindow;
         SDL_GPUDevice* gpu;
         SDL_GPUBuffer* vertexBuffer;
         SDL_GPUBuffer* indexBuffer;
+        SDL_GPUTexture* texture;
+        SDL_GPUTexture* depthTexture;
         std::vector<const Box*> boxes;
 
         //très temporaire, j'va jsute tester mon shader

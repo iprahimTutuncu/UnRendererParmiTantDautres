@@ -1,7 +1,9 @@
 #include "pch.h"
+#include "system/log.h"
 #include "graphics/image.h"
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
 #include "stb_image/stb_image.h"
-
 
 Image::Image(Image&& other) noexcept
     : pixels(std::move(other.pixels)),
@@ -30,14 +32,22 @@ Image& Image::operator=(Image&& other) noexcept
     return *this;
 }
 
+
 bool Image::loadFromFile(const std::string& filename, int desiredChannels)
 {
+    if (!std::filesystem::exists(filename))
+    {
+        OLAF_ERROR("File does not exist: {}", filename);
+        return false;
+    }
+
     if (!pixels.empty())
         pixels.clear();
 
-    unsigned char* tempData = stbi_load(filename.c_str(), &width, &height, &channels, desiredChannels);
+    uint8_t* tempData = stbi_load(filename.c_str(), &width, &height, &channels, desiredChannels);
     if (!tempData)
     {
+        OLAF_ERROR("Failed to load image: '{}' because of {}", filename, stbi_failure_reason());  // Optional: improve logging
         width = height = channels = 0;
         return false;
     }
@@ -52,4 +62,3 @@ bool Image::loadFromFile(const std::string& filename, int desiredChannels)
     stbi_image_free(tempData);
     return true;
 }
-
