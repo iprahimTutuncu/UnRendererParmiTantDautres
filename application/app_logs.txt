@@ -1,7 +1,7 @@
-[2025-05-30 01:42:12.488] [OLAF] [19192] [info] Logger initialized.
-[2025-05-30 01:42:13.186] [OLAF] [19192] [info] Available GPU driver: vulkan
-[2025-05-30 01:42:13.313] [OLAF] [19192] [info] SDL3 GPU Window created using Vulkan backend.
-[2025-05-30 01:42:13.316] [OLAF] [19192] [info] SDL3 Window created: Olaf Engine, (X: 1280, Y: 768)
-[2025-05-30 01:42:13.408] [OLAF] [19192] [error] Press Left to toggle wireframe mode
-[2025-05-30 01:42:13.409] [OLAF] [19192] [error] Press Down to toggle small viewport
-[2025-05-30 01:42:13.409] [OLAF] [19192] [error] Press Right to toggle scissor rect
+[2025-06-03 16:31:33.771] [OLAF] [10180] [info] Logger initialized.
+[2025-06-03 16:31:34.771] [OLAF] [10180] [info] Available GPU driver: vulkan
+[2025-06-03 16:31:34.886] [OLAF] [10180] [info] SDL3 GPU Window created using Vulkan backend.
+[2025-06-03 16:31:34.886] [OLAF] [10180] [info] SDL3 Window created: Olaf Engine, (X: 1280, Y: 768)
+[2025-06-03 16:31:35.028] [OLAF] [10180] [error] Press Left to toggle wireframe mode
+[2025-06-03 16:31:35.029] [OLAF] [10180] [error] Press Down to toggle small viewport
+[2025-06-03 16:31:35.030] [OLAF] [10180] [error] Press Right to toggle scissor rect

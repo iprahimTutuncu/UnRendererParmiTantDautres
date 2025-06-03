@@ -12,10 +12,11 @@
 
 static SDL_GPUGraphicsPipeline* FillPipeline;
 static SDL_GPUGraphicsPipeline* LinePipeline;
+static SDL_GPUGraphicsPipeline* renderPipeline;
 static SDL_GPUViewport SmallViewport = { 160, 120, 320, 240, 0.1f, 1.0f };
 static SDL_Rect ScissorRect = { 320, 240, 320, 240 };
 
-static bool UseWireframeMode = false;
+static bool UseWireframeMode = true;
 static bool UseSmallViewport = false;
 static bool UseScissorRect = false;
 
@@ -34,7 +35,6 @@ static const char* SamplerNames[] =
 SDL_GPUSampler* Samplers[SDL_arraysize(SamplerNames)];
 
 static int CurrentSamplerIndex;
-
 
 void InitializeAssetLoader()
 {
@@ -156,14 +156,26 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 		gpu = handle.as<SDL_GPUDevice>();
 
 		// Create the shaders
-		SDL_GPUShader* vertexShader = LoadShader(gpu, "RawTriangle.vert", 0, 1, 0, 0);
-		if (vertexShader == NULL)
+		SDL_GPUShader* gBufferVertexShader = LoadShader(gpu, "deferred_gBuffer.vert", 0, 1, 0, 0);
+		if (gBufferVertexShader == NULL)
 		{
 			OLAF_ERROR("Failed to create vertex shader!");
 		}
 
-		SDL_GPUShader* fragmentShader = LoadShader(gpu, "SolidColor.frag", 1, 0, 0, 0);
-		if (fragmentShader == NULL)
+		SDL_GPUShader* gBufferFragmentShader = LoadShader(gpu, "deferred_gBuffer.frag", 1, 0, 0, 0);
+		if (gBufferFragmentShader == NULL)
+		{
+			OLAF_ERROR("Failed to create fragment shader!");
+		}
+
+		SDL_GPUShader* deferredVertexShader = LoadShader(gpu, "quad.vert", 0, 0, 0, 0);
+		if (deferredVertexShader == NULL)
+		{
+			OLAF_ERROR("Failed to create vertex shader!");
+		}
+
+		SDL_GPUShader* deferredFragmentShader = LoadShader(gpu, "deferred_render.frag", 3, 1, 0, 0);
+		if (deferredFragmentShader == NULL)
 		{
 			OLAF_ERROR("Failed to create fragment shader!");
 		}
@@ -196,21 +208,6 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 		vertexAttributes[2].location = 2;
 		vertexAttributes[2].offset = sizeof(float) * 6; // 24 bytes
 
-		SDL_GPUVertexInputState vertexInputState = {};
-		vertexInputState.num_vertex_buffers = 1;
-		vertexInputState.vertex_buffer_descriptions = &vertexBufferDesc;
-		vertexInputState.num_vertex_attributes = 3;
-		vertexInputState.vertex_attributes = vertexAttributes;
-
-		SDL_GPUColorTargetDescription colorTargetDesc = {};
-		colorTargetDesc.format = SDL_GetGPUSwapchainTextureFormat(gpu, window);
-		
-		SDL_GPUDepthStencilState depthStencilState = {};
-		depthStencilState.enable_depth_test = true;
-		depthStencilState.enable_depth_write = true;
-		depthStencilState.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
-		depthStencilState.write_mask = 0xFF;
-
 		SDL_GPUTextureCreateInfo sceneDepthTextureInfo;
 		sceneDepthTextureInfo.type = SDL_GPU_TEXTURETYPE_2D;
 		int width, height;
@@ -225,33 +222,112 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 
 		depthTexture = SDL_CreateGPUTexture(gpu, &sceneDepthTextureInfo);
 
-		SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo = {};
-		pipelineCreateInfo.target_info.num_color_targets = 1;
-		pipelineCreateInfo.target_info.color_target_descriptions = &colorTargetDesc;
-		pipelineCreateInfo.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D24_UNORM;
-		pipelineCreateInfo.target_info.has_depth_stencil_target = true;
-		pipelineCreateInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-		pipelineCreateInfo.vertex_shader = vertexShader;
-		pipelineCreateInfo.fragment_shader = fragmentShader;
-		pipelineCreateInfo.vertex_input_state = vertexInputState;
-		pipelineCreateInfo.depth_stencil_state = depthStencilState;
-		pipelineCreateInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-		FillPipeline = SDL_CreateGPUGraphicsPipeline(gpu, &pipelineCreateInfo);
+		//g-buffer texture creation
+		auto createGBufferTexture = [=](int width, int height, SDL_GPUTextureFormat format) -> SDL_GPUTexture*
+			{
+				SDL_GPUTextureCreateInfo createInfo = {};
+				createInfo.type = SDL_GPU_TEXTURETYPE_2D;                     
+				createInfo.format = format;                                   
+				createInfo.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+				createInfo.width = static_cast<Uint32>(width);
+				createInfo.height = static_cast<Uint32>(height);
+				createInfo.layer_count_or_depth = 1;                          
+				createInfo.num_levels = 1;                                    
+				createInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;              
+				createInfo.props = 0;                                         
+
+				SDL_GPUTexture* texture = SDL_CreateGPUTexture(gpu, &createInfo);
+				if (!texture)
+				{
+					OLAF_ERROR("Failed to create G-buffer texture: {}", SDL_GetError());
+				}
+				return texture;
+			};
+
+		int w = options.windowOptions.screenWidth;
+		int h = options.windowOptions.screenHeight;
+
+		gPosition = createGBufferTexture(w, h, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT);
+		gNormal = createGBufferTexture(w, h, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT);
+		gAlbedo = createGBufferTexture(w, h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
+
+
+		SDL_GPUColorTargetDescription colorTargetDescs[3] = {};
+		SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(gpu, window);
+
+		for (int i = 0; i < 3; ++i)
+			colorTargetDescs[i].format = format;
+
+		// create les texture pour le Gbufffer ici
+		// review if I did good
+		SDL_GPUVertexInputState fullscreenInputState = {};
+		fullscreenInputState.num_vertex_buffers = 0;
+		fullscreenInputState.num_vertex_attributes = 0;
+
+		SDL_GPUVertexInputState vertexInputState = {};
+		vertexInputState.num_vertex_buffers = 1;
+		vertexInputState.vertex_buffer_descriptions = &vertexBufferDesc;
+		vertexInputState.num_vertex_attributes = 3;
+		vertexInputState.vertex_attributes = vertexAttributes;
+
+		SDL_GPUDepthStencilState depthStencilState = {};
+		depthStencilState.enable_depth_test = true;
+		depthStencilState.enable_depth_write = true;
+		depthStencilState.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+		depthStencilState.write_mask = 0xFF;
+
+		SDL_GPUGraphicsPipelineCreateInfo gPipelineCreateInfo = {};
+		gPipelineCreateInfo.target_info.num_color_targets = 3;
+		gPipelineCreateInfo.target_info.color_target_descriptions = colorTargetDescs;
+		gPipelineCreateInfo.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D24_UNORM;
+		gPipelineCreateInfo.target_info.has_depth_stencil_target = true;
+		gPipelineCreateInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+		gPipelineCreateInfo.vertex_shader = gBufferVertexShader;
+		gPipelineCreateInfo.fragment_shader = gBufferFragmentShader;
+		gPipelineCreateInfo.vertex_input_state = vertexInputState;
+		gPipelineCreateInfo.depth_stencil_state = depthStencilState;
+		gPipelineCreateInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+		FillPipeline = SDL_CreateGPUGraphicsPipeline(gpu, &gPipelineCreateInfo);
 		if (FillPipeline == NULL)
 		{
 			OLAF_ERROR("Failed to create fill pipeline!");
 		}
 
-		pipelineCreateInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_LINE;
-		LinePipeline = SDL_CreateGPUGraphicsPipeline(gpu, &pipelineCreateInfo);
+		gPipelineCreateInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_LINE;
+		LinePipeline = SDL_CreateGPUGraphicsPipeline(gpu, &gPipelineCreateInfo);
 		if (LinePipeline == NULL)
 		{
 			OLAF_ERROR("Failed to create line pipeline!");
 		}
 
+		SDL_GPUDepthStencilState fullscreenDepthStencilState = {};
+		depthStencilState.enable_depth_test = false;
+		depthStencilState.enable_depth_write = false;
+		depthStencilState.compare_op = SDL_GPU_COMPAREOP_ALWAYS;
+
+		// make the final render pass here I think
+		SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo = {};
+		pipelineCreateInfo.target_info.num_color_targets = 1;
+		pipelineCreateInfo.target_info.color_target_descriptions = &colorTargetDescs[0];
+		pipelineCreateInfo.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D24_UNORM;
+		pipelineCreateInfo.target_info.has_depth_stencil_target = false;
+		pipelineCreateInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+		pipelineCreateInfo.vertex_shader = deferredVertexShader;
+		pipelineCreateInfo.fragment_shader = deferredFragmentShader;
+		pipelineCreateInfo.vertex_input_state = fullscreenInputState;
+		pipelineCreateInfo.depth_stencil_state = fullscreenDepthStencilState;
+		pipelineCreateInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+		renderPipeline = SDL_CreateGPUGraphicsPipeline(gpu, &pipelineCreateInfo);
+		if (renderPipeline == NULL)
+		{
+			OLAF_ERROR("Failed to create render pipeline!");
+		}
+
 		// Clean up shader resources
-		SDL_ReleaseGPUShader(gpu, vertexShader);
-		SDL_ReleaseGPUShader(gpu, fragmentShader);
+		SDL_ReleaseGPUShader(gpu, gBufferVertexShader);
+		SDL_ReleaseGPUShader(gpu, gBufferFragmentShader);
+		SDL_ReleaseGPUShader(gpu, deferredVertexShader);
+		SDL_ReleaseGPUShader(gpu, deferredFragmentShader);
 		// Assuming Samplers is an array of SDL_GPUSampler* of size at least 6
 
 		SDL_GPUSamplerCreateInfo info{};
@@ -327,7 +403,7 @@ void Olaf::GraphicsManager::init(const Options& options, std::shared_ptr<Window>
 		OLAF_ERROR("Press Down to toggle small viewport");
 		OLAF_ERROR("Press Right to toggle scissor rect");
 		// Create the vertex buffer
-
+		
 		//Texture creation (to refactor to texture class)
 
 		SDL_GPUTextureCreateInfo textureCreateInfo;
@@ -504,12 +580,6 @@ void Olaf::GraphicsManager::update(Options& options, double dt)
 		
 		if (swapchainTexture != NULL)
 		{
-			SDL_GPUColorTargetInfo colorTargetInfo = { 0 };
-			colorTargetInfo.texture = swapchainTexture;
-			colorTargetInfo.clear_color = SDL_FColor{ 0.3f, 0.4f, 0.5f, 1.0f };
-			colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
-			colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
-
 			SDL_GPUDepthStencilTargetInfo depthStencilTargetInfo = { 0 };
 			depthStencilTargetInfo.texture = depthTexture;
 			depthStencilTargetInfo.cycle = true;
@@ -520,8 +590,71 @@ void Olaf::GraphicsManager::update(Options& options, double dt)
 			depthStencilTargetInfo.stencil_load_op = SDL_GPU_LOADOP_CLEAR;
 			depthStencilTargetInfo.stencil_store_op = SDL_GPU_STOREOP_STORE;
 
-			SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTargetInfo, 1, &depthStencilTargetInfo);
-			SDL_BindGPUGraphicsPipeline(renderPass, UseWireframeMode ? LinePipeline : FillPipeline);
+			SDL_GPUColorTargetInfo gBuffers[3] = {};
+			gBuffers[0].texture = gPosition;
+			gBuffers[1].texture = gNormal;
+			gBuffers[2].texture = gAlbedo;
+
+			for (auto& g : gBuffers)
+			{
+				g.clear_color = { 0, 0, 0, 1 };
+				g.load_op = SDL_GPU_LOADOP_CLEAR;
+				g.store_op = SDL_GPU_STOREOP_STORE;
+			}
+
+			SDL_GPURenderPass* geometryPass = SDL_BeginGPURenderPass(cmdbuf, gBuffers, 3, &depthStencilTargetInfo);
+			SDL_BindGPUGraphicsPipeline(geometryPass, UseWireframeMode ? LinePipeline : FillPipeline);
+
+
+			if (UseSmallViewport)
+			{
+				SDL_SetGPUViewport(geometryPass, &SmallViewport);
+			}
+			if (UseScissorRect)
+			{
+				SDL_SetGPUScissor(geometryPass, &ScissorRect);
+			}
+
+			SDL_GPUBufferBinding binding = {};
+			binding.buffer = vertexBuffer;  // vertex de la boite
+			binding.offset = 0;
+
+			SDL_GPUBufferBinding indexBinding = {};
+			indexBinding.buffer = indexBuffer; // indices de la boite
+			indexBinding.offset = 0;
+
+			SDL_GPUTextureSamplerBinding samplerBinding = {};
+			samplerBinding.texture = texture;
+			samplerBinding.sampler = Samplers[CurrentSamplerIndex];
+
+			SDL_BindGPUVertexBuffers(geometryPass, 0, &binding, 1);
+			SDL_BindGPUIndexBuffer(geometryPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+
+			SDL_BindGPUFragmentSamplers(geometryPass, 0, &samplerBinding, 1);
+
+			for (auto box : boxes)
+			{
+				glm::vec3 size = box->max - box->min;
+				glm::vec3 center = (box->max + box->min) * 0.5f;
+
+				ubo.model = glm::mat4(1.0f);
+				ubo.model = glm::translate(ubo.model, center);
+				ubo.model = glm::scale(ubo.model, size * 0.5f);
+				SDL_PushGPUVertexUniformData(cmdbuf, 0, &ubo, sizeof(ubo));
+
+				SDL_DrawGPUIndexedPrimitives(geometryPass, 36, 1, 0, 0, 0);
+			}
+
+			SDL_EndGPURenderPass(geometryPass);
+
+			SDL_GPUColorTargetInfo colorTargetInfo = { 0 };
+			colorTargetInfo.texture = swapchainTexture;
+			colorTargetInfo.clear_color = SDL_FColor{ 0.3f, 0.4f, 0.5f, 1.0f };
+			colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
+			colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
+
+			SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTargetInfo, 1, nullptr);
+			SDL_BindGPUGraphicsPipeline(renderPass, renderPipeline);
 
 			if (UseSmallViewport)
 			{
@@ -532,33 +665,15 @@ void Olaf::GraphicsManager::update(Options& options, double dt)
 				SDL_SetGPUScissor(renderPass, &ScissorRect);
 			}
 
-			// vertex attribute - per vertex
-
-			// uniform data
-
-			float rotationSpeedDegPerSec = 90.0f;
-			float angleRadians = glm::radians(rotationSpeedDegPerSec * static_cast<float>(dt));
-			glm::vec3 rotationAxis = glm::vec3(1.0f, 1.0f, 0.0f);
-
-			ubo.model = glm::rotate(ubo.model, angleRadians, rotationAxis);
-
-			SDL_GPUBufferBinding binding = {};
-			binding.buffer = vertexBuffer;
-			binding.offset = 0;
-
-			SDL_GPUBufferBinding indexBinding = {};
-			indexBinding.buffer = indexBuffer;
-			indexBinding.offset = 0;
-
-			SDL_GPUTextureSamplerBinding samplerBinding = {};
-			samplerBinding.texture = texture;
-			samplerBinding.sampler = Samplers[CurrentSamplerIndex];
-
-			SDL_BindGPUVertexBuffers(renderPass, 0, &binding, 1);
-			SDL_BindGPUIndexBuffer(renderPass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
-			SDL_PushGPUVertexUniformData(cmdbuf, 0, &ubo, sizeof(ubo));
-			SDL_BindGPUFragmentSamplers(renderPass, 0, &samplerBinding, 1);
-			SDL_DrawGPUIndexedPrimitives(renderPass, 36, 1, 0, 0, 0);
+			// Bind the 3 G-buffer textures as samplers
+			SDL_GPUTextureSamplerBinding gbufferSamplers[3];
+			gbufferSamplers[0] = { gPosition, Samplers[0] };
+			gbufferSamplers[1] = { gNormal, Samplers[0] };
+			gbufferSamplers[2] = { gAlbedo, Samplers[0] };
+			SDL_BindGPUFragmentSamplers(renderPass, 0, gbufferSamplers, 3);
+			int displayMode = 1;  // 0 = Albedo, 1 = Normal, etc.
+			SDL_PushGPUFragmentUniformData(cmdbuf, 0, &displayMode, sizeof(int));
+			SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
 			SDL_EndGPURenderPass(renderPass);
 		}
 		SDL_SubmitGPUCommandBuffer(cmdbuf);
@@ -573,6 +688,12 @@ void Olaf::GraphicsManager::close()
 	{
 		SDL_ReleaseGPUGraphicsPipeline(gpu, FillPipeline);
 		SDL_ReleaseGPUGraphicsPipeline(gpu, LinePipeline);
+		SDL_ReleaseGPUGraphicsPipeline(gpu, renderPipeline);
+
+		SDL_ReleaseGPUTexture(gpu, depthTexture);
+		SDL_ReleaseGPUTexture(gpu, gPosition);
+		SDL_ReleaseGPUTexture(gpu, gNormal);
+		SDL_ReleaseGPUTexture(gpu, gAlbedo);
 	}
 }
 

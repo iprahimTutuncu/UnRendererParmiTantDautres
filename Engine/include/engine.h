@@ -41,7 +41,7 @@ namespace Olaf
         std::shared_ptr<GraphicsManager> graphicsManager;
         std::shared_ptr<SystemManager> systemManager;
         std::thread graphicsThread;
-
+        std::vector<Box> boxes;
         double targetFrameRate{ 60.0 };
 
         Options options;

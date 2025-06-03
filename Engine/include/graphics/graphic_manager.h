@@ -60,7 +60,13 @@ namespace Olaf
         SDL_GPUBuffer* vertexBuffer;
         SDL_GPUBuffer* indexBuffer;
         SDL_GPUTexture* texture;
+
+        SDL_GPUTexture* gPosition;
+        SDL_GPUTexture* gNormal;
+        SDL_GPUTexture* gAlbedo;
+
         SDL_GPUTexture* depthTexture;
+
         std::vector<const Box*> boxes;
 
         //très temporaire, j'va jsute tester mon shader

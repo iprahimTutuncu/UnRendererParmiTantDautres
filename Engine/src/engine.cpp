@@ -1,4 +1,7 @@
 #include "pch.h"
+
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include "engine.h"
 #include "system/window.h"
 #include "system/event.h"
@@ -7,6 +10,7 @@
 #include "graphics/graphic_api.h"
 #include <system/log_manager.h>
 #include <SDL3/SDL_timer.h>
+#include <glm/gtx/transform.hpp>
 
 std::chrono::duration<double> frameDuration;
 
@@ -36,6 +40,7 @@ namespace Olaf
         prevHeight = options.windowOptions.screenHeight;
 
         controlSetting = std::make_shared<ControlSetting>();
+        controlSetting->add(Key::kAcHome, InputState::isDoubleClick, InputAction::action);
 
         systemManager->init(options.windowOptions, controlSetting, [this](Olaf::Options& options, const double& deltaTime, const std::vector<Olaf::InputAction>& inputActions)
             {
@@ -51,6 +56,16 @@ namespace Olaf
                 this->onDraw(options, graphicsManager, deltaTime);
             });
 
+
+        boxes.push_back({ glm::vec3(-1.0f), glm::vec3(1.0f) });
+        boxes.push_back({ glm::vec3(5.0f, -5.5f, -0.5f), glm::vec3(8.0f, -3.0f, 0.5f) });
+        boxes.push_back({ glm::vec3(-4.0f, -1.5f, -0.3f), glm::vec3(-3.0f, 1.5f, 0.3f) });
+        boxes.push_back({ glm::vec3(-0.75f, 2.0f, -0.75f), glm::vec3(0.75f, 2.5f, 0.75f) });
+        boxes.push_back({ glm::vec3(1.0f, -1.0f, 4.0f), glm::vec3(3.0f, 1.0f, 4.2f) });
+
+        for (auto& box : boxes) {
+            graphicsManager->add(&box);
+        }
 
         onInit();
     }
