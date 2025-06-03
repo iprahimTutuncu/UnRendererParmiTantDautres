@@ -21,8 +21,9 @@ target_include_directories(OlafEngine PUBLIC
 )
 
 target_link_libraries(OlafEngine
-    PRIVATE
+     PUBLIC
         SDL3::SDL3
+     PRIVATE
         OpenGL::GL
         spdlog::spdlog
         glm::glm-header-only
