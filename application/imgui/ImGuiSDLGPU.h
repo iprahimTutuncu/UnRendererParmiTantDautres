@@ -6,14 +6,15 @@
 
 class ImGuiSDLGPU  {
 public:
-    ImGuiSDLGPU(SDL_GPUDevice* device);
+    ImGuiSDLGPU(SDL_GPUDevice* device, SDL_Window* window);
     ~ImGuiSDLGPU();
 
-    void initialize(SDL_Window* window) ;
+    void initialize() ;
     void newFrame();
     void render();
     void processEvent(const SDL_Event* event);
     void shutdown();
+    void renderDrawData(SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass);
 
 private:
     SDL_Window* window_;

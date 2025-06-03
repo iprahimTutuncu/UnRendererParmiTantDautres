@@ -14,13 +14,13 @@ public:
 
     void onStart() override {
         Olaf::GpuHandle handle = window->getGpuDevice();
-        imgui = new ImGuiSDLGPU(handle.as<SDL_GPUDevice>());
-        imgui->initialize(window->getWindow().as<SDL_Window>());
+        imgui = new ImGuiSDLGPU(handle.as<SDL_GPUDevice>(), window->getWindow().as<SDL_Window>());
+        imgui->initialize();
     }
 
     void onExit() override {
         if (imgui) {
-          //  imgui->shutdown();
+            imgui->shutdown();
             delete imgui;
             imgui = nullptr;
         }
@@ -47,6 +47,7 @@ public:
     }
 
     void onDraw([[maybe_unused]] Olaf::Options& options, [[maybe_unused]] Olaf::GraphicsManager& graphicsManager, [[maybe_unused]] const double& deltaTime) override {
+    
     }
 };
 

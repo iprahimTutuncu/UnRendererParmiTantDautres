@@ -7,11 +7,8 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
 
-
-
-
-ImGuiSDLGPU::ImGuiSDLGPU(SDL_GPUDevice* device)
-    : window_(nullptr)
+ImGuiSDLGPU::ImGuiSDLGPU(SDL_GPUDevice* device, SDL_Window* window)
+    : window_(window)
     , device_(device) {
     clear_color_ = ImVec4(0.1f, 0.2f, 0.3f, 1.0f);
 }
@@ -20,12 +17,11 @@ ImGuiSDLGPU::~ImGuiSDLGPU() {
     shutdown();
 }
 
-void ImGuiSDLGPU::initialize(SDL_Window* window) {
-    window_ = window;
-
+void ImGuiSDLGPU::initialize() {
+    
     // Setup Dear ImGui context
-    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-    SDL_ShowWindow(window);
+    SDL_SetWindowPosition(window_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    SDL_ShowWindow(window_);
     //  SDL_SetGPUSwapchainParameters(sdlGPU, this->sdlWindow, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_MAILBOX);
 
     // Setup Dear ImGui context
@@ -38,7 +34,7 @@ void ImGuiSDLGPU::initialize(SDL_Window* window) {
     int width = 0, height = 0;
     SDL_GetWindowSize(window_, &width, &height);
     io.DisplaySize = ImVec2((float)width, (float)height);
-   
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     // ImGui::StyleColorsLight();
@@ -61,23 +57,38 @@ void ImGuiSDLGPU::newFrame() {
     ImGui::NewFrame();
     // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
     if (show_demo_window)
-        //ImGui::ShowDemoWindow(&show_demo_window); // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+    // ImGui::ShowDemoWindow(&show_demo_window); // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
 
     {
         static float f = 0.0f;
         static int counter = 0;
 
         ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
+        ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
 
-        ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
+        if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags)) {
+            if (ImGui::BeginTabItem("MainControl")) {
+                ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
 
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit4("clear color", (float*)&clear_color_); // Edit 3 floats representing a color
+                ImGui::SliderFloat("float", &f, 0.0f, 1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
+                ImGui::ColorEdit4("clear color", (float*)&clear_color_); // Edit 3 floats representing a color
 
-        if (ImGui::Button("Button")) // Buttons return true when clicked (most widgets return true when edited/activated)
-            counter++;
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
+                if (ImGui::Button("Button")) // Buttons return true when clicked (most widgets return true when edited/activated)
+                    counter++;
+                ImGui::SameLine();
+                ImGui::Text("counter = %d", counter);
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Util")) {
+                ImGui::Text("This is the Broccoli tab!\nblah blah blah blah blah");
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Logs")) {
+                ImGui::Text("This is the Cucumber tab!\nblah blah blah blah blah");
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+        }
 
         ImGui::End();
     }
@@ -87,7 +98,6 @@ void ImGuiSDLGPU::render() {
     ImGui::Render();
     ImDrawData* draw_data = ImGui::GetDrawData();
     const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
-
 
     SDL_GPUCommandBuffer* command_buffer = SDL_AcquireGPUCommandBuffer(device_); // Acquire a GPU command buffer
 
