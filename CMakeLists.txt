@@ -67,9 +67,6 @@ target_link_libraries(ImGui PRIVATE
     SDL3::SDL3
 )
 
-# OpenGL Mathematics (GLM)
-add_subdirectory(libs/glm)
-
 # spdlog: Fast C++ logging library
 set(SPDLOG_ENABLE_PCH ON)
 set(SPDLOG_BUILD_PIC ON)

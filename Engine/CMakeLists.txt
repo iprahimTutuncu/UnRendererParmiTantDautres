@@ -26,5 +26,4 @@ target_link_libraries(OlafEngine
      PRIVATE
         OpenGL::GL
         spdlog::spdlog
-        glm::glm-header-only
 )
