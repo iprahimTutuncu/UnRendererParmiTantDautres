@@ -92,11 +92,4 @@ endif()
 add_subdirectory(Engine)
 add_subdirectory(application)
 
-
-add_executable(app
-    src/main.cpp
-)
-target_link_libraries(app PRIVATE SDL3::SDL3)
-
-
 #  ========== TESTS ==========
