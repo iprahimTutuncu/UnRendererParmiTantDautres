@@ -3,6 +3,8 @@
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_log.h>
 
+// C'est seulement un exemple d'implementation
+
 SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
     (void)state;
     (void)argc;
@@ -54,16 +56,11 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
 SDL_AppResult graphics_event(AppState& state, SDL_Event& event) {
     (void)state;
+    (void)event;
 
     return SDL_APP_CONTINUE;
 }
 
 void graphics_quit(AppState& state) {
     (void)state;
-
-
-
-    if (state.gpuSTruc) {
-        delete state.gpuSTruc;
-    }
 }

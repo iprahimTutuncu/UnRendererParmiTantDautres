@@ -41,31 +41,31 @@ find_package(OpenGL 4.5 REQUIRED)
 # Simple DirectMedia Layer (SDL for short)
 set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
-add_subdirectory(thirdParty/SDL EXCLUDE_FROM_ALL)
+add_subdirectory(libs/SDL EXCLUDE_FROM_ALL)
 
 # ImGui: bloat-free graphical user interface library for C++
 add_library(ImGui STATIC
-    thirdParty/imgui/imgui.cpp
-    thirdParty/imgui/imgui_draw.cpp
-    thirdParty/imgui/imgui_tables.cpp
-    thirdParty/imgui/imgui_widgets.cpp
+    libs/imgui/imgui.cpp
+    libs/imgui/imgui_draw.cpp
+    libs/imgui/imgui_tables.cpp
+    libs/imgui/imgui_widgets.cpp
     # Here implementation
-    thirdParty/imgui/backends/imgui_impl_sdl3.cpp
-    thirdParty/imgui/backends/imgui_impl_sdlgpu3.cpp
+    libs/imgui/backends/imgui_impl_sdl3.cpp
+    libs/imgui/backends/imgui_impl_sdlgpu3.cpp
 )
-target_include_directories(ImGui PUBLIC thirdParty/imgui)
-target_include_directories(ImGui PRIVATE thirdParty/imgui/backends)
+target_include_directories(ImGui PUBLIC libs/imgui)
+target_include_directories(ImGui PRIVATE libs/imgui/backends)
 target_link_libraries(ImGui PRIVATE
     SDL3::SDL3
 )
 
 # OpenGL Mathematics (GLM)
-add_subdirectory(thirdParty/glm)
+add_subdirectory(libs/glm)
 
 # spdlog: Fast C++ logging library
 set(SPDLOG_ENABLE_PCH ON)
 set(SPDLOG_BUILD_PIC ON)
-add_subdirectory(thirdParty/spdlog)
+add_subdirectory(libs/spdlog)
 
 #  ========== PROJECT ==========
 
