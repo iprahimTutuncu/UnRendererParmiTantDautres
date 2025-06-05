@@ -20,3 +20,6 @@ Tout ça nous garanti que le projet se compile de manière identique sur toutes 
 
 ---
 
+
+// TODO: comparer avec le relatif à ce qu'on avait au début
+// TODO: corriger les fautes ;-;
