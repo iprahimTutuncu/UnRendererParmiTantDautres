@@ -18,10 +18,12 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-# Optimization
 if (WIN32 OR MSVC)
     add_compile_options(/utf-8)
-else()
+endif()
+
+# Optimization
+if (NOT (WIN32 OR MSVC))
     add_compile_options(-march=native -mtune=native)
 endif()
 
