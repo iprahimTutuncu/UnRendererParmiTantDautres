@@ -16,9 +16,9 @@
 
 static inline void setFPSinTitle(std::uint32_t i, char *title) {
     if (i > 999) i = 999;
-    title[0] = i / 100 ? i / 100 + '0' : ' ';
-    title[1] = i / 10 % 10 ? i / 10 % 10 + '0' : ' ';
-    title[2] = i % 10 + '0';
+    title[0] = static_cast<char>(i / 100 ? i / 100 + '0' : ' ');
+    title[1] = static_cast<char>(i / 10 % 10 ? i / 10 % 10 + '0' : ' ');
+    title[2] = static_cast<char>(i % 10 + '0');
 }
 
 static void updateTiming(AppState &appstate) {
