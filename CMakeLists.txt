@@ -91,11 +91,10 @@ add_subdirectory(application)
 
 add_executable(app
     src/main.cpp
-    src/graphics/renderer.cpp
+    src/graphics/graphic_manager.cpp
 )
 target_link_libraries(app PRIVATE
     SDL3::SDL3
 )
-
 
 #  ========== TESTS ==========
