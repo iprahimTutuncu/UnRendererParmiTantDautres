@@ -1,5 +1,6 @@
 add_executable(OlafApplication
     main.cpp
+    imgui/ImGuiSDLGPU.cpp
 )
 target_compile_features(OlafApplication
     PRIVATE
