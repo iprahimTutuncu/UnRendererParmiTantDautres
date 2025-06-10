@@ -1,6 +1,6 @@
-#include <olaf/engine.h>
-#include <imgui/ImGuiSDLGPU.h>
+#include "imgui/ImGuiSDLGPU.h"
 
+#include <olaf/engine.h>
 
 class Neige : public Olaf::Engine {
 public:
@@ -36,24 +36,23 @@ public:
     }
 
     void onUpdate([[maybe_unused]] Olaf::Options& options, [[maybe_unused]] const double& deltaTime) override {
-         imgui->newFrame();
-         imgui->render();
+        imgui->newFrame();
+        imgui->render();
 
         //   SDL_Event event;
-         auto events = window->pollEvent();
-         for (const auto& e : events) {
-             imgui->processEvent(&e.sdlEvent); 
-         }
+        auto events = window->pollEvent();
+        for (const auto& e : events) {
+            imgui->processEvent(&e.sdlEvent);
+        }
     }
 
     void onDraw([[maybe_unused]] Olaf::Options& options, [[maybe_unused]] Olaf::GraphicsManager& graphicsManager, [[maybe_unused]] const double& deltaTime) override {
-    
     }
 };
 
 int main() {
     Neige engine;
-    engine.init(); 
+    engine.init();
     engine.start();
     return 0;
 }
