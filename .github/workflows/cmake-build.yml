@@ -81,6 +81,7 @@ jobs:
       run: cmake --build ${{ needs.setup-cache.outputs.build-output-dir }}
 
     - uses: actions/cache/save@v4
+      if: steps.cache.outputs.cache-hit != 'true'
       with:
         key: ${{ runner.os }}-${{ matrix.cpp_compiler }}-${{ hashFiles('CMakeLists.txt') }}
         path: ${{ needs.setup-cache.outputs.build-output-dir }}
@@ -116,7 +117,9 @@ jobs:
       id: cache
       with:
         key: ${{ runner.os }}-cl-${{ hashFiles('CMakeLists.txt') }}
-        path: ${{ steps.strings.outputs.build-output-dir }}
+        path: |
+          ${{ steps.strings.outputs.build-output-dir }}
+          CMakeLists.txt
     - name: Configure CMake
       if: steps.cache.outputs.cache-hit != 'true'
       run: >
@@ -130,6 +133,9 @@ jobs:
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }}
 
     - uses: actions/cache/save@v4
+      if: steps.cache.outputs.cache-hit != 'true'
       with:
         key: ${{ runner.os }}-cl-${{ hashFiles('CMakeLists.txt') }}
-        path: ${{ steps.strings.outputs.build-output-dir }}
+        path: |
+          ${{ steps.strings.outputs.build-output-dir }}
+          CMakeLists.txt
