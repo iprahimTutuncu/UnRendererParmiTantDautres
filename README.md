@@ -16,3 +16,7 @@ cmake --build .
 ```
 
 If packages aren't found and compilation fails, check your PATH.
+
+## Controls
+
+**WASD** for moving the camera, **shift** to go down, **space** to go up. **Mouse wheel** or **Page up/down** to zoom. **Q** releases/captures the mouse from the window.
