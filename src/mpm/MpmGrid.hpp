@@ -32,7 +32,13 @@ struct MpmGrid {
         nodes.resize(width * height * depth, MpmGridNode());
     }
 
-    void reset_all() {
+    void reset_nodes() {
+        for (MpmGridNode& node : nodes) {
+            node.velocity = vec3::Zero();
+            node.momentum = vec3::Zero();
+            node.mass = 0.0;
+            node.force = vec3::Zero();
+        }
     }
 
     size_t get_node_id_from_local(vec3i pos) {

@@ -70,6 +70,8 @@ private:
     void create_particle_cube(vec3& c, vec3& size);
     void create_particle_sphere(vec3& center, double radius);
 
+    void compute_weights();
+
     void step1_rasterize_particles_to_grid();
     void step2_compute_volumes_and_densities();
     void step3_compute_grid_forces();

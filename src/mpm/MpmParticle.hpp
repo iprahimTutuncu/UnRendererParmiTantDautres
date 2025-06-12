@@ -11,4 +11,7 @@ struct MpmParticle {
     double volume{0};                           // V
     mat3 deform_elastic = mat3::Identity();     // F_E
     mat3 deform_plastic = mat3::Identity();     // F_P
+
+    std::array<double, 64> weights;
+    std::array<vec3, 64> weights_gradient;
 };

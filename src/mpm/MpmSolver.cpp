@@ -33,6 +33,8 @@ MpmSolver::MpmSolver(vec3 grid_origin, vec3 grid_size, double grid_spacing, doub
 void MpmSolver::initialize() {
     this->dt = 0.025;
 
+    grid.reset_nodes();
+    compute_weights();
     step1_rasterize_particles_to_grid();
     step2_compute_volumes_and_densities();
 }
@@ -40,6 +42,8 @@ void MpmSolver::initialize() {
 void MpmSolver::iterate(double dt) {
     this->dt = dt;
 
+    grid.reset_nodes();
+    compute_weights();
     step1_rasterize_particles_to_grid();
     step3_compute_grid_forces();
     step4_update_grid_velocities();
@@ -128,18 +132,48 @@ double MpmSolver::d_N(const double x) {
     }
 }
 
+void MpmSolver::compute_weights() {
+    double inv_h = 1.0 / grid.spacing;
+
+    for (MpmParticle& p : particles) {
+        vec3 p_position_rel = (p.position - grid.origin) * inv_h;
+        vec3i base_position = (p_position_rel.array() - 1.5).floor().cast<int>();
+
+        for (int x = 0; x < 4; ++x) {
+        for (int y = 0; y < 4; ++y) {
+        for (int z = 0; z < 4; ++z) {
+            vec3i node_position_local = base_position + vec3i(x, y, z);
+            MpmGridNode* node = grid.get_node_from_local(node_position_local);
+            if (!node) continue;
+            vec3 p_off = p_position_rel - node_position_local.cast<double>();
+
+            double Ni_x = N(p_off.x());
+            double Ni_y = N(p_off.y());
+            double Ni_z = N(p_off.z());
+
+            double dNi_x = d_N(p_off.x());
+            double dNi_y = d_N(p_off.y());
+            double dNi_z = d_N(p_off.z());
+
+            double w_ip = Ni_x * Ni_y * Ni_z;
+
+            vec3 w_ip_grad = inv_h * vec3(
+                    dNi_x * Ni_y * Ni_z,
+                    Ni_x * dNi_y * Ni_z,
+                    Ni_x * Ni_y * dNi_z);
+
+            int weight_id = x + y*4 + z*4*4;
+            p.weights[weight_id] = w_ip;
+            p.weights_gradient[weight_id] = w_ip_grad;
+        }}}
+    }
+}
+
 // Transfer from particles to grid:
 // Transfer mass using the weighing function 
 // Transfer velocity using normalized weights 
 void MpmSolver::step1_rasterize_particles_to_grid() {
     double inv_h = 1.0 / grid.spacing;
-
-    for (MpmGridNode& node : grid.nodes) {
-        node.velocity = vec3::Zero();
-        node.momentum = vec3::Zero();
-        node.mass = 0.0;
-        node.force = vec3::Zero();
-    }
 
     for (const MpmParticle& p : particles) {
         // find the closest bottom-left node to the current cell
@@ -154,11 +188,10 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
             vec3i node_position_local = base_position + vec3i(x, y, z);
             MpmGridNode* node = grid.get_node_from_local(node_position_local);
             if (!node) continue;
-            vec3 p_off = p_position_rel - node_position_local.cast<double>();
 
             // m_i = sum( m_p * w_ip )
             // where w_ip = N_i(x_p)
-            double w_ip = N(p_off.x()) * N(p_off.y()) * N(p_off.z());
+            double w_ip = p.weights[x + y*4 + z*4*4];
             double m_i = p.mass * w_ip;
             node->mass += m_i;
 
@@ -193,9 +226,9 @@ void MpmSolver::step2_compute_volumes_and_densities() {
             vec3i node_position_local = base_position + vec3i(x, y, z);
             MpmGridNode* node = grid.get_node_from_local(node_position_local);
             if (!node) continue;
-            vec3 p_off = p_position_rel - node_position_local.cast<double>();
-            double w_ip = N(p_off.x()) * N(p_off.y()) * N(p_off.z());
+
             // rho_p = sum(w_ip * (m_i * / h^3))
+            double w_ip = p.weights[x + y*4 + z*4*4];
             rho_p += w_ip * node->mass * inv_h3;
         }}}
 
@@ -261,24 +294,8 @@ void MpmSolver::step3_compute_grid_forces() {
             vec3i node_position_local = base_position + vec3i(x, y, z);
             MpmGridNode* node = grid.get_node_from_local(node_position_local);
             if (!node) continue;
-            vec3 p_off = p_position_rel - node_position_local.cast<double>();
 
-            // build the vector of partial derivatives
-            double Ni_x = N(p_off.x());
-            double Ni_y = N(p_off.y());
-            double Ni_z = N(p_off.z());
-
-            double dNi_x = d_N(p_off.x());
-            double dNi_y = d_N(p_off.y());
-            double dNi_z = d_N(p_off.z());
-
-            // Jiang C - The material point method for simulating continuum material
-            vec3 w_ip_grad = inv_h * vec3(
-                    dNi_x * Ni_y * Ni_z,
-                    Ni_x * dNi_y * Ni_z,
-                    Ni_x * Ni_y * dNi_z
-                );
-
+            vec3 w_ip_grad = p.weights_gradient[x + y*4 + z*4*4];
             node->force += sigma * w_ip_grad;
         }}}
     }
@@ -289,19 +306,13 @@ void MpmSolver::step3_compute_grid_forces() {
 // forces include internal and external (gravity)
 // this will then be used in step 6 in euler semi-implicite integration as the right side of the linear system
 void MpmSolver::step4_update_grid_velocities() {
-    for (int z = 0; z < grid.depth; ++z) {
-    for (int y = 0; y < grid.height; ++y) {
-    for (int x = 0; x < grid.width; ++x) {
-        vec3i node_position_local = vec3i(x, y, z);
-        MpmGridNode* node = grid.get_node_from_local(node_position_local);
-        if (!node || node->mass <= 0.0) continue;
-
-        if (node->mass > 0.0) {
-            vec3 f_ext = node->mass * gravity;
-            vec3 f_i = node->force + f_ext;
-            node->velocity_star = node->velocity + dt * f_i / node->mass;
+    for (MpmGridNode& node : grid.nodes) {
+        if (node.mass > 0.0) {
+            vec3 f_ext = node.mass * gravity;
+            vec3 f_i = node.force + f_ext;
+            node.velocity_star = node.velocity + dt * f_i / node.mass;
         }
-    }}}
+    }
 }
 
 // collisions are inelastic
@@ -314,9 +325,8 @@ void MpmSolver::step5_grid_based_collisions() {
         vec3i node_position_local = vec3i(x, y, z);
         vec3 node_position_world = grid.get_node_world_coords(node_position_local);
         MpmGridNode* node = grid.get_node_from_local(node_position_local);
-        if (!node) continue;
 
-        if ((node_position_world.y() - world_floor) > EPSILON) {
+        if (!node || (node_position_world.y() - world_floor) > EPSILON) {
             continue;
         }
 
@@ -366,24 +376,9 @@ void MpmSolver::calculate_Ar(
             vec3i node_position_local = base_position + vec3i(x, y, z);
             MpmGridNode* node = grid.get_node_from_local(node_position_local);
             if (!node) continue;
-            vec3 p_off = p_position_rel - node_position_local.cast<double>();
+
+            vec3 w_ip_grad = p.weights_gradient[x + y*4 + z*4*4];
             size_t node_id = grid.get_node_id_from_local(node_position_local);
-
-            // build the vector of partial derivatives
-            double Ni_x = N(p_off.x());
-            double Ni_y = N(p_off.y());
-            double Ni_z = N(p_off.z());
-
-            double dNi_x = d_N(p_off.x());
-            double dNi_y = d_N(p_off.y());
-            double dNi_z = d_N(p_off.z());
-
-            vec3 w_ip_grad = inv_h * vec3(
-                    dNi_x * Ni_y * Ni_z,
-                    Ni_x * dNi_y * Ni_z,
-                    Ni_x * Ni_y * dNi_z
-                );
-
             velocities_grad += v_next.col(node_id) * w_ip_grad.transpose();
         }}}
 
@@ -512,27 +507,10 @@ void MpmSolver::calculate_Ar(
         for (int z = 0; z < 4; ++z) {
             vec3i node_position_local = base_position + vec3i(x, y, z);
             MpmGridNode* node = grid.get_node_from_local(node_position_local);
-
             if (!node) continue;
 
-            vec3 p_off = p_position_rel - node_position_local.cast<double>();
+            vec3 w_ip_grad = p.weights_gradient[x + y*4 + z*4*4];
             size_t node_id = grid.get_node_id_from_local(node_position_local);
-
-            // build the vector of partial derivatives
-            double Ni_x = N(p_off.x());
-            double Ni_y = N(p_off.y());
-            double Ni_z = N(p_off.z());
-
-            double dNi_x = d_N(p_off.x());
-            double dNi_y = d_N(p_off.y());
-            double dNi_z = d_N(p_off.z());
-
-            vec3 w_ip_grad = inv_h * vec3(
-                    dNi_x * Ni_y * Ni_z,
-                    Ni_x * dNi_y * Ni_z,
-                    Ni_x * Ni_y * dNi_z
-                );
-
             df.col(node_id) += Ap * w_ip_grad;
         }}}
     }
@@ -630,23 +608,8 @@ void MpmSolver::step7_update_deformation_gradient() {
             vec3i node_position_local = base_position + vec3i(x, y, z);
             MpmGridNode* node = grid.get_node_from_local(node_position_local);
             if (!node) continue;
-            vec3 p_off = p_position_rel - node_position_local.cast<double>();
 
-            // build the vector of partial derivatives
-            double Ni_x = N(p_off.x());
-            double Ni_y = N(p_off.y());
-            double Ni_z = N(p_off.z());
-
-            double dNi_x = d_N(p_off.x());
-            double dNi_y = d_N(p_off.y());
-            double dNi_z = d_N(p_off.z());
-
-            vec3 w_ip_grad = inv_h * vec3(
-                    dNi_x * Ni_y * Ni_z,
-                    Ni_x * dNi_y * Ni_z,
-                    Ni_x * Ni_y * dNi_z
-                );
-
+            vec3 w_ip_grad = p.weights_gradient[x + y*4 + z*4*4];
             velocities_grad += node->velocity_star * w_ip_grad.transpose();
         }}}
 
@@ -697,9 +660,7 @@ void MpmSolver::step8_update_particle_velocities() {
             MpmGridNode* node = grid.get_node_from_local(node_position_local);
             if (!node) continue;
 
-            vec3 p_off = p_position_rel - node_position_local.cast<double>();
-            double w_ip = N(p_off.x()) * N(p_off.y()) * N(p_off.z());
-
+            double w_ip = p.weights[x + y*4 + z*4*4];
             v_pic += node->velocity_star * w_ip;
             v_flip += (node->velocity_star - node->velocity) * w_ip;
         }}}
