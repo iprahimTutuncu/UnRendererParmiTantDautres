@@ -1,7 +1,7 @@
 #pragma once
 
-#include <map>
 #include <functional>
+#include <unordered_map>
 
 using action_t = std::function<void()>;
 
@@ -12,7 +12,7 @@ class ActionManager {
         ~ActionManager() = default;
 
     private:
-        std::map<unsigned int, action_t> _bindings;
+        std::unordered_map<unsigned int, action_t> _bindings;
 
     public:
         void set_action(unsigned int key, action_t func);
