@@ -139,12 +139,18 @@ void MpmSolver::compute_weights() {
         vec3 p_position_rel = (p.position - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.5).floor().cast<int>();
 
+        p.weights.fill(0.0);
+        p.weights_gradient.fill(vec3::Zero());
+
         for (int x = 0; x < 4; ++x) {
         for (int y = 0; y < 4; ++y) {
         for (int z = 0; z < 4; ++z) {
+            int weight_id = x + y*4 + z*4*4;
+
             vec3i node_position_local = base_position + vec3i(x, y, z);
             MpmGridNode* node = grid.get_node_from_local(node_position_local);
             if (!node) continue;
+
             vec3 p_off = p_position_rel - node_position_local.cast<double>();
 
             double Ni_x = N(p_off.x());
@@ -162,7 +168,6 @@ void MpmSolver::compute_weights() {
                     Ni_x * dNi_y * Ni_z,
                     Ni_x * Ni_y * dNi_z);
 
-            int weight_id = x + y*4 + z*4*4;
             p.weights[weight_id] = w_ip;
             p.weights_gradient[weight_id] = w_ip_grad;
         }}}
