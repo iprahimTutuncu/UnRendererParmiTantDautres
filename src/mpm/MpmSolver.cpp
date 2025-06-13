@@ -277,7 +277,7 @@ void MpmSolver::step3_compute_grid_forces() {
 
         // compute internal force resulting from elastic stress
         // volume added because it's constant for every node
-        mat3 sigma = p.volume * (1.0 / J_P) 
+        mat3 sigma = p.volume  
             * (2.0 * mu * (p.deform_elastic - R) * p.deform_elastic.transpose()
                 + lambda * (J_E - 1.0) * J_E * mat3::Identity());
 
@@ -545,9 +545,9 @@ void MpmSolver::step6_solve_linear_system() {
     search_dir = residuals;
 
     calculate_Ar(Ar, residuals, df);
+    calculate_Ar(Ap, search_dir, df);
 
     double rAr = residuals.cwiseProduct(Ar).sum();
-    Ap = Ar;
 
     for (int k = 0; k < max_iterations && residuals.squaredNorm() >= tolerance; ++k) {
 
@@ -571,8 +571,7 @@ void MpmSolver::step6_solve_linear_system() {
         }
 
         search_dir = residuals + beta * search_dir;
-
-        Ap = Ar + beta * Ap;
+        calculate_Ar(Ap, search_dir, df);
     }
 
     for (int i = 0; i < nb_nodes; ++i) {
