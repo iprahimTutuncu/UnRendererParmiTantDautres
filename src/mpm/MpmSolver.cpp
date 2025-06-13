@@ -272,10 +272,6 @@ void MpmSolver::step3_compute_grid_forces() {
         Eigen::JacobiSVD<mat3> svd{p.deform_elastic, Eigen::ComputeFullU | Eigen::ComputeFullV};
         mat3 U = svd.matrixU();
         mat3 V = svd.matrixV();
-        // ensure right-handedness
-        if (U.determinant() * V.determinant() < 0.0) {
-            V.col(2) *= -1.0;
-        }
         mat3 R = U * V.transpose(); // check if proper?
         // mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
 
