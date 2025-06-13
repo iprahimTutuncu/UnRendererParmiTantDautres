@@ -561,6 +561,8 @@ void MpmSolver::step6_solve_linear_system() {
         velocity_next = velocity_next + alpha * search_dir;
         residuals = residuals - alpha * Ap;
 
+        calculate_Ar(Ar, residuals, df);
+
         rAr = residuals.cwiseProduct(Ar).sum();
         double beta = rAr / rAr_k;
 
