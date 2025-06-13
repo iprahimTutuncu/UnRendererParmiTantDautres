@@ -276,11 +276,10 @@ void MpmSolver::step3_compute_grid_forces() {
         // mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
 
         // compute internal force resulting from elastic stress
-
-        mat3 sigma = -p.volume *
-            (2.0f * mu * (p.deform_elastic - R) * p.deform_elastic.transpose()
-            + lambda * (J_E - 1.0f) * J_E * mat3::Identity());
-
+        // volume added because it's constant for every node
+        mat3 sigma = p.volume * (1.0 / J_P) 
+            * (2.0 * mu * (p.deform_elastic - R) * p.deform_elastic.transpose()
+                + lambda * (J_E - 1.0) * J_E * mat3::Identity());
 
         // add force to nodes
         for (int x = 0; x < 4; ++x) {
@@ -291,7 +290,7 @@ void MpmSolver::step3_compute_grid_forces() {
             if (!node) continue;
 
             vec3 w_ip_grad = p.weights_gradient[x + y*4 + z*4*4];
-            node->force += sigma * w_ip_grad;
+            node->force -= sigma * w_ip_grad;
         }}}
     }
 }
@@ -487,12 +486,9 @@ void MpmSolver::calculate_Ar(
         double mu = mu_0 * expf(hardening_coefficient * (1.0 - Jp));
         double lambda = lambda_0 * expf(hardening_coefficient * (1.0 - Jp));
 
-        mat3 Ap = -p.volume
-            * (2.0 * mu * (dFEp - dR) 
+        mat3 Ap = p.volume * (2.0 * mu * (dFEp - dR) 
                 + lambda * JFinvT * JFinvT_dF
-                + lambda * (Je - 1.0) * dJFinvT)
-            * p.deform_elastic.transpose();
-
+                + lambda * (Je - 1.0) * dJFinvT) * Fe.transpose();
 
         // 3.25 - df
         for (int x = 0; x < 4; ++x) {
@@ -504,7 +500,7 @@ void MpmSolver::calculate_Ar(
 
             vec3 w_ip_grad = p.weights_gradient[x + y*4 + z*4*4];
             size_t node_id = grid.get_node_id_from_local(node_position_local);
-            df.col(node_id) += Ap * w_ip_grad;
+            df.col(node_id) -= Ap * w_ip_grad;
         }}}
     }
 
