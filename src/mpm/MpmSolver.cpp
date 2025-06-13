@@ -281,12 +281,6 @@ void MpmSolver::step3_compute_grid_forces() {
             (2.0f * mu * (p.deform_elastic - R) * p.deform_elastic.transpose()
             + lambda * (J_E - 1.0f) * J_E * mat3::Identity());
 
-        /*
-        mat3 Fe = (2.0 * mu * (p.deform_elastic - R) * p.deform_elastic.transpose()
-            + lambda * (J_E - 1.0) * J_E * mat3::Identity());
-        mat3 cauchy_stress = (1.0 / J_E) * Fe;
-        mat3 force = -p.volume * cauchy_stress;
-        */
 
         // add force to nodes
         for (int x = 0; x < 4; ++x) {
@@ -488,7 +482,6 @@ void MpmSolver::calculate_Ar(
         double tr_Finv_dF = (Finv * dFEp).trace();
         mat3 dFinvT = -FinvT * dFEp.transpose() * FinvT;
         mat3 dJFinvT = tr_Finv_dF * JFinvT + Je * dFinvT;
-//        mat3 dJFinvT = tr_Finv_dF * FinvT + Je * dFinvT;
 
         // 3.26 - Ap
         double mu = mu_0 * expf(hardening_coefficient * (1.0 - Jp));
