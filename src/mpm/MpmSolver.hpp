@@ -57,7 +57,7 @@ private:
     const vec3 n_co = vec3(0.0, 1.0, 0.0); // collider normal
     const double mu_surface = 0.5; // Coulomb friction coefficient
 
-    const int max_iterations = 32;
+    const int max_iterations = 100;
     const double tolerance = 1E-5;
 
     // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
