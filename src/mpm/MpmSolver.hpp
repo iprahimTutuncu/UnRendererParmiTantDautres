@@ -63,7 +63,7 @@ private:
     // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
     const double beta_integration = 1.0;
 
-    void calculate_Ar(mat3n& residuals, mat3n& Ar, mat3n& df, double dt);
+    void calculate_Ar(mat3n& residuals, mat3n& Ar, mat3n& df);
     double N(const double x);
     double d_N(const double x);
 

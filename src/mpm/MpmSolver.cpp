@@ -360,8 +360,7 @@ void MpmSolver::step5_grid_based_collisions() {
 void MpmSolver::calculate_Ar(
         mat3n& Av_next,
         mat3n& v_next, 
-        mat3n& df,
-        double dt)
+        mat3n& df)
 {
     df.setZero();
     double inv_h = 1.0 / grid.spacing;
@@ -531,6 +530,7 @@ void MpmSolver::calculate_Ar(
 
 // We apply the conjugate residual method to solve equation 9 from Stomakhin, solving for v_i{n+1}
 // See https://nccastaff.bournemouth.ac.uk/jmacey/MastersProject/MSc15/05Esther/thesisEMdeJong.pdf
+// Zhuo Lo's implementation re-calculates Ar and Ap every iteration, but Jong does not.
 void MpmSolver::step6_solve_linear_system() {
     if (beta_integration == 0.0) {
         return;
@@ -554,16 +554,15 @@ void MpmSolver::step6_solve_linear_system() {
         velocity_star.col(i) = grid.nodes[i].velocity_star; 
     }
 
-    calculate_Ar(Ax, velocity_next, df, dt);
+    calculate_Ar(Ax, velocity_next, df);
 
     residuals = velocity_star - Ax;
     search_dir = residuals;
 
-    calculate_Ar(Ar, residuals, df, dt);
+    calculate_Ar(Ar, residuals, df);
 
     double rAr = residuals.cwiseProduct(Ar).sum();
-
-    calculate_Ar(Ap, search_dir, df, dt);
+    Ap = Ar;
 
     for (int k = 0; k < max_iterations && residuals.squaredNorm() >= tolerance; ++k) {
 
@@ -577,8 +576,6 @@ void MpmSolver::step6_solve_linear_system() {
         velocity_next = velocity_next + alpha * search_dir;
         residuals = residuals - alpha * Ap;
 
-        calculate_Ar(Ar, residuals, df, dt);
-
         rAr = residuals.cwiseProduct(Ar).sum();
         double beta = rAr / rAr_k;
 
@@ -588,8 +585,7 @@ void MpmSolver::step6_solve_linear_system() {
 
         search_dir = residuals + beta * search_dir;
 
-        calculate_Ar(Ap, search_dir, df, dt);
-        // Ap = Ar + beta * Ap;
+        Ap = Ar + beta * Ap;
     }
 
     for (int i = 0; i < nb_nodes; ++i) {
