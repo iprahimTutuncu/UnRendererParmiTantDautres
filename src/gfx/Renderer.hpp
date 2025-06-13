@@ -30,17 +30,10 @@ class Renderer {
         bool init_particles(int count);
 
     private:
-        const double particle_spacing = 0.015;
-        const double grid_spacing = 0.120;
-        const vec3 grid_size = vec3(2.0, 5.0, 2.0);
-        const vec3 grid_origin = vec3(-0.5, -1.5, -0.5);
-        const double simulation_dt = 1.0 / 160;
-
-        const glm::vec3 camera_pos = glm::vec3(5.0f,0.5f,5.0f);
-        const glm::vec3 camera_at = glm::vec3(0.0);
 
         std::shared_ptr<CameraPerspective> m_camera;
 
+        // Particle
         std::unique_ptr<ShaderProgram> m_particleShader;
         std::unique_ptr<ParticleRenderer> m_particleRenderer;
 

@@ -1,5 +1,9 @@
 #include "gfx/Renderer.hpp"
 
+const glm::vec3 camera_pos = glm::vec3(1.0f,0.5f,1.0f);
+const glm::vec3 camera_at = glm::vec3(0.0);
+
+
 bool Renderer::init(int width, int height, int nb_particles) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
