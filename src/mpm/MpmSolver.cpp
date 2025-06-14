@@ -305,7 +305,7 @@ void MpmSolver::step5_grid_based_collisions() {
     for (MpmGridNode* node : grid.active_nodes) {
         vec3 node_position_world = grid.get_node_world_coords(node->local_pos);
 
-        if (!node || (node_position_world.y() - world_floor) > 0.0) {
+        if (!node || (node_position_world.y() - world_floor) > EPSILON) {
             continue;
         }
 
@@ -663,7 +663,7 @@ void MpmSolver::step8_update_particle_velocities() {
 
 void MpmSolver::step9_particle_based_collisions() {
     for (MpmParticle& p : particles) {
-        if ((p.position.y() - world_floor) > EPSILON) {
+        if ((p.position.y() - world_floor) > 0.0) {
             continue;
         }
 
