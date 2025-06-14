@@ -17,15 +17,16 @@
 
 #include "MpmSolver.hpp"
 #include <algorithm>
+#include <iostream>
 
 // TODO: add variable particle spacing, etc.
-MpmSolver::MpmSolver(vec3 grid_origin, vec3 grid_size, double grid_spacing, double particle_spacing) :
+MpmSolver::MpmSolver(vec3 grid_origin, vec3 grid_size, double grid_spacing, double particle_spacing, vec3 particle_velocity) :
     particle_spacing{particle_spacing},
     grid{grid_origin, grid_size.x(), grid_size.y(), grid_size.z(), grid_spacing},
     is_ready{false}
 {
     vec3 center = vec3(0.0, 1.0, 0.0);
-    create_particle_sphere(center, 0.10);
+    create_particle_sphere(center, 0.10, particle_velocity);
     positions.resize(particles.size());
 }
 
@@ -60,7 +61,7 @@ void MpmSolver::iterate(double dt) {
     }
 }
 
-void MpmSolver::create_particle_cube(vec3& c, vec3& size) {
+void MpmSolver::create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity) {
     // initialize test particles
 
     vec3 half_size = size / 2.0;
@@ -73,11 +74,12 @@ void MpmSolver::create_particle_cube(vec3& c, vec3& size) {
         MpmParticle p{};
         p.position = vec3(x, y, z);
         p.mass = initial_density * particle_spacing * particle_spacing * particle_spacing;
+        p.velocity = initial_velocity;
         particles.emplace_back(p);
     }}}
 }
 
-void MpmSolver::create_particle_sphere(vec3& c, double r) {
+void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity) {
     // Iterate over a bounding box that contains the sphere
     for (double x = c.x() - r; x <= c.x() + r; x += particle_spacing) {
     for (double y = c.y() - r; y <= c.y() + r; y += particle_spacing) {
@@ -89,6 +91,7 @@ void MpmSolver::create_particle_sphere(vec3& c, double r) {
             MpmParticle p{};
             p.position = pos;
             p.mass = initial_density * particle_spacing * particle_spacing * particle_spacing;
+            p.velocity = initial_velocity;
             particles.emplace_back(p);
         }
     }}}

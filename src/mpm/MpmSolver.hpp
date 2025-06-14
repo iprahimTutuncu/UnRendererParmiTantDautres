@@ -20,7 +20,7 @@ and Young’s modulus, with the opposite producing muddy snow.
 
 class MpmSolver {
 public:
-    MpmSolver(vec3 grid_origin, vec3 grid_size, double grid_spacing, double particle_spacing);
+    MpmSolver(vec3 grid_origin, vec3 grid_size, double grid_spacing, double particle_spacing, vec3 particle_velocity);
 
     void initialize(); 
     void iterate(double dt);
@@ -38,7 +38,6 @@ private:
     const double particle_spacing;
 
     const double initial_density = 4.0E2;           // rho_0
-
     const double critical_compression = 2.5E-2;     // theta_c
     const double critical_stretch = 7.5E-3;         // theta_s
     const double hardening_coefficient = 10.0;      // xi
@@ -67,8 +66,8 @@ private:
     double N(const double x);
     double d_N(const double x);
 
-    void create_particle_cube(vec3& c, vec3& size);
-    void create_particle_sphere(vec3& center, double radius);
+    void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity);
+    void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity);
 
     void step1_rasterize_particles_to_grid();
     void step2_compute_volumes_and_densities();

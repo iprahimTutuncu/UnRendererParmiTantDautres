@@ -11,6 +11,7 @@ const double grid_spacing = 0.050;
 const vec3 grid_size = vec3(2.0, 4.0, 2.0);
 const vec3 grid_origin = vec3(-0.5, -0.5, -0.5);
 const double simulation_dt = 1.0 / 200;
+const vec3 particle_initial_velocity = vec3(0.0, 0.0, 0.0);
 
 const int width = 640;
 const int height = 480;
@@ -19,7 +20,7 @@ Application::Application() :
      m_action_man{},
      m_main_window{title, width, height}, 
      m_renderer{},
-     m_mpm_solver(grid_origin, grid_size, grid_spacing, particle_spacing)
+     m_mpm_solver(grid_origin, grid_size, grid_spacing, particle_spacing, particle_initial_velocity)
 {}
 
 void Application::init() {
