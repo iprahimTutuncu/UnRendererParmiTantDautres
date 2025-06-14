@@ -137,7 +137,7 @@ void MpmSolver::compute_weights() {
 
     for (MpmParticle& p : particles) {
         vec3 p_position_rel = (p.position - grid.origin) * inv_h;
-        vec3i base_position = (p_position_rel.array() - 1.5).floor().cast<int>();
+        vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         p.weights.fill(0.0);
         p.weights_gradient.fill(vec3::Zero());
@@ -221,7 +221,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
 
     for (MpmParticle& p : particles) {
         vec3 p_position_rel = (p.position - grid.origin) * inv_h;
-        vec3i base_position = (p_position_rel.array() - 1.5).floor().cast<int>();
+        vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         double rho_p = 0.0;
 
@@ -256,7 +256,7 @@ void MpmSolver::step3_compute_grid_forces() {
 
     for (MpmParticle& p : particles) {
         vec3 p_position_rel = (p.position - grid.origin) * inv_h;
-        vec3i base_position = (p_position_rel.array() - 1.5).floor().cast<int>();
+        vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         // prepare values for elasto-plastic enery density function psi
         double J_P = p.deform_plastic.determinant();
@@ -361,7 +361,7 @@ void MpmSolver::calculate_Ar(
         mat3 velocities_grad = mat3::Zero();
 
         vec3 p_position_rel = (p.position - grid.origin) * inv_h;
-        vec3i base_position = (p_position_rel.array() - 1.5).floor().cast<int>();
+        vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         for (int x = 0; x < 4; ++x) {
         for (int y = 0; y < 4; ++y) {
@@ -583,7 +583,7 @@ void MpmSolver::step7_update_deformation_gradient() {
     double inv_h = 1.0 / grid.spacing;
     for (MpmParticle& p : particles) {
         vec3 p_position_rel = (p.position - grid.origin) * inv_h;
-        vec3i base_position = (p_position_rel.array() - 1.5).floor().cast<int>();
+        vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         // 3.23 - velolity gradient
         mat3 velocities_grad = mat3::Zero();
@@ -634,7 +634,7 @@ void MpmSolver::step8_update_particle_velocities() {
     double inv_h = 1.0 / grid.spacing;
     for (MpmParticle& p : particles) {
         vec3 p_position_rel = (p.position - grid.origin) * inv_h;
-        vec3i base_position = (p_position_rel.array() - 1.5).floor().cast<int>();
+        vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         // 3.23 - velolity gradient
         vec3 v_pic = vec3::Zero();
