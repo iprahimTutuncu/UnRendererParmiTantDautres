@@ -387,8 +387,8 @@ void MpmSolver::calculate_Ar(
              S(1,2),             S(0,0)+S(2,2),  S(0,1),
              -S(2,0),            S(1,0),         S(1,1)+S(2,2);
 
-        vec3 xyz = A.inverse() * b;
-//        vec3 xyz = A.fullPivLu().solve(b);
+        // vec3 xyz = A.inverse() * b;
+        vec3 xyz = A.fullPivLu().solve(b);
 
         mat3 RTdR;
         RTdR << 0.0,       -xyz.x(),        -xyz.y(),
