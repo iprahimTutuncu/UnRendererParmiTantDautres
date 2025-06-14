@@ -7,10 +7,10 @@
 const char* title = "Boreas";
 
 const double particle_spacing = 0.015;
-const double grid_spacing = 0.120;
-const vec3 grid_size = vec3(2.0, 5.0, 2.0);
-const vec3 grid_origin = vec3(-0.5, -1.5, -0.5);
-const double simulation_dt = 1.0 / 160;
+const double grid_spacing = 0.050;
+const vec3 grid_size = vec3(2.0, 4.0, 2.0);
+const vec3 grid_origin = vec3(-0.5, -0.5, -0.5);
+const double simulation_dt = 1.0 / 200;
 
 const int width = 640;
 const int height = 480;
