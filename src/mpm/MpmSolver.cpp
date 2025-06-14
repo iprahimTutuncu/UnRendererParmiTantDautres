@@ -218,7 +218,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
         p.density = rho_p;
         // V_p = m_p / rho_p
         if (p.density > 0.0) {
-            p.volume = p.mass / p.density;
+            p.volume_0 = p.mass / p.density;
         }
     }
 }
@@ -236,11 +236,6 @@ void MpmSolver::step3_compute_grid_forces() {
         vec3 p_position_rel = (p.position - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
-        // prepare values for elasto-plastic enery density function psi
-        double J_P = p.deform_plastic.determinant();
-        double J_E = p.deform_elastic.determinant();
-        double mu = mu_0 * expf(hardening_coefficient * (1.0 - J_P));
-        double lambda = lambda_0 * expf(hardening_coefficient * (1.0 - J_P));
 
         // Polar decomposition
         // SVD -> A = W S V*
@@ -252,12 +247,23 @@ void MpmSolver::step3_compute_grid_forces() {
         mat3 V = svd.matrixV();
         mat3 R = U * V.transpose(); // check if proper?
         // mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
+        mat3& Fe = p.deform_elastic;
+        mat3& Fp = p.deform_plastic;
 
-        // compute internal force resulting from elastic stress
-        // volume added because it's constant for every node
-        mat3 sigma = p.volume  
-            * (2.0 * mu * (p.deform_elastic - R) * p.deform_elastic.transpose()
-                + lambda * (J_E - 1.0) * J_E * mat3::Identity());
+        double Jp = p.deform_plastic.determinant();
+        double Je = p.deform_elastic.determinant();
+        double J = (p.deform_plastic * p.deform_elastic).determinant();
+
+        double mu = mu_0 * std::exp(hardening_coefficient * (1.0 - Jp));
+        double lambda = lambda_0 * std::exp(hardening_coefficient * (1.0 - Jp));
+
+        mat3 Fe_T = Fe.transpose();
+        mat3 Fe_invT = Fe.inverse().transpose();
+        mat3 dPsi = 2.0 * mu * (Fe - R) + lambda * (Je - 1.0) * Je * Fe_invT;
+        mat3 sigma = (1 / J) * dPsi * Fe_T;
+
+        double volume = J * p.volume_0;
+        mat3 force = volume * sigma;
 
         // add force to nodes
         for (int x = 0; x < 4; ++x) {
@@ -268,7 +274,7 @@ void MpmSolver::step3_compute_grid_forces() {
             if (!node) continue;
 
             vec3 w_ip_grad = p.weights_gradient[x + y*4 + z*4*4];
-            node->force -= sigma * w_ip_grad;
+            node->force -= force * w_ip_grad;
         }}}
     }
 }
@@ -455,6 +461,7 @@ void MpmSolver::calculate_Ar(
         //    0, 0, 0; 
         //dJFinvT(2,2) = (tmp.array() * dFEp.array()).sum();
 
+        // using Jacobi's formula for the derivative of the inverse and determinant
         double tr_Finv_dF = (Finv * dFEp).trace();
         mat3 dFinvT = -FinvT * dFEp.transpose() * FinvT;
         mat3 dJFinvT = tr_Finv_dF * JFinvT + Je * dFinvT;
@@ -463,7 +470,10 @@ void MpmSolver::calculate_Ar(
         double mu = mu_0 * expf(hardening_coefficient * (1.0 - Jp));
         double lambda = lambda_0 * expf(hardening_coefficient * (1.0 - Jp));
 
-        mat3 Ap = p.volume * (2.0 * mu * (dFEp - dR) 
+        double J = (p.deform_plastic * p.deform_elastic).determinant();
+        double volume = J * p.volume_0;
+
+        mat3 Ap = volume * (2.0 * mu * (dFEp - dR) 
                 + lambda * JFinvT * JFinvT_dF
                 + lambda * (Je - 1.0) * dJFinvT) * Fe.transpose();
 
