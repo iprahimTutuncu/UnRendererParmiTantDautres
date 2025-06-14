@@ -75,9 +75,7 @@ void MpmSolver::create_particle_cube(vec3& c, vec3& size) {
     for (double z = min_c.z(); z <= max_c.z(); z += particle_spacing) {
         MpmParticle p{};
         p.position = vec3(x, y, z);
-        p.density = initial_density;
         p.mass = initial_density * particle_spacing * particle_spacing * particle_spacing;
-        p.volume = p.mass / p.density;
         particles.emplace_back(p);
     }}}
 }
@@ -93,9 +91,7 @@ void MpmSolver::create_particle_sphere(vec3& c, double r) {
         if ((pos - c).squaredNorm() <= r * r) {
             MpmParticle p{};
             p.position = pos;
-            p.density = initial_density;
             p.mass = initial_density * particle_spacing * particle_spacing * particle_spacing;
-            p.volume = p.mass / p.density; // V = m / rho
             particles.emplace_back(p);
         }
     }}}
