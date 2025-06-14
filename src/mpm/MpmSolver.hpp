@@ -68,6 +68,7 @@ private:
 
     void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity);
     void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity);
+    void create_particle_clumpy_sphere(vec3& c, double r, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed);
 
     void step1_rasterize_particles_to_grid();
     void step2_compute_volumes_and_densities();

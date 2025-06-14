@@ -26,7 +26,8 @@ MpmSolver::MpmSolver(vec3 grid_origin, vec3 grid_size, double grid_spacing, doub
     is_ready{false}
 {
     vec3 center = vec3(0.0, 1.0, 0.0);
-    create_particle_sphere(center, 0.10, particle_velocity);
+    unsigned int seed = 33;
+    create_particle_clumpy_sphere(center, 0.10, particle_velocity, 250, 0.2, &seed);
     positions.resize(particles.size());
 }
 
@@ -77,6 +78,40 @@ void MpmSolver::create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity
         p.velocity = initial_velocity;
         particles.emplace_back(p);
     }}}
+}
+
+double get_random(double min, double max, unsigned int* seed) {
+    return min + (rand_r(seed) / (double)RAND_MAX) * (max - min);
+}
+
+void MpmSolver::create_particle_clumpy_sphere(
+        vec3& c, double r, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed)
+{
+    for (int i = 0; i < num_clumps; ++i) {
+        vec3 clump_center;
+        do {
+            double offset_x = get_random(-r, r, seed);
+            double offset_y = get_random(-r, r, seed);
+            double offset_z = get_random(-r, r, seed);
+            clump_center = c + vec3(offset_x, offset_y, offset_z);
+        } while ((clump_center - c).squaredNorm() > r * r);
+
+        double r1 = get_random(0.5 * r, r, seed) * clump_radius_factor;
+
+        for (double x = clump_center.x() - r1; x <= clump_center.x() + r1; x += particle_spacing) {
+        for (double y = clump_center.y() - r1; y <= clump_center.y() + r1; y += particle_spacing) {
+        for (double z = clump_center.z() - r1; z <= clump_center.z() + r1; z += particle_spacing) {
+
+            vec3 pos(x, y, z);
+            if ((pos - clump_center).squaredNorm() <= r1 * r1) {
+                MpmParticle p{};
+                p.position = pos;
+                p.mass = initial_density * particle_spacing * particle_spacing * particle_spacing;
+                p.velocity = initial_velocity;
+                particles.emplace_back(p);
+            }
+        }}}
+    }
 }
 
 void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity) {
