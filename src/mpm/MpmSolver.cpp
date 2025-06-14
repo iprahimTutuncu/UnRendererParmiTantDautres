@@ -247,6 +247,11 @@ void MpmSolver::step3_compute_grid_forces() {
         mat3 V = svd.matrixV();
         mat3 R = U * V.transpose(); // check if proper?
         // mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
+        if (R.determinant() < 0.0) {
+            U.col(2) *= -1.0;
+            R = U * V.transpose();
+        }
+
         mat3& Fe = p.deform_elastic;
         mat3& Fp = p.deform_plastic;
 
@@ -366,6 +371,10 @@ void MpmSolver::calculate_Ar(
         mat3 U = svd.matrixU();
         mat3 V = svd.matrixV();
         mat3 R = U * V.transpose();
+        if (R.determinant() < 0.0) {
+            U.col(2) *= -1.0;
+            R = U * V.transpose();
+        }
 
         mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
 
