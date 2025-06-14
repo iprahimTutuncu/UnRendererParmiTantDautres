@@ -552,7 +552,10 @@ void MpmSolver::step6_solve_linear_system() {
 
     double rAr = residuals.cwiseProduct(Ar).sum();
 
-    for (int k = 0; k < max_iterations && residuals.squaredNorm() >= tolerance; ++k) {
+    for (int k = 0; k < max_iterations; ++k) {
+        if ((residuals.norm() / velocity_next.norm()) < tolerance) {
+            break;
+        }
 
         double rAr_k = rAr;
         double alpha = rAr_k / Ap.cwiseProduct(Ap).sum();
