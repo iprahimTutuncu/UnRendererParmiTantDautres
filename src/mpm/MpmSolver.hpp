@@ -63,14 +63,12 @@ private:
     // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
     const double beta_integration = 1.0;
 
-    void calculate_Ar(mat3n& residuals, mat3n& Ar, mat3n& df);
+    void calculate_Ar(mat3n& residuals, mat3n& Ar, mat3n& df, std::vector<int>& global_to_active_map);
     double N(const double x);
     double d_N(const double x);
 
     void create_particle_cube(vec3& c, vec3& size);
     void create_particle_sphere(vec3& center, double radius);
-
-    void compute_weights();
 
     void step1_rasterize_particles_to_grid();
     void step2_compute_volumes_and_densities();

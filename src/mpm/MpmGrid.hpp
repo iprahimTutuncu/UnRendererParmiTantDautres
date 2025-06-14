@@ -11,6 +11,7 @@ struct MpmGrid {
     int height;
     int depth;
     std::vector<MpmGridNode> nodes;
+    std::vector<MpmGridNode*> active_nodes;
 
     const vec3 box_min;
     const vec3 box_max;
@@ -29,16 +30,30 @@ struct MpmGrid {
         box_eps{EPSILON * spacing},
         box_mu{0.5}
     {
-        nodes.resize(width * height * depth, MpmGridNode());
+        int nb_nodes = static_cast<int>(width * height * depth);
+        nodes.resize(nb_nodes, MpmGridNode());
+        active_nodes.reserve(nb_nodes);
+
+        for (int z = 0; z < depth; ++z) {
+        for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            size_t index = get_node_id_from_local({x, y, z});
+            nodes[index].index = index;
+            nodes[index].local_pos = vec3i(x, y, z);
+        }}}
     }
 
     void reset_nodes() {
         for (MpmGridNode& node : nodes) {
             node.velocity = vec3::Zero();
+            node.velocity_star = vec3::Zero();
             node.momentum = vec3::Zero();
             node.mass = 0.0;
             node.force = vec3::Zero();
+            node.is_active = false;
         }
+
+        active_nodes.clear();
     }
 
     size_t get_node_id_from_local(vec3i pos) {
