@@ -236,7 +236,6 @@ void MpmSolver::step3_compute_grid_forces() {
         vec3 p_position_rel = (p.position - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
-
         // Polar decomposition
         // SVD -> A = W S V*
         // Polar -> A = U P
@@ -410,6 +409,7 @@ void MpmSolver::calculate_Ar(
 
         // Frobenius inner product
         double JFinvT_dF = (JFinvT.array() * dFEp.array()).sum();
+
         //mat3& CO = JFinvT;
 
         // d(JFinvT)
@@ -610,28 +610,25 @@ void MpmSolver::step7_update_deformation_gradient() {
         mat3 F = tmp_FE * tmp_FP;
 
         Eigen::JacobiSVD<mat3> svd{tmp_FE, Eigen::ComputeFullU | Eigen::ComputeFullV};
-        vec3 sigma = svd.singularValues();
         mat3 V = svd.matrixV();
         mat3 U = svd.matrixU();
+        vec3 sigma_hat = svd.singularValues();
+        vec3 sigma = sigma_hat;
 
         for (int i = 0; i < 3; ++i) {
-            sigma(i) = std::clamp(sigma(i), 1.0f - critical_compression , 1.0f + critical_stretch);
+            sigma(i) = std::clamp(sigma(i), 1.0 - critical_compression , 1.0 + critical_stretch);
         }
 
-        mat3 sigma_elastic;
-        sigma_elastic <<
-            sigma.x(), 0.0, 0.0,
-            0.0, sigma.y(), 0.0,
-            0.0, 0.0, sigma.z();
+        p.deform_elastic = U * sigma.asDiagonal() * V.transpose();
 
-        mat3 sigma_plastic;
-        sigma_plastic <<
-            1.0/sigma.x(), 0.0, 0.0,
-            0.0, 1.0/sigma.y(), 0.0,
-            0.0, 0.0, 1.0/sigma.z();
+        vec3 sigma_hat_inv = vec3(
+            std::abs(sigma_hat.x()) > EPSILON ? 1.0 / sigma_hat.x() : 0.0,
+            std::abs(sigma_hat.y()) > EPSILON ? 1.0 / sigma_hat.y() : 0.0,
+            std::abs(sigma_hat.z()) > EPSILON ? 1.0 / sigma_hat.z() : 0.0
+        );
 
-        p.deform_elastic = U * sigma_elastic * V.transpose();
-        p.deform_plastic = V * sigma_plastic * U.transpose() * F;
+        mat3 Fp_update = V * sigma_hat_inv.asDiagonal() * sigma.asDiagonal() * V.transpose();
+        p.deform_plastic = p.deform_plastic * Fp_update;
     }
 }
 
