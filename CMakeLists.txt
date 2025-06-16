@@ -11,6 +11,9 @@ find_package(SDL2 REQUIRED)
 find_package(OpenGL 4.6 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(glm REQUIRED)
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
+set(EIGEN_BUILD_TESTING OFF)
+set(EIGEN_INCLUDE_INSTALL_DIR OFF)
+add_subdirectory(eigen EXCLUDE_FROM_ALL)
 
 add_subdirectory(src)

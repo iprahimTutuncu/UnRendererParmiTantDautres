@@ -1,7 +1,7 @@
 #pragma once
 
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/SVD>
+#include <Eigen/Dense>
+#include <Eigen/SVD>
 
 const float EPSILON = 1E-9;
 
