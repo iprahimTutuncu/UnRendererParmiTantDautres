@@ -6,48 +6,37 @@ jobs:
   setup-cache:
     runs-on: ubuntu-latest
     outputs:
-      submodule-hash: ${{ steps.strings.outputs.submodule-hash }}
-      build-output-dir: ${{ steps.strings.outputs.build-output-dir }}
+      cache-submodule-key: ${{ steps.strings.outputs.cache-submodule-key }}
+      cache-builds-key: ${{ steps.strings.outputs.cache-builds-key }}
+
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Set reusable strings
       id: strings
-      shell: bash
       run: |
         HASH=$(git submodule status | sha256sum | cut -d ' ' -f1)
         echo "Computed hash: $HASH"
-        echo "submodule-hash=$HASH" >> $GITHUB_OUTPUT
-        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+        echo "cache-submodule-key=${{ runner.os }}-submodules-$HASH" >> $GITHUB_OUTPUT
+        echo "cache-builds-key=${{ runner.os }}-builds-${{ hashFiles('CMakeLists.txt') }}-$HASH" >> $GITHUB_OUTPUT
     - uses: actions/cache/restore@v4
       id: cache
       with:
-        key: submodules-${{ steps.strings.outputs.submodule-hash }}
+        key: ${{ steps.strings.outputs.cache-submodule-key }}
         path: ${{ github.workspace }}/libs
         lookup-only: true
-
     - uses: actions/cache/save@v4
       if: steps.cache.outputs.cache-hit != 'true'
       with:
-        key: submodules-${{ steps.strings.outputs.submodule-hash }}
+        key: ${{ steps.strings.outputs.cache-submodule-key }}
         path: ${{ github.workspace }}/libs
 
   build-linux:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     needs: setup-cache
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        c_compiler: [gcc, clang]
-        include:
-          - os: ubuntu-latest
-            c_compiler: gcc
-            cpp_compiler: g++
-          - os: ubuntu-latest
-            c_compiler: clang
-            cpp_compiler: clang++
-
+    env:
+      BUILD_TYPE: Debug
     steps:
     - uses: actions/checkout@v4
       with:
@@ -56,86 +45,64 @@ jobs:
       uses: actions/cache/restore@v4
       id: submodulecache
       with:
-        key: submodules-${{ needs.setup-cache.outputs.submodule-hash }}
+        key: ${{ needs.setup-cache.outputs.cache-submodule-key }}
         path: ${{ github.workspace }}/libs
         fail-on-cache-miss: true
     - name: Install dependencies on Ubuntu
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get install -y libegl1-mesa-dev libwayland-dev libxkbcommon-dev wayland-protocols
+      run: >
+        sudo apt-get install -y
+        libegl1-mesa-dev
+        libwayland-dev
+        libxkbcommon-dev
+        wayland-protocols
     - uses: actions/cache/restore@v4
       name: Restore build's artifacts
       id: cache
       with:
-        key: ${{ runner.os }}-${{ matrix.cpp_compiler }}-${{ hashFiles('CMakeLists.txt') }}
-        path: ${{ needs.setup-cache.outputs.build-output-dir }}
-    - name: Configure CMake
+        key: ${{ needs.setup-cache.outputs.cache-builds-key }}
+        path: |
+          ${{ github.workspace }}/build-clang
+          ${{ github.workspace }}/build-gcc
+    - name: Configure CMake with GCC
       if: steps.cache.outputs.cache-hit != 'true'
       run: >
-        cmake -B ${{ needs.setup-cache.outputs.build-output-dir }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-        -DCMAKE_BUILD_TYPE=Release
+        cmake -B ${{ github.workspace }}/build-gcc
+        -DCMAKE_CXX_COMPILER=g++
+        -DCMAKE_C_COMPILER=gcc
+        -DCMAKE_BUILD_TYPE=$BUILD_TYPE
         -S ${{ github.workspace }}
-    - name: Build
-      run: cmake --build ${{ needs.setup-cache.outputs.build-output-dir }}
-
+    - name: Configure CMake with Clang
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: >
+        cmake -B ${{ github.workspace }}/build-clang
+        -DCMAKE_CXX_COMPILER=clang++
+        -DCMAKE_C_COMPILER=clang
+        -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+        -S ${{ github.workspace }}
+    - name: Build with gcc
+      run: cmake --build ${{ github.workspace }}/build-gcc
+    - name: Build with Clang
+      run: cmake --build ${{ github.workspace }}/build-clang
     - uses: actions/cache/save@v4
       if: steps.cache.outputs.cache-hit != 'true'
       with:
-        key: ${{ runner.os }}-${{ matrix.cpp_compiler }}-${{ hashFiles('CMakeLists.txt') }}
-        path: ${{ needs.setup-cache.outputs.build-output-dir }}
+        key: ${{ needs.setup-cache.outputs.cache-builds-key }}
+        path: |
+          ${{ github.workspace }}/build-clang
+          ${{ github.workspace }}/build-gcc
 
   build-windows:
     runs-on: windows-2025
-    needs: build-linux
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Set reusable strings
-      id: strings
-      shell: bash
-      run: |
-        HASH=$(git submodule status | sha256sum | cut -d ' ' -f1)
-        echo "Computed hash: $HASH"
-        echo "submodule-hash=$HASH" >> $GITHUB_OUTPUT
-        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-    - uses: actions/cache/restore@v4
-      id: subcache
-      with:
-        key: submodules-windows-${{ steps.strings.outputs.submodule-hash }}
-        path: ${{ github.workspace }}/libs
-
-    - uses: actions/cache/save@v4
-      if: steps.subcache.outputs.cache-hit != 'true'
-      with:
-        key: submodules-windows-${{ steps.strings.outputs.submodule-hash }}
-        path: ${{ github.workspace }}/libs
-    - uses: actions/cache/restore@v4
-      name: Restore build's artifacts
-      id: cache
-      with:
-        key: ${{ runner.os }}-cl-${{ hashFiles('CMakeLists.txt') }}
-        path: |
-          ${{ steps.strings.outputs.build-output-dir }}
-          CMakeLists.txt
-    - name: Configure CMake
-      if: steps.cache.outputs.cache-hit != 'true'
+    - name: Configure CMake with CL
       run: >
-        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        cmake -B ${{ github.workspace }}/build
         -DCMAKE_CXX_COMPILER=cl
         -DCMAKE_C_COMPILER=cl
-        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_BUILD_TYPE=Debug
         -S ${{ github.workspace }}
-
     - name: Build
-      run: cmake --build ${{ steps.strings.outputs.build-output-dir }}
-
-    - uses: actions/cache/save@v4
-      if: steps.cache.outputs.cache-hit != 'true'
-      with:
-        key: ${{ runner.os }}-cl-${{ hashFiles('CMakeLists.txt') }}
-        path: |
-          ${{ steps.strings.outputs.build-output-dir }}
-          CMakeLists.txt
+      run: cmake --build ${{ github.workspace }}/build
