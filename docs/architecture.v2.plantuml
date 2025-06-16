@@ -1,0 +1,63 @@
+@startuml architecture.v2
+skinparam backgroundColor white
+set separator ::
+
+file main.cpp {
+}
+
+file state.h {
+    struct AppState{
+        +device: SDL_GPUDevice*
+        +window: SDL_Window*
+        +threadPhysic: SDL_Thread*
+
+        // some timing variables
+        +lastTime: std::uint64_t
+        +currentTime: std::uint64_t
+        +numFrames: std::uint32_t
+
+        // d'autres variables utilisées
+        // par graphics et physics
+    }
+}
+
+package controls{
+
+}
+
+package graphics {
+    renderer.cpp
+}
+
+package physics {
+}
+
+package imgui{
+    file ImGuiSDLGPU.h {
+
+    }
+    file imgui.h {
+
+    }
+}
+
+
+main.cpp --> SDL3::SDL_gpu.h
+main.cpp --> SDL3::SDL_init.h
+main.cpp --> SDL3::SDL_log.h
+main.cpp --> SDL3::SDL_timer.h
+
+
+state.h <-- main.cpp
+state.h <. graphics
+state.h <. physics
+state.h <. controls
+
+graphics <- main.cpp
+physics <- main.cpp
+controls <- main.cpp
+
+controls -right-> imgui.h
+controls -right-> ImGuiSDLGPU.h
+
+@enduml
