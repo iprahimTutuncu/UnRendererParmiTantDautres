@@ -102,7 +102,7 @@ jobs:
         cmake -B ${{ github.workspace }}/build
         -DCMAKE_CXX_COMPILER=cl
         -DCMAKE_C_COMPILER=cl
-        -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_BUILD_TYPE=Release
         -S ${{ github.workspace }}
     - name: Build
       run: cmake --build ${{ github.workspace }}/build
