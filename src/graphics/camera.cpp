@@ -1,6 +1,8 @@
 #include "camera.h"
 
+#include <cassert>
 #include <cmath>
+#include <limits>
 
 mat4 CameraPerspective::view_matrix() const {
     mat4 m;
