@@ -76,7 +76,7 @@ add_subdirectory(libs/spdlog)
 
 # Add warning flags for Windows and Linux
 if (WIN32 OR MSVC)
-    add_compile_options(/EHsc /W4 /WX /wd4458)
+    add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
