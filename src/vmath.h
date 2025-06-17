@@ -188,7 +188,7 @@ constexpr inline quat angleAxis(float const& angle, vec3 const& v) {
     sincos(r0, &r1_sin, &r2_cos);
     r3 = _mm_mul_ps(r1_sin, _mm_load_ps(&v.x));
 
-#ifdef _MSV_VER
+#ifdef _MSC_VER
     return { c.m128_f32[0], r.m128_f32[0], r.m128_f32[1], r.m128_f32[2] };
 #else
     return { r2_cos[0], r3[0], r3[1], r3[2] };
@@ -213,7 +213,7 @@ constexpr inline mat3 mat3_cast(quat const& q) {
     r0 = r0 + r0;
     r1 = r1 + r1;
     r2 = r2 + r2;
-#ifdef _MSV_VER
+#ifdef _MSC_VER
     return {
         .cols {
             { 1 - r0.m128_f32[0], r0.m128_f32[1], r0.m128_f32[2] },
