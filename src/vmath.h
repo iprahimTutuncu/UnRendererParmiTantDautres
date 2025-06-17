@@ -3,7 +3,7 @@
 #include <cassert>
 #include <cstddef>
 
-#include <x86intrin.h>
+#include "intrin.hpp"
 
 struct alignas(16) quat {
     float w;
@@ -76,7 +76,10 @@ constexpr inline vec3 operator*(int const& i, vec3 const& v) {
 }
 
 struct mat3 {
-    vec3 cols[3];
+    union {
+        __m128 mm[3];
+        vec3 cols[3];
+    };
     constexpr inline vec3& operator[](std::size_t index) {
         assert(index < 3);
         return cols[index];
@@ -95,22 +98,16 @@ struct mat3 {
             cols[2].x * v.x + cols[2].y * v.y + cols[2].z * v.z,
         };
 #else
-        __m128 a, b;
-        a = _mm_load_ps(&v.x);
-        b = _mm_load_ps(&cols[0].x);
-
-        auto x = _mm_dp_ps(a, b, 0x71);
-        b = _mm_load_ps(&cols[1].x);
-        x = _mm_dp_ps(a, b, 0x72);
-        b = _mm_load_ps(&cols[2].z);
-        x = _mm_dp_ps(a, b, 0x74);
-
-        return {
-            x[0],
-            x[1],
-            x[2],
-        };
+        __m128 r0 = _mm_load_ps(&v.x);
+        auto r1 = _mm_dp_ps(r0, mm[0], 0x71);
+        auto r2 = _mm_dp_ps(r0, mm[1], 0x72);
+        auto r3 = _mm_dp_ps(r0, mm[2], 0x74);
+#ifndef _MSC_VER
+        return { r1[0], r2[1], r3[2] };
+#else
+        return { r1.m128_f32[0], r2.m128_f32[1], r3.m128_f32[2] };
 #endif
+#endif // __SSE4_1__
     }
 };
 
@@ -153,7 +150,6 @@ struct alignas(16) vec4 {
     }
 };
 
-
 struct mat4 {
     __m128 cols[4];
 
@@ -187,16 +183,16 @@ constexpr inline void sincos(__m128 x, __m128* sin_out, __m128* cos_out) {
 }
 
 constexpr inline quat angleAxis(float const& angle, vec3 const& v) {
-    __m128 a = _mm_set1_ps(angle / 2);
-    __m128 s, c;
-    sincos(a, &s, &c);
-    __m128 r = _mm_mul_ps(s, _mm_load_ps(&v.x));
-    return {
-        c[0],
-        r[0],
-        r[1],
-        r[2],
-    };
+    __m128 r0 = _mm_set1_ps(angle / 2);
+    __m128 r1_sin, r2_cos, r3;
+    sincos(r0, &r1_sin, &r2_cos);
+    r3 = _mm_mul_ps(r1_sin, _mm_load_ps(&v.x));
+
+#ifdef _MSV_VER
+    return { c.m128_f32[0], r.m128_f32[0], r.m128_f32[1], r.m128_f32[2] };
+#else
+    return { r2_cos[0], r3[0], r3[1], r3[2] };
+#endif
 }
 
 constexpr inline mat3 mat3_cast(quat const& q) {
@@ -209,11 +205,20 @@ constexpr inline mat3 mat3_cast(quat const& q) {
     float qwx(q.w * q.x);
     float qwy(q.w * q.y);
     float qwz(q.w * q.z);
+
+    __m128 r0 = _mm_set_ps(qyy + qzz, qxy - qwz, qxz + qwy, 0.f);
+    __m128 r1 = _mm_set_ps(qxy + qwz, qxx + qzz, qyz - qwx, 0.f);
+    __m128 r2 = _mm_set_ps(qxz - qwy, qyz + qwx, qxx + qyy, 0.f);
+
+    r0 = r0 + r0;
+    r1 = r1 + r1;
+    r2 = r2 + r2;
+
     return {
-        {
-            { 1 - 2 * (qyy + qzz), 2 * (qxy - qwz), 2 * (qxz + qwy) },
-            { 2 * (qxy + qwz), 1 - 2 * (qxx + qzz), 2 * (qyz - qwx) },
-            { 2 * (qxz - qwy), 2 * (qyz + qwx), 1 - 2 * (qxx + qyy) },
+        .cols {
+            { 1 - r0[0], r0[1], r0[2] },
+            { r1[0], 1 - r1[1], r1[2] },
+            { r2[0], r2[1], 1 - r2[2] },
         }
     };
 }
