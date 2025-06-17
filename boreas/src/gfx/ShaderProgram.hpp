@@ -5,7 +5,7 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 
-#include "libs/sdl.hpp"
+#include "../libs/sdl.hpp"
 #include <glm/glm.hpp>
 
 #include <map>
@@ -46,14 +46,14 @@ public:
    // ------------------------------------------------------------------------
    // constructor
    ShaderProgram();
-   
+
    // ------------------------------------------------------------------------
-   // attach shader from sources 
+   // attach shader from sources
    // return true if sucessfull
    bool addShaderFromSource(GLenum type, const std::string& path);
-   
+
    // ------------------------------------------------------------------------
-   // link the different shaders to make a full program 
+   // link the different shaders to make a full program
    // return true if sucessfull
    bool link();
 
@@ -63,14 +63,14 @@ public:
 
    // ------------------------------------------------------------------------
    // use shader program
-   inline void bind() const { 
+   inline void bind() const {
        if(!m_linked) {
            // Warn user
            std::cerr << "Shader is not properly linked!\n";
        }
-       glUseProgram(m_ID); 
+       glUseProgram(m_ID);
    }
-   
+
 
    // get id value corresponding to attribute
     // ------------------------------------------------------------------------
@@ -81,7 +81,7 @@ public:
 
     // utility uniform functions
     // ------------------------------------------------------------------------
-    // OLD setUniformValue 
+    // OLD setUniformValue
     inline void setUniformValue(GLint location, bool value) const { glProgramUniform1i(m_ID, location, (int)value); }
     inline void setUniformValue(GLint location, int value) const { glProgramUniform1i(m_ID, location, value); }
     inline void setUniformValue(GLint location, float value) const { glProgramUniform1f(m_ID, location, value); }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gfx/ShaderProgram.hpp"
+#include "ShaderProgram.hpp"
 
 enum VertexBufferId : unsigned int {
     Position,
@@ -15,9 +15,9 @@ class Mesh
 public:
     virtual ~Mesh();
 
-    const GLuint vao() const { return m_vao; }
+    GLuint vao() const { return m_vao; }
     const GLuint* vbo() const { return m_vbo; }
-    const GLuint ebo() const { return m_ebo; }
+    GLuint ebo() const { return m_ebo; }
 
 protected:
     GLuint m_vao = 0;

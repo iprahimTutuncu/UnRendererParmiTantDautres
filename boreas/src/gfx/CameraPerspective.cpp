@@ -1,12 +1,13 @@
-#include "gfx/CameraPerspective.hpp"
-#include "libs/sdl.hpp"
+#include "CameraPerspective.hpp"
+
+#include <SDL3/SDL_camera.h>
 
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
 
 CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at) :
-    CameraPerspective(width, height, position, at, DEFAULT_YAW, DEFAULT_PITCH) 
+    CameraPerspective(width, height, position, at, DEFAULT_YAW, DEFAULT_PITCH)
 {}
 
 CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at, float yaw, float pitch) :
@@ -16,11 +17,11 @@ CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, 
 }
 
 const float CameraPerspective::get_aspect_ratio() const {
-    return _aspect_ratio; 
+    return _aspect_ratio;
 }
 
-void CameraPerspective::set_aspect_ratio(int width, int height) { 
-    _aspect_ratio = (float)width / (float)height; 
+void CameraPerspective::set_aspect_ratio(int width, int height) {
+    _aspect_ratio = (float)width / (float)height;
 }
 
 glm::mat4 CameraPerspective::get_view_matrix()
@@ -31,7 +32,7 @@ glm::mat4 CameraPerspective::get_view_matrix()
 
 glm::mat4 CameraPerspective::get_proj_matrix()
 {
-    return glm::perspective(glm::radians(zoom), _aspect_ratio, _near, _far);	
+    return glm::perspective(glm::radians(zoom), _aspect_ratio, _near, _far);
 }
 
 glm::vec3 CameraPerspective::get_position()
@@ -107,7 +108,7 @@ void CameraPerspective::process_wheel(float y)
     if (zoom < DEFAULT_ZOOM_MIN)
         zoom = DEFAULT_ZOOM_MIN;
     if (zoom > DEFAULT_ZOOM_MAX)
-        zoom = DEFAULT_ZOOM_MAX; 
+        zoom = DEFAULT_ZOOM_MAX;
 }
 
 void CameraPerspective::update()

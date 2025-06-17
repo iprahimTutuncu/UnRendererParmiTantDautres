@@ -1,6 +1,5 @@
 #include "ParticleRenderer.hpp"
-#include <cstring>
-#include <ctime>
+
 #include <iostream>
 
 ParticleRenderer::ParticleRenderer()

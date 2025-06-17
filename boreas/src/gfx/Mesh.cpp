@@ -1,6 +1,6 @@
-#include "gfx/Mesh.hpp"
+#include "Mesh.hpp"
 
-Mesh::~Mesh() 
+Mesh::~Mesh()
 {
     deinit();
 }

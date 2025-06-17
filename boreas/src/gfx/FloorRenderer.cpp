@@ -1,4 +1,4 @@
-#include "gfx/FloorRenderer.hpp"
+#include "FloorRenderer.hpp"
 
 FloorRenderer::~FloorRenderer()
 {
@@ -14,8 +14,8 @@ void FloorRenderer::init(ShaderProgram* shader)
 
     m_positions = {
         glm::vec3(-half_size, m_y_pos, -half_size),
-        glm::vec3(half_size, m_y_pos, -half_size),         
-        glm::vec3(half_size, m_y_pos, half_size),         
+        glm::vec3(half_size, m_y_pos, -half_size),
+        glm::vec3(half_size, m_y_pos, half_size),
         glm::vec3(-half_size, m_y_pos, half_size)
     };
 

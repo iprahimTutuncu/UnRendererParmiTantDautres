@@ -1,9 +1,9 @@
 #pragma once
 
-#include "gfx/ShaderProgram.hpp"
-#include "gfx/CameraPerspective.hpp"
-#include "gfx/ParticleRenderer.hpp"
-#include "gfx/FloorRenderer.hpp"
+#include "ShaderProgram.hpp"
+#include "CameraPerspective.hpp"
+#include "ParticleRenderer.hpp"
+#include "FloorRenderer.hpp"
 #include "libs/eigen.hpp"
 
 #include <memory>

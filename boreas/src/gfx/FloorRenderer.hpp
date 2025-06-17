@@ -1,7 +1,7 @@
 #pragma once
 
-#include "gfx/Mesh.hpp"
-#include "gfx/ShaderProgram.hpp"
+#include "Mesh.hpp"
+#include "ShaderProgram.hpp"
 
 #include <vector>
 

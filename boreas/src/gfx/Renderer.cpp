@@ -1,4 +1,4 @@
-#include "gfx/Renderer.hpp"
+#include "Renderer.hpp"
 
 const glm::vec3 camera_pos = glm::vec3(1.0f,0.5f,1.0f);
 const glm::vec3 camera_at = glm::vec3(0.0);
@@ -18,7 +18,7 @@ bool Renderer::init(int width, int height, int nb_particles) {
 
     m_floorRenderer = std::make_unique<FloorRenderer>(0.0f, 20.0f);
     m_floorRenderer->init(m_floorShader.get());
-    
+
     m_particleRenderer = std::make_unique<ParticleRenderer>();
     m_particleRenderer->init(m_particleShader.get(), nb_particles);
 
@@ -31,9 +31,9 @@ bool Renderer::init_shaders() {
     // Particles
     bool particleShaderSuccess = true;
     m_particleShader = std::make_unique<ShaderProgram>();
-    particleShaderSuccess &= 
+    particleShaderSuccess &=
         m_particleShader->addShaderFromSource(GL_VERTEX_SHADER, directory + "particleShader.vert");
-    particleShaderSuccess &= 
+    particleShaderSuccess &=
         m_particleShader->addShaderFromSource(GL_FRAGMENT_SHADER, directory + "particleShader.frag");
     particleShaderSuccess &= m_particleShader->link();
     if (!particleShaderSuccess) {
@@ -44,9 +44,9 @@ bool Renderer::init_shaders() {
     // Floor
     bool floorShaderSuccess = true;
     m_floorShader = std::make_unique<ShaderProgram>();
-    floorShaderSuccess &= 
+    floorShaderSuccess &=
         m_floorShader->addShaderFromSource(GL_VERTEX_SHADER, directory + "floorShader.vert");
-    floorShaderSuccess &= 
+    floorShaderSuccess &=
         m_floorShader->addShaderFromSource(GL_FRAGMENT_SHADER, directory + "floorShader.frag");
     floorShaderSuccess &= m_floorShader->link();
     if (!floorShaderSuccess) {

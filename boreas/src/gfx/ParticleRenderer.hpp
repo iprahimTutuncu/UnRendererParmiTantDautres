@@ -1,9 +1,8 @@
 #pragma once
 
-#include "gfx/Mesh.hpp"
-#include "gfx/ShaderProgram.hpp"
-#include "libs/eigen.hpp"
-
+#include "../libs/eigen.hpp"
+#include "Mesh.hpp"
+#include "ShaderProgram.hpp"
 
 struct alignas(16) Particle {
     glm::vec3 position;
