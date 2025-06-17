@@ -36,25 +36,24 @@ struct alignas(16) vec3 {
     float x;
     float y;
     float z;
-    float _pad = 0.f;
 
-    constexpr vec3 operator-() const {
-        return { -x, -y, -z };
+    inline vec3 operator-() const {
+        return { -x, -y, -z};
     }
 
-    constexpr vec3& operator=(vec3 const& v) {
+    inline vec3& operator=(vec3 const& v) {
         _mm_store_ps(&this->x, _mm_load_ps(&v.x));
         return *this;
     }
 
-    constexpr vec3& operator+=(vec3 const& v) {
+    inline vec3& operator+=(vec3 const& v) {
         this->x += v.x;
         this->y += v.y;
         this->z += v.z;
         return *this;
     }
 
-    constexpr vec3& operator-=(vec3 const& v) {
+    inline vec3& operator-=(vec3 const& v) {
         this->x -= v.x;
         this->y -= v.y;
         this->z -= v.z;
@@ -62,15 +61,15 @@ struct alignas(16) vec3 {
     }
 };
 
-constexpr vec3 operator*(float const& f, vec3 const& v) {
+constexpr vec3 operator*(float f, vec3 const& v) {
     return { v.x * f, v.y * f, v.z * f };
 }
 
-constexpr vec3 operator*(vec3 const& v, float const& f) {
+constexpr vec3 operator*(vec3 const& v, float f) {
     return { v.x * f, v.y * f, v.z * f };
 }
 
-constexpr vec3 operator*(int const& i, vec3 const& v) {
+constexpr vec3 operator*(int i, vec3 const& v) {
     return { i * v.x, i * v.y, i * v.z };
 }
 
