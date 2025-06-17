@@ -184,14 +184,14 @@ constexpr inline void sincos(__m128 x, __m128* sin_out, __m128* cos_out) {
 
 constexpr inline quat angleAxis(float const& angle, vec3 const& v) {
     __m128 r0 = _mm_set1_ps(angle / 2);
-    __m128 r1_sin, r2_cos, r3;
-    sincos(r0, &r1_sin, &r2_cos);
-    r3 = _mm_mul_ps(r1_sin, _mm_load_ps(&v.x));
+    __m128 r1, sin, cos;
+    sincos(r0, &sin, &cos);
+    r1 = _mm_mul_ps(sin, _mm_load_ps(&v.x));
 
 #ifdef _MSC_VER
-    return { c.m128_f32[0], r.m128_f32[0], r.m128_f32[1], r.m128_f32[2] };
+    return { cos.m128_f32[0], r1.m128_f32[0], r1.m128_f32[1], r1.m128_f32[2] };
 #else
-    return { r2_cos[0], r3[0], r3[1], r3[2] };
+    return { cos[0], r1[0], r1[1], r1[2] };
 #endif
 }
 
