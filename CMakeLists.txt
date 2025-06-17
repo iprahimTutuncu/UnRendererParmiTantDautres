@@ -93,7 +93,7 @@ add_executable(app
     src/main.cpp
     src/controls/controls.cpp
     src/graphics/camera.cpp
-    src/graphics/graphic_manager.cpp
+    src/graphics/graphics.cpp
     src/physics/physics.cpp
 )
 target_link_libraries(app PRIVATE

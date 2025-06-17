@@ -1,6 +1,6 @@
 #include "state.h"
 
-#include "controls/api.h"
+#include "controls/controls.h"
 #include "graphics/api.h"
 #include "physics/api.h"
 
@@ -8,6 +8,7 @@
 #include <SDL3/SDL_main.h>
 
 #include <SDL3/SDL_gpu.h>
+#include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_timer.h>
@@ -21,21 +22,25 @@ static inline void setFPSinTitle(std::uint32_t i, char *title) {
     title[2] = static_cast<char>(i % 10 + '0');
 }
 
-static void updateTiming(AppState &appstate) {
-    std::uint64_t timeDelta = (appstate.currentTime = SDL_GetTicks()) - appstate.lastTime;
-    appstate.numFrames++;
+static void updateTiming(AppState &state) {
+    std::uint64_t now = SDL_GetPerformanceCounter();
+
+    state.numFrames++;
+    state.delta_time = (now - state.last) / (double)SDL_GetPerformanceFrequency();
+    state.last = now;
+    std::uint32_t timeDelta = (state.currentTick = SDL_GetTicks()) - state.lastTick;
     if (timeDelta >= 1000ull) [[unlikely]] {
         static char title[] = "Running at XXX fps.";
         constexpr int indexFirstX = 11;
-        setFPSinTitle(appstate.numFrames, title + indexFirstX);
-        SDL_SetWindowTitle(appstate.window, title);
-        appstate.lastTime = appstate.currentTime;
-        appstate.numFrames = 0u;
+        setFPSinTitle(state.numFrames, title + indexFirstX);
+        SDL_SetWindowTitle(state.window, title);
+        state.lastTick = state.currentTick;
+        state.numFrames = 0u;
     }
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
-    if (!SDL_SetAppMetadata("Olaf engine renderer", "0.1.0", "ca.etsmtl.olaf")) {
+    if (!SDL_SetAppMetadata("Olaf engine renderer", "0.1.1", "ca.etsmtl.olaf")) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to set app metadata: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
@@ -69,28 +74,42 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     AppState &state = *static_cast<AppState *>(*appstate);
     state.device = device;
     state.window = window;
-    state.lastTime = 0ull;
-    state.currentTime = 0ull;
+    state.lastTick = 0ull;
+    state.currentTick = 0ull;
     state.numFrames = 0u;
+    state.delta_time = 0.f;
 
-    // iniT le truc que j<ai besoin
-
-    physics_init(state, argc, argv);
-    graphics_init(state, argc, argv);
+    SDL_AppResult result;
+    result = physics_init(state, argc, argv);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+    result = graphics_init(state, argc, argv);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+    result = controls_init(state, argc, argv);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
 
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
     AppState &app = *static_cast<AppState *>(appstate);
+    updateTiming(app);
 
-    SDL_AppResult result = graphics_iterate(app);
+    SDL_AppResult result;
+    result = controls_iterate(app);
     if (result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
 
-    physics_iterate(app);
+    result = graphics_iterate(app);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
 
-    updateTiming(app);
+    result = physics_iterate(app);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+
     return SDL_APP_CONTINUE;
 }
 
@@ -109,9 +128,16 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
         break;
     }
 
-    controls_event(app, *event);
-    physics_event(app, *event);
-    graphics_event(app, *event);
+    SDL_AppResult result;
+    result = controls_event(app, *event);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+    result = physics_event(app, *event);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+    result = graphics_event(app, *event);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
 
     return SDL_APP_CONTINUE;
 }

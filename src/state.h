@@ -5,8 +5,9 @@
 struct SDL_GPUDevice;
 struct SDL_Window;
 struct SDL_Thread;
+
 struct CameraPerspective;
-struct MouseControl;
+struct ControlState;
 struct SDL_GPUShader;
 
 struct AppState {
@@ -14,12 +15,13 @@ struct AppState {
     SDL_Window *window;
 
     CameraPerspective *camera;
-    MouseControl *mouseControl;
+    ControlState *controls;
 
     SDL_GPUShader *floorShader;
 
     // some timing variables
-    std::uint64_t lastTime, currentTime;
+    std::uint32_t lastTick, currentTick;
+    std::uint64_t last;
     std::uint32_t numFrames;
-    float delta_time = 1.f;
+    float delta_time;
 };
