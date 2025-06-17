@@ -2,8 +2,13 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 
-#include "intrin.hpp"
+#ifdef _MSC_VER
+#include "x86intrin.hpp"
+#else
+#include <x86intrin.h>
+#endif
 
 struct alignas(16) quat {
     float w;
