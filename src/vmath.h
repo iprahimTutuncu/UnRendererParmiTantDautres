@@ -11,7 +11,7 @@ struct alignas(16) quat {
     float y;
     float z;
 
-    constexpr inline quat operator*(quat const& q) const {
+    constexpr quat operator*(quat const& q) const {
         quat const& p = *this;
         return {
             p.w * q.w - p.x * q.x - p.y * q.y - p.z * q.z,
@@ -21,7 +21,7 @@ struct alignas(16) quat {
         };
     }
 
-    constexpr inline quat& operator*=(quat const& q) {
+    constexpr quat& operator*=(quat const& q) {
         quat& p = *this;
         this->w = p.w * q.w - p.x * q.x - p.y * q.y - p.z * q.z;
         this->x = p.w * q.x + p.x * q.w + p.y * q.z - p.z * q.y;
@@ -36,26 +36,25 @@ struct alignas(16) vec3 {
     float x;
     float y;
     float z;
+    float _pad = 0.f;
 
-    constexpr inline vec3 operator-() const {
+    constexpr vec3 operator-() const {
         return { -x, -y, -z };
     }
 
-    constexpr inline vec3& operator=(vec3 const& v) {
-        this->x = v.x;
-        this->y = v.y;
-        this->z = v.z;
+    constexpr vec3& operator=(vec3 const& v) {
+        _mm_store_ps(&this->x, _mm_load_ps(&v.x));
         return *this;
     }
 
-    constexpr inline vec3& operator+=(vec3 const& v) {
+    constexpr vec3& operator+=(vec3 const& v) {
         this->x += v.x;
         this->y += v.y;
         this->z += v.z;
         return *this;
     }
 
-    constexpr inline vec3& operator-=(vec3 const& v) {
+    constexpr vec3& operator-=(vec3 const& v) {
         this->x -= v.x;
         this->y -= v.y;
         this->z -= v.z;
@@ -63,15 +62,15 @@ struct alignas(16) vec3 {
     }
 };
 
-constexpr inline vec3 operator*(float const& f, vec3 const& v) {
+constexpr vec3 operator*(float const& f, vec3 const& v) {
     return { v.x * f, v.y * f, v.z * f };
 }
 
-constexpr inline vec3 operator*(vec3 const& v, float const& f) {
+constexpr vec3 operator*(vec3 const& v, float const& f) {
     return { v.x * f, v.y * f, v.z * f };
 }
 
-constexpr inline vec3 operator*(int const& i, vec3 const& v) {
+constexpr vec3 operator*(int const& i, vec3 const& v) {
     return { i * v.x, i * v.y, i * v.z };
 }
 
@@ -80,17 +79,18 @@ struct mat3 {
         __m128 mm[3];
         vec3 cols[3];
     };
-    constexpr inline vec3& operator[](std::size_t index) {
+
+    constexpr vec3& operator[](std::size_t index) {
         assert(index < 3);
         return cols[index];
     }
 
-    const inline vec3& operator[](std::size_t index) const {
+    constexpr vec3 const& operator[](std::size_t index) const {
         assert(index < 3);
         return cols[index];
     }
 
-    constexpr inline vec3 operator*(vec3 const& v) const {
+    constexpr vec3 operator*(vec3 const& v) const {
 #ifndef __SSE4_1__
         return {
             cols[0].x * v.x + cols[0].y * v.y + cols[0].z * v.z,
@@ -119,7 +119,7 @@ struct alignas(16) vec4 {
     union { float w, a, q; };
     // clang-format on
 
-    constexpr inline float& operator[](std::size_t index) {
+    constexpr float& operator[](std::size_t index) {
         assert(index < 4);
         switch (index) {
         default:
@@ -134,7 +134,7 @@ struct alignas(16) vec4 {
         }
     }
 
-    constexpr const inline float& operator[](std::size_t index) const {
+    constexpr float const& operator[](std::size_t index) const {
         assert(index < 4);
         switch (index) {
         default:
@@ -153,12 +153,12 @@ struct alignas(16) vec4 {
 struct mat4 {
     __m128 cols[4];
 
-    constexpr inline __m128& operator[](std::size_t index) {
+    constexpr __m128& operator[](std::size_t index) {
         assert(index < 4);
         return cols[index];
     }
 
-    const inline __m128& operator[](std::size_t index) const {
+    constexpr __m128 const& operator[](std::size_t index) const {
         assert(index < 4);
         return cols[index];
     }
@@ -169,7 +169,7 @@ constexpr T radians(T degrees) {
     return degrees * static_cast<T>(0.01745329251994329576923690768489);
 }
 
-constexpr inline void sincos(__m128 x, __m128* sin_out, __m128* cos_out) {
+inline void sincos(__m128 x, __m128* sin_out, __m128* cos_out) {
     const __m128 c3 = _mm_set1_ps(-1.0f / 6.0f);
     const __m128 c2 = _mm_set1_ps(-1.0f / 2.0f);
     const __m128 c4 = _mm_set1_ps(1.0f / 24.0f);
@@ -182,7 +182,7 @@ constexpr inline void sincos(__m128 x, __m128* sin_out, __m128* cos_out) {
     *cos_out = 1.0f + x2 * (c2 + x2 * (c4 + x2 * c6));
 }
 
-constexpr inline quat angleAxis(float const& angle, vec3 const& v) {
+inline quat angleAxis(float angle, vec3 const& v) {
     __m128 r0 = _mm_set1_ps(angle / 2);
     __m128 r1, sin, cos;
     sincos(r0, &sin, &cos);
@@ -195,7 +195,7 @@ constexpr inline quat angleAxis(float const& angle, vec3 const& v) {
 #endif
 }
 
-constexpr inline mat3 mat3_cast(quat const& q) {
+inline mat3 mat3_cast(quat q) {
     float qxx(q.x * q.x);
     float qyy(q.y * q.y);
     float qzz(q.z * q.z);
@@ -216,17 +216,17 @@ constexpr inline mat3 mat3_cast(quat const& q) {
 #ifdef _MSC_VER
     return {
         .cols {
-            { 1 - r0.m128_f32[0], r0.m128_f32[1], r0.m128_f32[2] },
-            { r1.m128_f32[0], 1 - r1.m128_f32[1], r1.m128_f32[2] },
-            { r2.m128_f32[0], r2.m128_f32[1], 1 - r2.m128_f32[2] },
+            { 1.f - r0.m128_f32[0], r0.m128_f32[1], r0.m128_f32[2] },
+            { r1.m128_f32[0], 1.f - r1.m128_f32[1], r1.m128_f32[2] },
+            { r2.m128_f32[0], r2.m128_f32[1], 1.f - r2.m128_f32[2] },
         }
     };
 #else
     return {
         .cols {
-            { 1 - r0[0], r0[1], r0[2] },
-            { r1[0], 1 - r1[1], r1[2] },
-            { r2[0], r2[1], 1 - r2[2] },
+            { 1.f - r0[0], r0[1], r0[2] },
+            { r1[0], 1.f - r1[1], r1[2] },
+            { r2[0], r2[1], 1.f - r2[2] },
         }
     };
 #endif

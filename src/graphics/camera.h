@@ -13,7 +13,7 @@ struct CameraPerspective {
     float near;
     float far;
 
-    constexpr inline vec3 right() const {
+    constexpr vec3 right() const {
         return vec3 {
             1 - 2 * (rotation.y * rotation.y + rotation.z * rotation.z),
             2 * (rotation.x * rotation.y + rotation.w * rotation.z),
