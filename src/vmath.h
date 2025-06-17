@@ -213,7 +213,15 @@ constexpr inline mat3 mat3_cast(quat const& q) {
     r0 = r0 + r0;
     r1 = r1 + r1;
     r2 = r2 + r2;
-
+#ifdef _MSV_VER
+    return {
+        .cols {
+            { 1 - r0.m128_f32[0], r0.m128_f32[1], r0.m128_f32[2] },
+            { r1.m128_f32[0], 1 - r1.m128_f32[1], r1.m128_f32[2] },
+            { r2.m128_f32[0], r2.m128_f32[1], 1 - r2.m128_f32[2] },
+        }
+    };
+#else
     return {
         .cols {
             { 1 - r0[0], r0[1], r0[2] },
@@ -221,4 +229,5 @@ constexpr inline mat3 mat3_cast(quat const& q) {
             { r2[0], r2[1], 1 - r2[2] },
         }
     };
+#endif
 }
