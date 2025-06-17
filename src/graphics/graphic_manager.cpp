@@ -1,12 +1,19 @@
 #include "api.h"
 
+#include "camera.h"
+
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_log.h>
 
 SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
-    (void)state;
     (void)argc;
     (void)argv;
+
+    state.camera = new CameraPerspective {};
+    CameraPerspective& camera = *state.camera;
+    camera.near = 0.1f;
+    camera.far = 100.0f;
+    camera.fov = radians(90.0f);
 
     return SDL_APP_CONTINUE;
 }
@@ -59,5 +66,7 @@ SDL_AppResult graphics_event(AppState& state, SDL_Event& event) {
 }
 
 void graphics_quit(AppState& state) {
-    (void)state;
+    if (state.camera) {
+        delete state.camera;
+    }
 }
