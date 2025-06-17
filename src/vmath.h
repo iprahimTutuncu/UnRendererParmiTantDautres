@@ -43,7 +43,7 @@ struct alignas(16) vec3 {
     float z;
 
     inline vec3 operator-() const {
-        return { -x, -y, -z};
+        return { -x, -y, -z };
     }
 
     inline vec3& operator=(vec3 const& v) {
@@ -103,9 +103,9 @@ struct mat3 {
         };
 #else
         __m128 r0 = _mm_load_ps(&v.x);
-        auto r1 = _mm_dp_ps(r0, mm[0], 0x71);
-        auto r2 = _mm_dp_ps(r0, mm[1], 0x72);
-        auto r3 = _mm_dp_ps(r0, mm[2], 0x74);
+        __m128 r1 = _mm_dp_ps(r0, mm[0], 0x71);
+        __m128 r2 = _mm_dp_ps(r0, mm[1], 0x72);
+        __m128 r3 = _mm_dp_ps(r0, mm[2], 0x74);
 #ifndef _MSC_VER
         return { r1[0], r2[1], r3[2] };
 #else
@@ -152,19 +152,39 @@ struct alignas(16) vec4 {
             return w;
         }
     }
+
+    inline vec4 operator*(float f) {
+        return { { x * f }, { y * f }, { z * f }, { w * f } };
+    }
+
+    inline vec4 operator+(float f) {
+        return { { x + f }, { y + f }, { z + f }, { w + f } };
+    }
+
+    inline vec4 operator+(vec4 const& v) {
+        return { { x + v.x }, { y + v.y }, { z + v.z }, { w + v.w } };
+    }
 };
 
 struct mat4 {
-    __m128 cols[4];
+    union {
+        __m128 mm[4];
+        vec4 v4[4];
+    };
 
-    constexpr __m128& operator[](std::size_t index) {
+    constexpr vec4& operator[](std::size_t index) {
         assert(index < 4);
-        return cols[index];
+        return v4[index];
     }
 
-    constexpr __m128 const& operator[](std::size_t index) const {
+    constexpr vec4 const& operator[](std::size_t index) const {
         assert(index < 4);
-        return cols[index];
+        return v4[index];
+    }
+
+    inline mat4& operator=(mat3 const& m) {
+        std::memcpy(&v4[0].x, &m[0].x, sizeof(m));
+        return *this;
     }
 };
 
@@ -200,6 +220,7 @@ inline quat angleAxis(float angle, vec3 const& v) {
 }
 
 inline mat3 mat3_cast(quat q) {
+    mat3 m;
     float qxx(q.x * q.x);
     float qyy(q.y * q.y);
     float qzz(q.z * q.z);
@@ -210,28 +231,15 @@ inline mat3 mat3_cast(quat q) {
     float qwy(q.w * q.y);
     float qwz(q.w * q.z);
 
-    __m128 r0 = _mm_set_ps(qyy + qzz, qxy - qwz, qxz + qwy, 0.f);
-    __m128 r1 = _mm_set_ps(qxy + qwz, qxx + qzz, qyz - qwx, 0.f);
-    __m128 r2 = _mm_set_ps(qxz - qwy, qyz + qwx, qxx + qyy, 0.f);
+    m.mm[0] = { qyy + qzz, qxy - qwz, qxz + qwy, 0.f };
+    m.mm[1] = { qxy + qwz, qxx + qzz, qyz - qwx, 0.f };
+    m.mm[2] = { qxz - qwy, qyz + qwx, qxx + qyy, 0.f };
 
-    r0 = r0 + r0;
-    r1 = r1 + r1;
-    r2 = r2 + r2;
-#ifdef _MSC_VER
-    return {
-        .cols {
-            { 1.f - r0.m128_f32[0], r0.m128_f32[1], r0.m128_f32[2] },
-            { r1.m128_f32[0], 1.f - r1.m128_f32[1], r1.m128_f32[2] },
-            { r2.m128_f32[0], r2.m128_f32[1], 1.f - r2.m128_f32[2] },
-        }
-    };
-#else
-    return {
-        .cols {
-            { 1.f - r0[0], r0[1], r0[2] },
-            { r1[0], 1.f - r1[1], r1[2] },
-            { r2[0], r2[1], 1.f - r2[2] },
-        }
-    };
-#endif
+    m.mm[0] += m.mm[0];
+    m.mm[1] += m.mm[1];
+    m.mm[2] += m.mm[2];
+    m[0].x = 1 - m[0].x;
+    m[1].y = 1 - m[1].y;
+    m[2].z = 1 - m[2].z;
+    return m;
 }
