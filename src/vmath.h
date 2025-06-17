@@ -231,13 +231,13 @@ inline mat3 mat3_cast(quat q) {
     float qwy(q.w * q.y);
     float qwz(q.w * q.z);
 
-    m.mm[0] = { qyy + qzz, qxy - qwz, qxz + qwy, 0.f };
-    m.mm[1] = { qxy + qwz, qxx + qzz, qyz - qwx, 0.f };
-    m.mm[2] = { qxz - qwy, qyz + qwx, qxx + qyy, 0.f };
+    __m128 r0 = { qyy + qzz, qxy - qwz, qxz + qwy, 0.f };
+    __m128 r1 = { qxy + qwz, qxx + qzz, qyz - qwx, 0.f };
+    __m128 r2 = { qxz - qwy, qyz + qwx, qxx + qyy, 0.f };
 
-    m.mm[0] += m.mm[0];
-    m.mm[1] += m.mm[1];
-    m.mm[2] += m.mm[2];
+    m.mm[0] = r0 + r0;
+    m.mm[1] = r1 + r1;
+    m.mm[2] = r2 + r2;
     m[0].x = 1 - m[0].x;
     m[1].y = 1 - m[1].y;
     m[2].z = 1 - m[2].z;
