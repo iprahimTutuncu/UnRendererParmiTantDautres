@@ -11,34 +11,36 @@
 
     also, load, save and abillity to access pixel individually might be a useful feature.
 */
-
-class Image
+namespace GTS
 {
-public:
-    Image() = default;
-    ~Image() = default;
+    class Image
+    {
+    public:
+        Image() = default;
+        ~Image() = default;
 
-    Image(const Image&) = delete;
-    Image& operator=(const Image&) = delete;
+        Image(const Image&) = delete;
+        Image& operator=(const Image&) = delete;
 
-    Image(Image&& other) noexcept;
-    Image& operator=(Image&& other) noexcept;
+        Image(Image&& other) noexcept;
+        Image& operator=(Image&& other) noexcept;
 
-    bool loadFromFile(const std::string& filename, int desiredChannels = 4);
+        bool loadFromFile(const std::string& filename, int desiredChannels = 4);
 
-    // Getters
-    int getWidth() const { return width; }
-    int getHeight() const { return height; }
-    int getChannels() const { return channels; }
-    const uint8_t* getData() const { return pixels.data(); }
-    uint8_t* getData() { return pixels.data(); }
-    size_t getSize() const { return pixels.size(); }
+        // Getters
+        int getWidth() const { return width; }
+        int getHeight() const { return height; }
+        int getChannels() const { return channels; }
+        const uint8_t* getData() const { return pixels.data(); }
+        uint8_t* getData() { return pixels.data(); }
+        size_t getSize() const { return pixels.size(); }
 
-    bool isValid() const { return !pixels.empty(); }
+        bool isValid() const { return !pixels.empty(); }
 
-private:
-    std::vector<std::uint8_t> pixels;
-    int width = 0;
-    int height = 0;
-    int channels = 0;
-};
+    private:
+        std::vector<std::uint8_t> pixels;
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+    };
+}

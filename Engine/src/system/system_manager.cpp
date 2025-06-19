@@ -5,15 +5,15 @@
 #include "system/window.h"
 #include "system/event.h"
 
-namespace Olaf
+namespace GTS
 {
-	void Olaf::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback)
+	void GTS::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback)
 	{
 		LogManager::init();
 
 		pWindow = Window::create(WindowAPI::SDL3);
 
-		if (!pWindow->init(options.screenWidth, options.screenHeight, "Olaf Engine"))
+		if (!pWindow->init(options.screenWidth, options.screenHeight, "GTS Engine"))
 		{
 			return;
 		}
@@ -23,7 +23,7 @@ namespace Olaf
 		pWindow->enableEventForHUD();
 	}
 
-	void Olaf::SystemManager::update(Options& options, double dt)
+	void GTS::SystemManager::update(Options& options, double dt)
 	{
 		std::vector<Event> events = pWindow->pollEvent();
 

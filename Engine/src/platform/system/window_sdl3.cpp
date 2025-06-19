@@ -11,7 +11,7 @@
 #include <GL/glew.h>
 #include <SDL3/SDL_gpu.h>
 
-namespace Olaf
+namespace GTS
 {
     bool WindowSDL3::init(const int width, const int height, const char* title)
     {
@@ -27,7 +27,7 @@ namespace Olaf
         {
             if (!SDL_Init(SDL_INIT_VIDEO))
             {
-                OLAF_ERROR("SDL_Init failed: {}", SDL_GetError());
+                GTS_ERROR("SDL_Init failed: {}", SDL_GetError());
                 return false;
             }
 
@@ -35,40 +35,40 @@ namespace Olaf
             
             int count = 0;
             const char* drivers = SDL_GetGPUDeviceDriver(sdlGPU);
-            OLAF_INFO("Available GPU driver: {}", drivers);
+            GTS_INFO("Available GPU driver: {}", drivers);
 
             if (!sdlGPU)
             {
-                OLAF_ERROR("Failed to create SDL GPU Device: {}", SDL_GetError());
+                GTS_ERROR("Failed to create SDL GPU Device: {}", SDL_GetError());
                 return false;
             }
 
             sdlWindow = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
             if (!sdlWindow)
             {
-                OLAF_ERROR("Failed to create SDL Window: {}", SDL_GetError());
+                GTS_ERROR("Failed to create SDL Window: {}", SDL_GetError());
                 SDL_DestroyGPUDevice(sdlGPU);
                 return false;
             }
 
             if (!SDL_ClaimWindowForGPUDevice(sdlGPU, sdlWindow))
             {
-                OLAF_ERROR("Failed to claim SDL_Window for GPU Device: {}", SDL_GetError());
+                GTS_ERROR("Failed to claim SDL_Window for GPU Device: {}", SDL_GetError());
                 SDL_DestroyGPUDevice(sdlGPU);
                 SDL_DestroyWindow(sdlWindow);
                 return false;
             }
 
-            OLAF_INFO("SDL3 GPU Window created using Vulkan backend.");
+            GTS_INFO("SDL3 GPU Window created using Vulkan backend.");
         }
         else
         {
-            OLAF_ERROR("I don't think any graphicAPI was specified");
+            GTS_ERROR("I don't think any graphicAPI was specified");
             return false;
         }
 
 
-        OLAF_INFO("SDL3 Window created: {}, (X: {}, Y: {})", title, width, height);
+        GTS_INFO("SDL3 Window created: {}, (X: {}, Y: {})", title, width, height);
         return true;
     }
 
@@ -113,7 +113,7 @@ namespace Olaf
 
     std::vector<Event> WindowSDL3::pollEvent()
     {
-        std::vector<Olaf::Event> events;
+        std::vector<GTS::Event> events;
         SDL_Event e;
 
         while (SDL_PollEvent(&e)) {

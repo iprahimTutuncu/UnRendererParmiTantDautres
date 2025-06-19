@@ -5,7 +5,7 @@
 #include <vector>
 #include <functional>
 
-namespace  Olaf
+namespace  GTS
 {
 	class Event;
 

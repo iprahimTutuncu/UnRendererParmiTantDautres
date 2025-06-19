@@ -5,7 +5,7 @@
 #include <memory>
 #include <functional>
 
-namespace Olaf 
+namespace GTS 
 {
     class Window;
     class ControlSetting;

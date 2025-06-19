@@ -2,7 +2,7 @@
 #include "key_code.h"
 #include <array>
 
-namespace Olaf {
+namespace GTS {
 
 
     class Keyboard {

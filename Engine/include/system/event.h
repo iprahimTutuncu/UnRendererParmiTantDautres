@@ -1,7 +1,7 @@
 #pragma once
 #include "system/key_code.h"
 
-namespace Olaf 
+namespace GTS 
 {
 	class Event 
 	{

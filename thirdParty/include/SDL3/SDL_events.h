@@ -251,7 +251,7 @@ typedef enum SDL_EventType
     SDL_EVENT_CAMERA_DEVICE_DENIED,          /**< A camera device has been denied for use by the user. */
 
     /* Render events */
-    SDL_EVENT_RENDER_TARGEOLAF_RESET = 0x2000, /**< The render targets have been reset and their contents need to be updated */
+    SDL_EVENT_RENDER_TARGEGTS_RESET = 0x2000, /**< The render targets have been reset and their contents need to be updated */
     SDL_EVENT_RENDER_DEVICE_RESET, /**< The device has been reset and all textures need to be recreated */
     SDL_EVENT_RENDER_DEVICE_LOST, /**< The device has been lost and can't be recovered. */
 
@@ -737,7 +737,7 @@ typedef struct SDL_CameraDeviceEvent
  */
 typedef struct SDL_RenderEvent
 {
-    SDL_EventType type; /**< SDL_EVENT_RENDER_TARGEOLAF_RESET, SDL_EVENT_RENDER_DEVICE_RESET, SDL_EVENT_RENDER_DEVICE_LOST */
+    SDL_EventType type; /**< SDL_EVENT_RENDER_TARGEGTS_RESET, SDL_EVENT_RENDER_DEVICE_RESET, SDL_EVENT_RENDER_DEVICE_LOST */
     Uint32 reserved;
     Uint64 timestamp;   /**< In nanoseconds, populated using SDL_GetTicksNS() */
     SDL_WindowID windowID; /**< The window containing the renderer in question. */

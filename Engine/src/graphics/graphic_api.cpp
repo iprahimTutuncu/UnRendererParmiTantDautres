@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "graphics/graphic_api.h"
 
-namespace Olaf
+namespace GTS
 {
     GraphicAPI Graphics::graphicAPI = GraphicAPI::SDL3;
 

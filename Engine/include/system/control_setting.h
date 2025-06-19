@@ -6,7 +6,7 @@
 #include "system/keyboard.h"
 #include "system/event.h"
 
-namespace Olaf 
+namespace GTS 
 {
 	enum InputState
 	{

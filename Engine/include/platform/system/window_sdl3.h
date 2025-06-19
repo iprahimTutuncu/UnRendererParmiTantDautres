@@ -7,7 +7,7 @@
 struct SDL_Window;
 struct SDL_GPUDevice;
 
-namespace Olaf
+namespace GTS
 {
     class GpuDevice;
 

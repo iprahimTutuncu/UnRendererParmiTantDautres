@@ -9,3 +9,4 @@
 #include <unordered_map>
 #include <utility>
 #include <filesystem>
+#include <SDL3/SDL_gpu.h>

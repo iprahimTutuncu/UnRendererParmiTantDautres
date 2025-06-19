@@ -6,6 +6,10 @@
 #include "system/window.h"
 #include "system/event.h"
 #include "system/control_setting.h"
+#include "ressource_manager/shader_manager.h"
+#include "ressource_manager/sampler_manager.h"
+#include "ressource_manager/texture_manager.h"
+#include "ressource_manager/image_manager.h"
 
 #include "graphics/graphic_api.h"
 #include <system/log_manager.h>
@@ -14,7 +18,7 @@
 
 std::chrono::duration<double> frameDuration;
 
-namespace Olaf
+namespace GTS
 {
     Engine::Engine():
         graphicsManager(std::make_shared<GraphicsManager>()),
@@ -42,7 +46,7 @@ namespace Olaf
         controlSetting = std::make_shared<ControlSetting>();
         controlSetting->add(Key::kAcHome, InputState::isDoubleClick, InputAction::action);
 
-        systemManager->init(options.windowOptions, controlSetting, [this](Olaf::Options& options, const double& deltaTime, const std::vector<Olaf::InputAction>& inputActions)
+        systemManager->init(options.windowOptions, controlSetting, [this](GTS::Options& options, const double& deltaTime, const std::vector<GTS::InputAction>& inputActions)
             {
                 this->onInput(options, deltaTime, inputActions);
             });
@@ -50,23 +54,23 @@ namespace Olaf
         window = systemManager->getWindow();
         window->setSize(options.windowOptions.screenWidth, options.windowOptions.screenHeight);
 
+        Ressource::ShaderManager::init(window);
+        Ressource::SamplerManager::init(window);
+        Ressource::TextureManager::init(window);
 
-        graphicsManager->init(options, window, [this](Olaf::Options& options, Olaf::GraphicsManager& graphicsManager, const double& deltaTime)
+        graphicsManager->init(options, window, [this](GTS::Options& options, GTS::GraphicsManager& graphicsManager, const double& deltaTime)
             {
                 this->onDraw(options, graphicsManager, deltaTime);
             });
 
-
+        // Add initial manually specified boxes
         boxes.push_back({ glm::vec3(-1.0f), glm::vec3(1.0f) });
-        boxes.push_back({ glm::vec3(5.0f, -5.5f, -0.5f), glm::vec3(8.0f, -3.0f, 0.5f) });
-        boxes.push_back({ glm::vec3(-4.0f, -1.5f, -0.3f), glm::vec3(-3.0f, 1.5f, 0.3f) });
-        boxes.push_back({ glm::vec3(-0.75f, 2.0f, -0.75f), glm::vec3(0.75f, 2.5f, 0.75f) });
-        boxes.push_back({ glm::vec3(1.0f, -1.0f, 4.0f), glm::vec3(3.0f, 1.0f, 4.2f) });
 
-        for (auto& box : boxes) {
+        // Register all boxes with the graphics manager
+        for (auto& box : boxes)
+        {
             graphicsManager->add(&box);
         }
-
         onInit();
     }
 

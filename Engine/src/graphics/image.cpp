@@ -5,60 +5,63 @@
 #define STBI_ONLY_PNG
 #include "stb_image/stb_image.h"
 
-Image::Image(Image&& other) noexcept
-    : pixels(std::move(other.pixels)),
-    width(other.width),
-    height(other.height),
-    channels(other.channels)
+namespace GTS
 {
-    other.width = 0;
-    other.height = 0;
-    other.channels = 0;
-}
-
-Image& Image::operator=(Image&& other) noexcept
-{
-    if (this != &other)
+    Image::Image(Image && other) noexcept
+        : pixels(std::move(other.pixels)),
+        width(other.width),
+        height(other.height),
+        channels(other.channels)
     {
-        pixels = std::move(other.pixels);
-        width = other.width;
-        height = other.height;
-        channels = other.channels;
-
         other.width = 0;
         other.height = 0;
         other.channels = 0;
     }
-    return *this;
-}
 
-
-bool Image::loadFromFile(const std::string& filename, int desiredChannels)
-{
-    if (!std::filesystem::exists(filename))
+    Image & Image::operator=(Image && other) noexcept
     {
-        OLAF_ERROR("File does not exist: {}", filename);
-        return false;
+        if (this != &other)
+        {
+            pixels = std::move(other.pixels);
+            width = other.width;
+            height = other.height;
+            channels = other.channels;
+
+            other.width = 0;
+            other.height = 0;
+            other.channels = 0;
+        }
+        return *this;
     }
 
-    if (!pixels.empty())
-        pixels.clear();
 
-    uint8_t* tempData = stbi_load(filename.c_str(), &width, &height, &channels, desiredChannels);
-    if (!tempData)
+    bool Image::loadFromFile(const std::string & filename, int desiredChannels)
     {
-        OLAF_ERROR("Failed to load image: '{}' because of {}", filename, stbi_failure_reason());  // Optional: improve logging
-        width = height = channels = 0;
-        return false;
+        if (!std::filesystem::exists(filename))
+        {
+            GTS_ERROR("File does not exist: {}", filename);
+            return false;
+        }
+
+        if (!pixels.empty())
+            pixels.clear();
+
+        uint8_t* tempData = stbi_load(filename.c_str(), &width, &height, &channels, desiredChannels);
+        if (!tempData)
+        {
+            GTS_ERROR("Failed to load image: '{}' because of {}", filename, stbi_failure_reason());  // Optional: improve logging
+            width = height = channels = 0;
+            return false;
+        }
+
+        if (desiredChannels > 0)
+            channels = desiredChannels;
+
+        size_t size = static_cast<size_t>(width * height * channels);
+        pixels.resize(size);
+        std::memcpy(pixels.data(), tempData, size);
+
+        stbi_image_free(tempData);
+        return true;
     }
-
-    if (desiredChannels > 0)
-        channels = desiredChannels;
-
-    size_t size = static_cast<size_t>(width * height * channels);
-    pixels.resize(size);
-    std::memcpy(pixels.data(), tempData, size);
-
-    stbi_image_free(tempData);
-    return true;
 }

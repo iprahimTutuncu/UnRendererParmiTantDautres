@@ -2,7 +2,7 @@
 #include "system/control_setting.h"
 #include "system/keyboard.h"
 
-namespace Olaf {
+namespace GTS {
 	void ControlSetting::add(Key inputKey, InputState inputState, InputAction inputAction)
 	{
 		std::pair<Key, InputState> key{ inputKey, inputState };
