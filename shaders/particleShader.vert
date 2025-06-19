@@ -1,26 +1,28 @@
-#version 460 core
+#version 460
 
-out vec4 gColor;
+layout(location=0) out vec4 gColor;
 
-uniform mat4 uProjMatrix;
-uniform mat4 uViewMatrix;
+layout(set = 0, binding = 0) uniform UniformBufferObject {
+    mat4 uProjMatrix;
+    mat4 uViewMatrix;
+};
 
 struct ParticleInstance {
     vec3 position;
     float _p1;
 };
 
-layout(std430, binding = 0) buffer particleInstances
+layout(std430, binding = 1) buffer particleInstances
 {
     ParticleInstance instances[];
 };
 
 void main()
 {
-    ParticleInstance instance = instances[gl_VertexID];
+    ParticleInstance instance = instances[gl_InstanceIndex];
     mat4 VPMatrix = uProjMatrix * uViewMatrix;
-//    gPosition = instance.position;
-    gl_PointSize = 8.0f;
-    gl_Position = VPMatrix * vec4(instance.position, 1.0f);
-    gColor = vec4(1.0f);
+
+    gl_PointSize = 8.0;  // Requires enabling widePoints in pipeline config
+    gl_Position = VPMatrix * vec4(instance.position, 1.0);
+    gColor = vec4(1.0);
 }

@@ -72,6 +72,30 @@ set(SPDLOG_ENABLE_PCH ON)
 set(SPDLOG_BUILD_PIC ON)
 add_subdirectory(libs/spdlog)
 
+#  ========== SHADERS ==========
+
+set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+set(SHADER_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+
+file(GLOB SHADERS "${SHADER_DIR}/*")
+set(SPIRV_FILES)
+foreach(SHADER ${SHADERS})
+    get_filename_component(SRC "${SHADER}" NAME)
+
+    set(SPV ${SHADER_OUT_DIR}/${SRC}.spv)
+
+    add_custom_command(
+        OUTPUT ${SPV}
+        COMMAND glslc ${SHADER} -O -o ${SPV}
+        DEPENDS ${SHADER}
+        COMMENT "Compiling ${SHADER_DIR}/${SRC} to SPIR-V"
+    )
+
+    list(APPEND SPIRV_FILES ${SPV})
+endforeach()
+
+add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
+
 #  ========== PROJECT ==========
 
 # Add warning flags for Windows and Linux
@@ -98,6 +122,9 @@ add_executable(app
 )
 target_link_libraries(app PRIVATE
     SDL3::SDL3
+)
+target_compile_definitions(app PRIVATE
+    SHADERS_DIR="${SHADER_OUT_DIR}/"
 )
 
 #  ========== TESTS ==========

@@ -5,6 +5,52 @@
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_log.h>
 
+static SDL_GPUShader* loadShader(
+    SDL_GPUDevice* device,
+    const char* shaderPath,
+    Uint32 samplerCount,
+    Uint32 uniformBufferCount,
+    Uint32 storageBufferCount,
+    Uint32 storageTextureCount) {
+    // Auto-detect the shader stage from the file name for convenience
+    SDL_GPUShaderStage stage;
+    if (SDL_strstr(shaderPath, ".vert")) {
+        stage = SDL_GPU_SHADERSTAGE_VERTEX;
+    } else if (SDL_strstr(shaderPath, ".frag")) {
+        stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+    } else {
+        SDL_Log("Invalid shader stage!");
+        return nullptr;
+    }
+
+    size_t codeSize;
+    void* code = SDL_LoadFile(shaderPath, &codeSize);
+    if (code == nullptr) [[unlikely]] {
+        SDL_Log("Failed to load shader from disk! %s", shaderPath);
+        return nullptr;
+    }
+
+    SDL_GPUShaderCreateInfo shaderInfo = {};
+    shaderInfo.code = reinterpret_cast<const Uint8*>(code);
+    shaderInfo.code_size = codeSize;
+    shaderInfo.entrypoint = "main";
+    shaderInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    shaderInfo.stage = stage;
+    shaderInfo.num_samplers = samplerCount;
+    shaderInfo.num_uniform_buffers = uniformBufferCount;
+    shaderInfo.num_storage_buffers = storageBufferCount;
+    shaderInfo.num_storage_textures = storageTextureCount;
+    SDL_GPUShader* shader = SDL_CreateGPUShader(device, &shaderInfo);
+    if (shader == nullptr) {
+        SDL_Log("Failed to create shader!");
+        SDL_free(code);
+        return nullptr;
+    }
+
+    SDL_free(code);
+    return shader;
+}
+
 SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
     (void)argc;
     (void)argv;
@@ -14,6 +60,25 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
     camera.near = 0.1f;
     camera.far = 100.0f;
     camera.fov = radians(90.0f);
+
+    // create shaders
+
+    std::size_t codeSize;
+    void* code = SDL_LoadFile(SHADERS_DIR "floorShader.frag.spv", &codeSize);
+    if (code == nullptr) [[unlikely]] {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Fail to read file: %s", SHADERS_DIR "floorShader.frag.spv");
+        return SDL_APP_FAILURE;
+    }
+
+    SDL_GPUShaderCreateInfo shaderCreateInfo = {};
+    shaderCreateInfo.code = reinterpret_cast<const Uint8*>(code);
+    shaderCreateInfo.entrypoint = "main";
+    shaderCreateInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    shaderCreateInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+    shaderCreateInfo.num_samplers = 0;
+    shaderCreateInfo.num_storage_textures = 0;
+    shaderCreateInfo.num_storage_buffers = 1;
+    shaderCreateInfo.num_uniform_buffers = 0;
 
     return SDL_APP_CONTINUE;
 }
@@ -49,6 +114,7 @@ SDL_AppResult graphics_iterate(AppState& state) {
     colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
 
     SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTargetInfo, 1, nullptr);
+
     SDL_EndGPURenderPass(renderPass);
 
     if (!SDL_SubmitGPUCommandBuffer(cmdbuf)) [[unlikely]] {
