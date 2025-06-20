@@ -1,4 +1,0 @@
-[2025-06-19 12:54:13.724] [GTS] [11368] [info] Logger initialized.
-[2025-06-19 12:54:14.663] [GTS] [11368] [info] Available GPU driver: vulkan
-[2025-06-19 12:54:14.969] [GTS] [11368] [info] SDL3 GPU Window created using Vulkan backend.
-[2025-06-19 12:54:14.974] [GTS] [11368] [info] SDL3 Window created: GTS Engine, (X: 1280, Y: 768)

@@ -1,55 +1,60 @@
-﻿#include "pch.h"
-#include <engine.h>
+﻿#include "imgui/ImGuiSDLGPU.h"
+#include <gts/engine.h>
 
-class Neige : public GTS::Engine
-{
+class Neige : public GTS::Engine {
 public:
-	Neige() = default;
-	~Neige() = default;
+    Neige() = default;
+    ~Neige() = default;
 
-	void onInit() override
-	{
-	}
+    ImGuiSDLGPU* imgui = nullptr;
 
-	void onStart() override
-	{
-	}
+    void onInit() override {
+    }
 
-	void onExit() override
-	{
-	}
+    void onStart() override {
+        Olaf::GpuHandle handle = window->getGpuDevice();
+        imgui = new ImGuiSDLGPU(handle.as<SDL_GPUDevice>(), window->getWindow().as<SDL_Window>());
+        imgui->initialize();
+    }
 
-	void onSuspend() override
-	{
-	}
+    void onExit() override {
+        if (imgui) {
+            imgui->shutdown();
+            delete imgui;
+            imgui = nullptr;
+        }
+    }
 
-	void onResume() override
-	{
-	}
+    void onSuspend() override {
+    }
 
-	void onInput(GTS::Options& options, const double& deltaTime, const std::vector<GTS::InputAction>& inputActions) override
-	{
-	}
+    void onResume() override {
+    }
 
-	void onUpdate(GTS::Options& options, const double& deltaTime) override
-	{
-	}
+    void onInput(GTS::Options& options, const double& deltaTime, const std::vector<GTS::InputAction>& inputActions) override {
+        (void)options;
+        (void)deltaTime;
+        (void)inputActions;
+    }
 
-	void onDraw(GTS::Options& options, GTS::GraphicsManager& graphicsManager, const double& deltaTime) override
-	{
+    void onUpdate(GTS::Options& options, const double& deltaTime) override {
+        (void)options;
+        (void)deltaTime;
+    }
 
-	}
-
+    void onDraw(GTS::Options& options, GTS::GraphicsManager& graphicsManager, const double& deltaTime) override {
+        (void)options;
+        (void)graphicsManager;
+        (void)deltaTime;
+    }
 };
 
-
-int main(int argc, char** argv) 
-{
-	GTS::Engine* engine = new Neige();
-	engine->init();
-	engine->start();
-	delete engine;
-	return 0;
+int main(int argc, char** argv) {
+    GTS::Engine* engine = new Neige();
+    engine->init();
+    engine->start();
+    delete engine;
+    return 0;
 }
 
 /*
