@@ -1,13 +1,13 @@
 #pragma once
-#include <olaf/system/event.h>
-#include <olaf/system/window.h>
+#include "../../system/event.h"
+#include "../../system/window.h"
 
 #include <functional>
 
 struct SDL_Window;
 struct SDL_GPUDevice;
 
-namespace Olaf {
+namespace GTS {
     class GpuDevice;
 
     class WindowSDL3 : public Window {

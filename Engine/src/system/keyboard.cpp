@@ -1,9 +1,9 @@
-#include <olaf/system/keyboard.h>
-#include <olaf/system/log.h>
+#include "keyboard.h"
+#include "log.h"
 
 #include <SDL3/SDL_keyboard.h>
 
-namespace Olaf {
+namespace GTS {
     std::array<bool, Keyboard::keyCount> Keyboard::keys;
     std::array<bool, Keyboard::keyCount> Keyboard::keysDown;
     std::array<bool, Keyboard::keyCount> Keyboard::keysUp;
@@ -33,7 +33,7 @@ namespace Olaf {
     }
 
     bool Keyboard::key(Key keyVal) {
-        OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
+        GTS_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
         if (keyVal >= Key::kFirst && keyVal < keyCount)
             return keys[keyVal];
 
@@ -41,7 +41,7 @@ namespace Olaf {
     }
 
     bool Keyboard::keyDown(Key keyVal) {
-        OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
+        GTS_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
         if (keyVal >= Key::kFirst && keyVal < keyCount)
             return keysDown[keyVal];
 
@@ -49,7 +49,7 @@ namespace Olaf {
     }
 
     bool Keyboard::keyUp(Key keyVal) {
-        OLAF_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
+        GTS_ASSERT(keyVal >= Key::kFirst && keyVal < keyCount, "Invalid keyboard key!");
         if (keyVal >= Key::kFirst && keyVal < keyCount)
             return keysUp[keyVal];
 

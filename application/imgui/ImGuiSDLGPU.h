@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
+
 #include <imgui.h>
 
 class ImGuiSDLGPU  {
@@ -19,5 +20,5 @@ public:
 private:
     SDL_Window* window_;
     SDL_GPUDevice* device_;
-    ImVec4 clear_color_; 
+    ImVec4 clear_color_;
 };

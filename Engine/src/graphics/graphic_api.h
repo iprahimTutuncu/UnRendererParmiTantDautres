@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Olaf {
+namespace GTS {
     enum class GraphicAPI {
         None = 0,
         OpenGL = 1,

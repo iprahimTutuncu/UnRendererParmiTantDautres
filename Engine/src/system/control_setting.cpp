@@ -1,10 +1,8 @@
-#include <olaf/system/control_setting.h>
-
-#include <olaf/system/keyboard.h>
+#include "control_setting.h"
 
 #include <algorithm>
 
-namespace Olaf {
+namespace GTS {
     void ControlSetting::add(Key inputKey, InputState inputState, InputAction inputAction) {
         std::pair<Key, InputState> key { inputKey, inputState };
         std::vector<InputAction>* value = &inputMap[key];

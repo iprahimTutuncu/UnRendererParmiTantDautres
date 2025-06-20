@@ -1,9 +1,9 @@
 #pragma once
-#include <olaf/system/key_code.h>
+#include "key_code.h"
 
 #include <array>
 
-namespace Olaf {
+namespace GTS {
 
     class Keyboard {
     public:

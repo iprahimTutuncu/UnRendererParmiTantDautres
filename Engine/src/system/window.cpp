@@ -1,13 +1,14 @@
-#include <olaf/system/window.h>
+#include "window.h"
+#include "log.h"
 
-#include <olaf/platform/system/window_sdl3.h>
-#include <olaf/system/log.h>
-namespace Olaf {
-    std::shared_ptr<Window> Olaf::Window::create(WindowAPI windowAPI) {
+#include "../platform/system/window_sdl3.h"
+
+namespace GTS {
+    std::shared_ptr<Window> GTS::Window::create(WindowAPI windowAPI) {
         if (windowAPI == WindowAPI::SDL3)
             return std::make_shared<WindowSDL3>();
 
-        OLAF_ASSERT(false, "In Olaf::Window::create(WindowAPI windowAPI), no windowAPI seem to be available.");
+        GTS_ASSERT("In GTS::Window::create(WindowAPI windowAPI), no windowAPI seem to be available.", true);
         return nullptr;
     }
 }

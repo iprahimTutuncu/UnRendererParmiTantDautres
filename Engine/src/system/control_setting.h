@@ -1,12 +1,12 @@
 #pragma once
 
-#include <olaf/system/event.h>
-#include <olaf/system/keyboard.h>
+#include "event.h"
+#include "keyboard.h"
 
 #include <map>
 #include <vector>
 
-namespace Olaf {
+namespace GTS {
     enum InputState {
         isPressed,
         isPressedNoRepeat,

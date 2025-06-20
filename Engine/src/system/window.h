@@ -1,12 +1,12 @@
 #pragma once
 
-#include <olaf/graphics/graphic_api.h>
+#include "../graphics/graphic_api.h"
 
 #include <functional>
 #include <memory>
 #include <vector>
 
-namespace Olaf {
+namespace GTS {
     class Event;
 
     struct GpuHandle {

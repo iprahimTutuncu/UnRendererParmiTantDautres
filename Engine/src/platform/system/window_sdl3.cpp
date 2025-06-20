@@ -1,15 +1,14 @@
-#include <olaf/platform/system/window_sdl3.h>
+#include "window_sdl3.h"
 
-#include <olaf/graphics/graphic_api.h>
-#include <olaf/system/event.h>
-#include <olaf/system/log.h>
+#include "../../graphics/graphic_api.h"
+#include "../../system/event.h"
+#include "../../system/log.h"
 
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_render.h>
-//#include <olaf/system/imgui/ImGuiSDLGPU.h>
 
-namespace Olaf {
+namespace GTS {
     bool WindowSDL3::init(const int width, const int height, const char* title) {
         this->width = width;
         this->height = height;
@@ -19,45 +18,41 @@ namespace Olaf {
 
         if (get_graphic_API() == GraphicAPI::SDL3) {
             if (!SDL_Init(SDL_INIT_VIDEO)) {
-                OLAF_ERROR("SDL_Init failed: {}", SDL_GetError());
+                GTS_ERROR("SDL_Init failed: {}", SDL_GetError());
                 return false;
             }
 
             sdlGPU = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, "vulkan");
 
-#ifdef DEBUG
             const char* drivers = SDL_GetGPUDeviceDriver(sdlGPU);
-            OLAF_INFO("Available GPU driver: {}", drivers);
-#endif
+            GTS_INFO("Available GPU driver: {}", drivers);
 
             if (!sdlGPU) {
-                OLAF_ERROR("Failed to create SDL GPU Device: {}", SDL_GetError());
+                GTS_ERROR("Failed to create SDL GPU Device: {}", SDL_GetError());
                 return false;
             }
 
             sdlWindow = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
             if (!sdlWindow) {
-                OLAF_ERROR("Failed to create SDL Window: {}", SDL_GetError());
+                GTS_ERROR("Failed to create SDL Window: {}", SDL_GetError());
                 SDL_DestroyGPUDevice(sdlGPU);
                 return false;
             }
 
             if (!SDL_ClaimWindowForGPUDevice(sdlGPU, sdlWindow)) {
-                OLAF_ERROR("Failed to claim SDL_Window for GPU Device: {}", SDL_GetError());
+                GTS_ERROR("Failed to claim SDL_Window for GPU Device: {}", SDL_GetError());
                 SDL_DestroyGPUDevice(sdlGPU);
                 SDL_DestroyWindow(sdlWindow);
                 return false;
             }
 
-            OLAF_INFO("SDL3 GPU Window created using Vulkan backend.");
+            GTS_INFO("SDL3 GPU Window created using Vulkan backend.");
         } else {
-            OLAF_ERROR("I don't think any graphicAPI was specified");
+            GTS_ERROR("I don't think any graphicAPI was specified");
             return false;
         }
-      //  ImGuiSDLGPU::getInstance(sdlGPU);
-      //  ImGuiSDLGPU::getInstance().initialize(sdlWindow);
 
-        OLAF_INFO("SDL3 Window created: {}, (X: {}, Y: {})", title, width, height);
+        GTS_INFO("SDL3 Window created: {}, (X: {}, Y: {})", title, width, height);
         return true;
     }
 
@@ -94,14 +89,14 @@ namespace Olaf {
     }
 
     std::vector<Event> WindowSDL3::pollEvent() {
-        std::vector<Olaf::Event> events;
+        std::vector<GTS::Event> events;
         SDL_Event e;
 
         while (SDL_PollEvent(&e)) {
+            if (isEventEnableForHUD)
+                ; // ImGui_ImplSDL3_ProcessEvent(&e); // SDL3 equivalent if available
 
             Event tmp_event;
-            tmp_event.sdlEvent = e; // <-- Add this line
-          //  ImGuiSDLGPU::getInstance().processEvent(&e);
 
             if (e.type == SDL_EVENT_QUIT) {
                 running = false;

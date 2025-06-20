@@ -1,11 +1,13 @@
 #pragma once
-#include <olaf/options.h>
-#include <olaf/system/control_setting.h>
+
+#include "control_setting.h"
+
+#include "../options.h"
 
 #include <functional>
 #include <memory>
 
-namespace Olaf {
+namespace GTS {
     class Window;
     class ControlSetting;
 

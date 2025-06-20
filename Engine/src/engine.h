@@ -1,16 +1,20 @@
 #pragma once
 
-#include <olaf/graphics/graphic_api.h>
-#include <olaf/graphics/graphic_manager.h>
-#include <olaf/options.h>
-#include <olaf/system/system_manager.h>
-#include <olaf/system/window.h>
+#include "options.h"
+#include "system/window.h"
+#include "system/system_manager.h"
+#include "graphics/geometry.h"
+#include "graphics/graphic_api.h"
+#include "graphics/graphic_manager.h"
 
 #include <memory>
+#include <vector>
 #include <thread>
 
-namespace Olaf {
-    class Engine {
+namespace GTS
+{
+    class Engine
+    {
     public:
         Engine();
         ~Engine();
@@ -27,24 +31,25 @@ namespace Olaf {
         virtual void onInput(Options& options, const double& deltaTime, const std::vector<InputAction>& inputActions) = 0;
         virtual void onUpdate(Options& options, const double& deltaTime) = 0;
         virtual void onDraw(Options& options, GraphicsManager& graphicsManager, const double& deltaTime) = 0;
-        
-        std::shared_ptr<Window> window;
+
     private:
+
         void run();
 
-        
-        std::atomic<bool> isRunning { false };
+        std::shared_ptr<Window> window;
+        std::atomic<bool> isRunning{ false };
         std::shared_ptr<ControlSetting> controlSetting;
         std::shared_ptr<GraphicsManager> graphicsManager;
         std::shared_ptr<SystemManager> systemManager;
         std::thread graphicsThread;
-
-        double targetFrameRate { 60.0 };
+        std::vector<Box> boxes;
+        double targetFrameRate{ 60.0 };
 
         Options options;
 
         int prevWidth;
         int prevHeight;
+
     };
 
 }

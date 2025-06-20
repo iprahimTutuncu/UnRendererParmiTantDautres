@@ -1,5 +1,5 @@
 #pragma once
-namespace Olaf {
+namespace GTS {
     enum Key {
         kFirst = 3,
         kA = 4,
