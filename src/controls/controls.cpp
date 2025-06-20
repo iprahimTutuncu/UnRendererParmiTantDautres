@@ -1,6 +1,6 @@
 #include "controls.h"
 
-#include "../graphics/camera.h"
+#include "../camera.h"
 #include "../vmath.h"
 
 #include <SDL3/SDL_keyboard.h>
@@ -84,6 +84,5 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
 }
 
 void controls_quit(AppState& state) {
-    if (state.controls)
-        delete state.controls;
+    delete state.controls;
 }

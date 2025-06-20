@@ -1,5 +1,6 @@
 #include "state.h"
 
+#include "camera.h"
 #include "controls/controls.h"
 #include "graphics/api.h"
 #include "physics/api.h"
@@ -78,6 +79,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     state.currentTick = 0ull;
     state.numFrames = 0u;
     state.delta_time = 0.f;
+
+    state.camera = new CameraPerspective {};
+    CameraPerspective &camera = *state.camera;
+    camera.near = 0.1f;
+    camera.far = 100.0f;
+    camera.fov = radians(90.0f);
 
     SDL_AppResult result;
     result = physics_init(state, argc, argv);
@@ -158,6 +165,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         if (app.device)
             SDL_DestroyGPUDevice(app.device);
 
+        delete app.camera;
         delete &app;
     }
 }

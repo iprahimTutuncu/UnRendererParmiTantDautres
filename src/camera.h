@@ -1,9 +1,6 @@
 #pragma once
-#include "../state.h"
-#include "../vmath.h"
-
-#include <SDL3/SDL_events.h>
-#include <SDL3/SDL_init.h>
+#include "state.h"
+#include "vmath.h"
 
 struct CameraPerspective {
     quat rotation; // quaternion

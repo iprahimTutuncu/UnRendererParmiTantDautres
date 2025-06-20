@@ -115,8 +115,8 @@ add_subdirectory(application)
 
 add_executable(app
     src/main.cpp
+    src/camera.cpp
     src/controls/controls.cpp
-    src/graphics/camera.cpp
     src/graphics/graphics.cpp
     src/physics/physics.cpp
 )
