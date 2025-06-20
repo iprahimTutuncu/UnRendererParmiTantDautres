@@ -11,14 +11,11 @@ SDL_AppResult graphics_iterate(AppState& state);
 SDL_AppResult graphics_event(AppState& state, SDL_Event& event);
 void graphics_quit(AppState& state);
 
-struct alignas(16) PositionColorVertex {
-    float x, y, z;
-    std::uint8_t r, g, b, a;
-};
-
-
+struct SDL_GPUGraphicsPipeline;
+struct SDL_GPUBuffer;
+struct SDL_GPUTexture;
 struct GraphicState {
-
-
-
+    SDL_GPUGraphicsPipeline* pipeline;
+    SDL_GPUBuffer* vertexBuffer;
+    SDL_GPUTexture* depthSencilTexture;
 };

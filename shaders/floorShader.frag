@@ -1,8 +1,7 @@
 #version 460
 
-layout(location = 0) out vec4 fragColor;
-
 layout(location = 0) in vec3 fPosition;
+layout(location = 0) out vec4 fragColor;
 
 vec3 color1 = vec3(0.6, 0.6, 0.6);
 vec3 color2 = vec3(0.3, 0.3, 0.3);
