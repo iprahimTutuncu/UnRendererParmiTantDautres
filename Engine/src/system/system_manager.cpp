@@ -1,51 +1,45 @@
-#include "pch.h"
-#include "options.h"
-#include "system/system_manager.h"
-#include "system/log_manager.h"
-#include "system/window.h"
-#include "system/event.h"
+#include "system_manager.h"
 
-namespace GTS
-{
-	void GTS::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback)
-	{
-		LogManager::init();
+#include "event.h"
+#include "log_manager.h"
+#include "window.h"
 
-		pWindow = Window::create(WindowAPI::SDL3);
+#include "../options.h"
 
-		if (!pWindow->init(options.screenWidth, options.screenHeight, "GTS Engine"))
-		{
-			return;
-		}
-		pControlSetting = controlSetting;
-		this->onInput = onInputCallback;
+namespace GTS {
+    void GTS::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback) {
+        LogManager::init();
 
-		pWindow->enableEventForHUD();
-	}
+        pWindow = Window::create(WindowAPI::SDL3);
 
-	void GTS::SystemManager::update(Options& options, double dt)
-	{
-		std::vector<Event> events = pWindow->pollEvent();
+        if (!pWindow->init(options.screenWidth, options.screenHeight, "GTS Engine")) {
+            return;
+        }
+        pControlSetting = controlSetting;
+        this->onInput = onInputCallback;
 
-		for (Event e : events)
-			pControlSetting->handleInput(e);
+        pWindow->enableEventForHUD();
+    }
 
-		pControlSetting->updateInput();
+    void GTS::SystemManager::update(Options& options, double dt) {
+        std::vector<Event> events = pWindow->pollEvent();
 
-		if(onInput) onInput(options, dt, pControlSetting->getInput());
-	}
+        for (Event e : events)
+            pControlSetting->handleInput(e);
 
-	void SystemManager::close()
-	{
-		if(pWindow)
-			pWindow->close();
+        pControlSetting->updateInput();
 
-		LogManager::shutdown();
-	}
+        if (onInput) onInput(options, dt, pControlSetting->getInput());
+    }
 
+    void SystemManager::close() {
+        if (pWindow)
+            pWindow->close();
 
-	std::shared_ptr<Window> SystemManager::getWindow()
-	{
-		return pWindow;
-	}
+        LogManager::shutdown();
+    }
+
+    std::shared_ptr<Window> SystemManager::getWindow() {
+        return pWindow;
+    }
 }

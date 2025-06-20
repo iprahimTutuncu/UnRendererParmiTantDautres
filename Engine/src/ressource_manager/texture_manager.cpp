@@ -1,45 +1,35 @@
-#include "pch.h"
-#include "graphics/image.h"
+#include "texture_manager.h"
 
-#include "ressource_manager/image_manager.h"
-#include "ressource_manager/texture_manager.h"
+#include "image_manager.h"
 
-#include "system/log.h"
-#include "system/window.h"
+#include "../graphics/image.h"
+#include "../system/log.h"
+#include "../system/window.h"
 
-namespace Ressource
-{
+namespace Ressource {
     std::shared_ptr<GTS::Window> TextureManager::pWindow;
     std::unordered_map<std::string, std::shared_ptr<SDL_GPUTexture>> TextureManager::m_textures;
     SDL_GPUDevice* TextureManager::gpu = nullptr;
 
-    void TextureManager::init(std::shared_ptr<GTS::Window> window)
-    {
+    void TextureManager::init(std::shared_ptr<GTS::Window> window) {
         pWindow = window;
         gpu = window->getGpuDevice().as<SDL_GPUDevice>();
     }
 
-    void TextureManager::releaseUnused()
-    {
-        for (auto it = m_textures.begin(); it != m_textures.end(); )
-        {
-            if (it->second.use_count() == 1)
-            {
+    void TextureManager::releaseUnused() {
+        for (auto it = m_textures.begin(); it != m_textures.end();) {
+            if (it->second.use_count() == 1) {
                 SDL_ReleaseGPUTexture(gpu, it->second.get());
                 it = m_textures.erase(it);
-            }
-            else
-            {
+            } else {
                 ++it;
             }
         }
     }
 
-    std::shared_ptr<SDL_GPUTexture> TextureManager::get(const std::string& texturePath, const TextureInfo& info)
-    {
+    std::shared_ptr<SDL_GPUTexture> TextureManager::get(const std::string& texturePath, const TextureInfo& info) {
         auto it = m_textures.find(texturePath);
-        if (it != m_textures.end())
-        {
+        if (it != m_textures.end()) {
             GTS_TRACE("Texture found for {}, loading pre-existing texture", texturePath);
 
             return it->second;
@@ -56,11 +46,9 @@ namespace Ressource
         const float r,
         const float g,
         const float b,
-        const float a)
-    {
+        const float a) {
         auto it = m_textures.find(name_id);
-        if (it != m_textures.end())
-        {
+        if (it != m_textures.end()) {
             GTS_TRACE("Solid color texture {} already exists", name_id);
             return it->second;
         }
@@ -83,14 +71,12 @@ namespace Ressource
         const uint8_t b8 = static_cast<uint8_t>(b * 255.f);
         const uint8_t a8 = static_cast<uint8_t>(a * 255.f);
 
-        for (size_t i = 0; i < pixelCount; ++i) 
-        {
+        for (size_t i = 0; i < pixelCount; ++i) {
             pixelData[i * 4 + 0] = r8;
             pixelData[i * 4 + 1] = g8;
             pixelData[i * 4 + 2] = b8;
             pixelData[i * 4 + 3] = a8;
         }
-
 
         TextureInfo info;
         info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
@@ -108,8 +94,7 @@ namespace Ressource
         createInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
 
         SDL_GPUTexture* texture = SDL_CreateGPUTexture(gpu, &createInfo);
-        if (!texture)
-        {
+        if (!texture) {
             GTS_ERROR("Failed to create solid color texture: {}", SDL_GetError());
             return nullptr;
         }
@@ -120,8 +105,7 @@ namespace Ressource
         transferInfo.size = pixelData.size();
 
         SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(gpu, &transferInfo);
-        if (!transferBuffer)
-        {
+        if (!transferBuffer) {
             SDL_ReleaseGPUTexture(gpu, texture);
             GTS_ERROR("Failed to create transfer buffer: {}", SDL_GetError());
             return nullptr;
@@ -129,8 +113,7 @@ namespace Ressource
 
         // Copy data to transfer buffer
         void* transferData = SDL_MapGPUTransferBuffer(gpu, transferBuffer, false);
-        if (!transferData)
-        {
+        if (!transferData) {
             SDL_ReleaseGPUTransferBuffer(gpu, transferBuffer);
             SDL_ReleaseGPUTexture(gpu, texture);
             GTS_ERROR("Failed to map transfer buffer: {}", SDL_GetError());
@@ -142,8 +125,7 @@ namespace Ressource
 
         // Upload to GPU texture
         SDL_GPUCommandBuffer* cmdbuf = SDL_AcquireGPUCommandBuffer(gpu);
-        if (!cmdbuf)
-        {
+        if (!cmdbuf) {
             SDL_ReleaseGPUTransferBuffer(gpu, transferBuffer);
             SDL_ReleaseGPUTexture(gpu, texture);
             GTS_ERROR("Failed to acquire command buffer: {}", SDL_GetError());
@@ -168,8 +150,9 @@ namespace Ressource
 
         auto sharedTexture = std::shared_ptr<SDL_GPUTexture>(
             texture,
-            [](SDL_GPUTexture* tex) { if (gpu) SDL_ReleaseGPUTexture(gpu, tex); }
-        );
+            [](SDL_GPUTexture* tex) {
+                if (gpu) SDL_ReleaseGPUTexture(gpu, tex);
+            });
 
         // Store in texture map
         m_textures[name_id] = sharedTexture;
@@ -178,44 +161,37 @@ namespace Ressource
 
     std::shared_ptr<SDL_GPUTexture> TextureManager::create(
         const std::string& texturePath,
-        const TextureInfo& info)
-    {
+        const TextureInfo& info) {
         auto it = m_textures.find(texturePath);
-        if (it != m_textures.end())
-        {
+        if (it != m_textures.end()) {
             return it->second;
         }
 
         auto image = ImageManager::get(texturePath);
-        if (!image || !image->isValid())
-        {
+        if (!image || !image->isValid()) {
             GTS_ERROR("Failed to load image for texture: {}", texturePath);
             return nullptr;
         }
 
         SDL_GPUTexture* texture = createTextureFromImage(*image, info);
-        if (!texture)
-        {
+        if (!texture) {
             GTS_ERROR("Failed to create texture from image: {}", texturePath);
             return nullptr;
         }
 
         auto sharedTexture = std::shared_ptr<SDL_GPUTexture>(
             texture,
-            [](SDL_GPUTexture* tex) { if (gpu) SDL_ReleaseGPUTexture(gpu, tex); }
-        );
+            [](SDL_GPUTexture* tex) {
+                if (gpu) SDL_ReleaseGPUTexture(gpu, tex);
+            });
 
         m_textures[texturePath] = sharedTexture;
         return sharedTexture;
     }
 
-
-
-    std::shared_ptr<SDL_GPUTexture> TextureManager::createRenderTarget(const std::string& name_id, int width, int height, SDL_GPUTextureFormat format, SDL_GPUTextureUsageFlags usage)
-    {
+    std::shared_ptr<SDL_GPUTexture> TextureManager::createRenderTarget(const std::string& name_id, int width, int height, SDL_GPUTextureFormat format, SDL_GPUTextureUsageFlags usage) {
         auto it = m_textures.find(name_id);
-        if (it != m_textures.end())
-        {
+        if (it != m_textures.end()) {
             GTS_TRACE("Texture found for {}, loading pre-existing texture", name_id);
 
             return it->second;
@@ -232,22 +208,21 @@ namespace Ressource
         createInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
 
         SDL_GPUTexture* texture = SDL_CreateGPUTexture(gpu, &createInfo);
-        if (!texture)
-        {
+        if (!texture) {
             GTS_ERROR("Failed to create render target: {}", SDL_GetError());
             return nullptr;
         }
 
         return std::shared_ptr<SDL_GPUTexture>(
             texture,
-            [](SDL_GPUTexture* tex) { if (gpu) SDL_ReleaseGPUTexture(gpu, tex); }
-        );
+            [](SDL_GPUTexture* tex) {
+                if (gpu) SDL_ReleaseGPUTexture(gpu, tex);
+            });
     }
 
     SDL_GPUTexture* TextureManager::createTextureFromImage(
         const GTS::Image& image,
-        const TextureInfo& info)
-    {
+        const TextureInfo& info) {
         if (!gpu) return nullptr;
 
         SDL_GPUTextureCreateInfo textureCreateInfo;
@@ -261,8 +236,7 @@ namespace Ressource
         textureCreateInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
 
         SDL_GPUTexture* texture = SDL_CreateGPUTexture(gpu, &textureCreateInfo);
-        if (!texture)
-        {
+        if (!texture) {
             GTS_ERROR("Failed to create GPU texture: {}", SDL_GetError());
             return nullptr;
         }
@@ -272,8 +246,7 @@ namespace Ressource
         transferBufferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
         transferBufferInfo.size = image.getSize();
         SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(gpu, &transferBufferInfo);
-        if (!transferBuffer)
-        {
+        if (!transferBuffer) {
             SDL_ReleaseGPUTexture(gpu, texture);
             GTS_ERROR("Failed to create transfer buffer: {}", SDL_GetError());
             return nullptr;
@@ -281,8 +254,7 @@ namespace Ressource
 
         // Copy image data to transfer buffer
         Uint8* transferPtr = static_cast<Uint8*>(SDL_MapGPUTransferBuffer(gpu, transferBuffer, false));
-        if (!transferPtr)
-        {
+        if (!transferPtr) {
             SDL_ReleaseGPUTransferBuffer(gpu, transferBuffer);
             SDL_ReleaseGPUTexture(gpu, texture);
             GTS_ERROR("Failed to map transfer buffer: {}", SDL_GetError());
@@ -294,8 +266,7 @@ namespace Ressource
 
         // Upload to GPU texture
         SDL_GPUCommandBuffer* cmdbuf = SDL_AcquireGPUCommandBuffer(gpu);
-        if (!cmdbuf)
-        {
+        if (!cmdbuf) {
             SDL_ReleaseGPUTransferBuffer(gpu, transferBuffer);
             SDL_ReleaseGPUTexture(gpu, texture);
             GTS_ERROR("Failed to acquire command buffer: {}", SDL_GetError());
@@ -320,7 +291,5 @@ namespace Ressource
 
         return texture;
     }
-
-
 
 }

@@ -1,39 +1,22 @@
-#include "pch.h"
-
 #define GLM_ENABLE_EXPERIMENTAL
 
 #include "engine.h"
-#include "system/window.h"
-#include "system/event.h"
-#include "system/control_setting.h"
-#include "ressource_manager/shader_manager.h"
-#include "ressource_manager/sampler_manager.h"
-#include "ressource_manager/texture_manager.h"
-#include "ressource_manager/image_manager.h"
 
-#include "graphics/graphic_api.h"
-#include <system/log_manager.h>
 #include <SDL3/SDL_timer.h>
 #include <glm/gtx/transform.hpp>
 
-std::chrono::duration<double> frameDuration;
+#include <memory>
 
-namespace GTS
-{
-    Engine::Engine():
-        graphicsManager(std::make_shared<GraphicsManager>()),
-        systemManager(std::make_shared<SystemManager>())
-    {
-
+namespace GTS {
+    Engine::Engine()
+        : graphicsManager(std::make_shared<GraphicsManager>())
+        , systemManager(std::make_shared<SystemManager>()) {
     }
 
-    Engine::~Engine()
-    {
-
+    Engine::~Engine() {
     }
 
-    void Engine::init()
-    {
+    void Engine::init() {
         using namespace std::placeholders;
         isRunning = true;
 
@@ -46,10 +29,9 @@ namespace GTS
         controlSetting = std::make_shared<ControlSetting>();
         controlSetting->add(Key::kAcHome, InputState::isDoubleClick, InputAction::action);
 
-        systemManager->init(options.windowOptions, controlSetting, [this](GTS::Options& options, const double& deltaTime, const std::vector<GTS::InputAction>& inputActions)
-            {
-                this->onInput(options, deltaTime, inputActions);
-            });
+        systemManager->init(options.windowOptions, controlSetting, [this](GTS::Options& options, const double& deltaTime, const std::vector<GTS::InputAction>& inputActions) {
+            this->onInput(options, deltaTime, inputActions);
+        });
 
         window = systemManager->getWindow();
         window->setSize(options.windowOptions.screenWidth, options.windowOptions.screenHeight);
@@ -58,37 +40,31 @@ namespace GTS
         Ressource::SamplerManager::init(window);
         Ressource::TextureManager::init(window);
 
-        graphicsManager->init(options, window, [this](GTS::Options& options, GTS::GraphicsManager& graphicsManager, const double& deltaTime)
-            {
-                this->onDraw(options, graphicsManager, deltaTime);
-            });
+        graphicsManager->init(options, window, [this](GTS::Options& options, GTS::GraphicsManager& graphicsManager, const double& deltaTime) {
+            this->onDraw(options, graphicsManager, deltaTime);
+        });
 
         // Add initial manually specified boxes
         boxes.push_back({ glm::vec3(-1.0f), glm::vec3(1.0f) });
 
         // Register all boxes with the graphics manager
-        for (auto& box : boxes)
-        {
+        for (auto& box : boxes) {
             graphicsManager->add(&box);
         }
         onInit();
     }
 
-    void Engine::start()
-    {
+    void Engine::start() {
         onStart();
         run();
     }
 
-
-    void Engine::run()
-    {
+    void Engine::run() {
         const double targetFrameMS = 1000.0 / static_cast<double>(targetFrameRate);
 
         Uint64 frameStartMS = SDL_GetTicks();
 
-        while (isRunning)
-        {
+        while (isRunning) {
             Uint64 newTimeMS = SDL_GetTicks();
             double deltaTime = static_cast<double>(newTimeMS - frameStartMS) / 1000.0;
             frameStartMS = newTimeMS;
@@ -96,8 +72,7 @@ namespace GTS
             int w = options.windowOptions.screenWidth;
             int h = options.windowOptions.screenHeight;
 
-            if (prevWidth != w || prevHeight != h)
-            {
+            if (prevWidth != w || prevHeight != h) {
                 window->setSize(w, h);
             }
 
@@ -113,8 +88,7 @@ namespace GTS
             Uint64 frameEndMS = SDL_GetTicks();
             double elapsedMS = static_cast<double>(frameEndMS - frameStartMS);
 
-            if (elapsedMS < targetFrameMS)
-            {
+            if (elapsedMS < targetFrameMS) {
                 SDL_Delay(static_cast<Uint32>(targetFrameMS - elapsedMS));
             }
         }
@@ -123,6 +97,5 @@ namespace GTS
         graphicsManager->close();
         systemManager->close();
     }
-
 
 }

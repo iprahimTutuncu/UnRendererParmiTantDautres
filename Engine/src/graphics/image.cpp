@@ -1,27 +1,24 @@
-#include "pch.h"
-#include "system/log.h"
-#include "graphics/image.h"
+#include "image.h"
+
+#include "../system/log.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG
-#include "stb_image/stb_image.h"
+#include <stb_image/stb_image.h>
 
-namespace GTS
-{
-    Image::Image(Image && other) noexcept
-        : pixels(std::move(other.pixels)),
-        width(other.width),
-        height(other.height),
-        channels(other.channels)
-    {
+namespace GTS {
+    Image::Image(Image&& other) noexcept
+        : pixels(std::move(other.pixels))
+        , width(other.width)
+        , height(other.height)
+        , channels(other.channels) {
         other.width = 0;
         other.height = 0;
         other.channels = 0;
     }
 
-    Image & Image::operator=(Image && other) noexcept
-    {
-        if (this != &other)
-        {
+    Image& Image::operator=(Image&& other) noexcept {
+        if (this != &other) {
             pixels = std::move(other.pixels);
             width = other.width;
             height = other.height;
@@ -34,11 +31,8 @@ namespace GTS
         return *this;
     }
 
-
-    bool Image::loadFromFile(const std::string & filename, int desiredChannels)
-    {
-        if (!std::filesystem::exists(filename))
-        {
+    bool Image::loadFromFile(const std::string& filename, int desiredChannels) {
+        if (!std::filesystem::exists(filename)) {
             GTS_ERROR("File does not exist: {}", filename);
             return false;
         }
@@ -47,9 +41,8 @@ namespace GTS
             pixels.clear();
 
         uint8_t* tempData = stbi_load(filename.c_str(), &width, &height, &channels, desiredChannels);
-        if (!tempData)
-        {
-            GTS_ERROR("Failed to load image: '{}' because of {}", filename, stbi_failure_reason());  // Optional: improve logging
+        if (!tempData) {
+            GTS_ERROR("Failed to load image: '{}' because of {}", filename, stbi_failure_reason()); // Optional: improve logging
             width = height = channels = 0;
             return false;
         }

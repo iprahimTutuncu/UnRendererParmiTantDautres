@@ -1,9 +1,9 @@
 #pragma once
 #include "key_code.h"
+
 #include <array>
 
 namespace GTS {
-
 
     class Keyboard {
     public:
@@ -13,8 +13,9 @@ namespace GTS {
         static bool key(Key keyVal);
         static bool keyDown(Key keyVal);
         static bool keyUp(Key keyVal);
+
     private:
-        constexpr static const int keyCount = 291; //SDL support up to index 290
+        constexpr static const int keyCount = 291; // SDL support up to index 290
 
         static std::array<bool, keyCount> keys;
         static std::array<bool, keyCount> keysDown;

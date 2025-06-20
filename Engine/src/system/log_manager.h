@@ -1,6 +1,7 @@
 #pragma once
 
 #include <spdlog/spdlog.h>
+
 #include <memory>
 #include <string>
 
@@ -11,7 +12,6 @@ public:
     static void shutdown();
 
 private:
-    static bool isInitialized; 
+    static bool isInitialized;
     static std::shared_ptr<spdlog::logger> logger_;
 };
-

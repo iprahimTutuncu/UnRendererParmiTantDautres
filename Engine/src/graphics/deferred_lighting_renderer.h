@@ -1,19 +1,17 @@
 #pragma once
 
-#include <SDL3/SDL_gpu.h>
-#include <memory>
-
 #include "deferred_struct.h"
 
-namespace GTS 
-{
+#include <SDL3/SDL_gpu.h>
+
+#include <memory>
+
+namespace GTS {
     class Window;
-          
-    class DeferredLightingRenderer 
-    {
+
+    class DeferredLightingRenderer {
     public:
-        enum class DisplayMode
-        {
+        enum class DisplayMode {
             Final = 0,
             Position = 1,
             Normal = 2,
@@ -46,7 +44,6 @@ namespace GTS
         // Fullscreen quad resources
         SDL_GPUBuffer* m_fullscreenQuadVB;
         SDL_GPUBuffer* m_fullscreenQuadIB;
-
     };
 
 }

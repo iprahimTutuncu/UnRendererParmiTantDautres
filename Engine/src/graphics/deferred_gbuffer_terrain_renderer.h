@@ -1,27 +1,23 @@
 #pragma once
 
+#include "deferred_struct.h"
+
 #include <SDL3/SDL_gpu.h>
+
 #include <memory>
 #include <vector>
 
-#include "deferred_struct.h"
-
-namespace GTS
-{
+namespace GTS {
     class Window;
     struct Box;
 
-    class DeferredGBufferTerrainRenderer
-    {
-        enum RasterMode
-        {
+    class DeferredGBufferTerrainRenderer {
+        enum RasterMode {
             Fill,
             Line
         };
 
-
     public:
-
         DeferredGBufferTerrainRenderer(SDL_GPUDevice* device, std::shared_ptr<Window> window);
         ~DeferredGBufferTerrainRenderer();
 
@@ -30,9 +26,10 @@ namespace GTS
         void setFillMode(RasterMode mode);
         void setCamera(const Camera& camera);
 
-
         // Get current G-Buffer output
-        const GBufferTextures& getGBufferOutput() const { return m_gBuffer; }
+        const GBufferTextures& getGBufferOutput() const {
+            return m_gBuffer;
+        }
 
         void render(SDL_GPUCommandBuffer* cmdBuf, const std::vector<const Box*>& boxes);
 
@@ -58,6 +55,6 @@ namespace GTS
 
         std::shared_ptr<SDL_GPUTexture> default_white;
 
-        RasterMode rasterMode{ RasterMode::Fill };
+        RasterMode rasterMode { RasterMode::Fill };
     };
 }

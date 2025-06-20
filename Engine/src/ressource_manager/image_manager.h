@@ -1,18 +1,15 @@
 #pragma once
 
-#include <unordered_map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
-namespace GTS
-{
+namespace GTS {
     class Image;
 }
 
-namespace Ressource
-{
-    class ImageManager
-    {
+namespace Ressource {
+    class ImageManager {
     public:
         static std::shared_ptr<GTS::Image> get(const std::string& imageFilename, int desiredChannels = 4);
         static void releaseUnused();

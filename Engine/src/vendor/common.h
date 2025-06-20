@@ -3,17 +3,16 @@
 
 #include <SDL3/SDL.h>
 
-typedef struct Context
-{
-	const char* ExampleName;
-	const char* BasePath;
-	SDL_Window* Window;
-	SDL_GPUDevice* Device;
-	bool LeftPressed;
-	bool RightPressed;
-	bool DownPressed;
-	bool UpPressed;
-	float DeltaTime;
+typedef struct Context {
+    const char* ExampleName;
+    const char* BasePath;
+    SDL_Window* Window;
+    SDL_GPUDevice* Device;
+    bool LeftPressed;
+    bool RightPressed;
+    bool DownPressed;
+    bool UpPressed;
+    float DeltaTime;
 } Context;
 
 int CommonInit(Context* context, SDL_WindowFlags windowFlags);
@@ -26,49 +25,42 @@ void* LoadASTCImage(const char* imageFilename, int* pWidth, int* pHeight, int* p
 void* LoadDDSImage(const char* imageFilename, SDL_GPUTextureFormat format, int* pWidth, int* pHeight, int* pImageDataLength);
 
 SDL_GPUShader* LoadShader(
-	SDL_GPUDevice* device,
-	const char* shaderFilename,
-	Uint32 samplerCount,
-	Uint32 uniformBufferCount,
-	Uint32 storageBufferCount,
-	Uint32 storageTextureCount
-);
+    SDL_GPUDevice* device,
+    const char* shaderFilename,
+    Uint32 samplerCount,
+    Uint32 uniformBufferCount,
+    Uint32 storageBufferCount,
+    Uint32 storageTextureCount);
 SDL_GPUComputePipeline* CreateComputePipelineFromShader(
-	SDL_GPUDevice* device,
-	const char* shaderFilename,
-	SDL_GPUComputePipelineCreateInfo* createInfo
-);
+    SDL_GPUDevice* device,
+    const char* shaderFilename,
+    SDL_GPUComputePipelineCreateInfo* createInfo);
 
 // Vertex Formats
-typedef struct PositionVertex
-{
-	float x, y, z;
+typedef struct PositionVertex {
+    float x, y, z;
 } PositionVertex;
 
-typedef struct PositionColorVertex
-{
-	float x, y, z;
-	Uint8 r, g, b, a;
+typedef struct PositionColorVertex {
+    float x, y, z;
+    Uint8 r, g, b, a;
 } PositionColorVertex;
 
-typedef struct PositionTextureVertex
-{
-	float x, y, z;
-	float u, v;
+typedef struct PositionTextureVertex {
+    float x, y, z;
+    float u, v;
 } PositionTextureVertex;
 
 // Matrix Math
-typedef struct Matrix4x4
-{
-	float m11, m12, m13, m14;
-	float m21, m22, m23, m24;
-	float m31, m32, m33, m34;
-	float m41, m42, m43, m44;
+typedef struct Matrix4x4 {
+    float m11, m12, m13, m14;
+    float m21, m22, m23, m24;
+    float m31, m32, m33, m34;
+    float m41, m42, m43, m44;
 } Matrix4x4;
 
-typedef struct Vector3
-{
-	float x, y, z;
+typedef struct Vector3 {
+    float x, y, z;
 } Vector3;
 
 Matrix4x4 Matrix4x4_Multiply(Matrix4x4 matrix1, Matrix4x4 matrix2);
@@ -82,13 +74,12 @@ float Vector3_Dot(Vector3 vecA, Vector3 vecB);
 Vector3 Vector3_Cross(Vector3 vecA, Vector3 vecB);
 
 // Examples
-typedef struct Example
-{
-	const char* Name;
-	int (*Init)(Context* context);
-	int (*Update)(Context* context);
-	int (*Draw)(Context* context);
-	void (*Quit)(Context* context);
+typedef struct Example {
+    const char* Name;
+    int (*Init)(Context* context);
+    int (*Update)(Context* context);
+    int (*Draw)(Context* context);
+    void (*Quit)(Context* context);
 } Example;
 
 extern Example ClearScreen_Example;

@@ -1,17 +1,17 @@
-#include "pch.h"
-#include "graphics/deferred_lighting_renderer.h"
-#include "system/log.h"
-#include "system/window.h"
+#include "deferred_lighting_renderer.h"
+
+#include "../ressource_manager/sampler_manager.h"
+#include "../ressource_manager/shader_manager.h"
+#include "../system/log.h"
+#include "../system/window.h"
 
 #include <glm/glm.hpp>
-#include <ressource_manager/shader_manager.h>
-#include <ressource_manager/sampler_manager.h>
 
 namespace GTS {
 
     DeferredLightingRenderer::DeferredLightingRenderer(SDL_GPUDevice* device, std::shared_ptr<Window> window)
-        : m_device(device), m_pWindow(window)
-    {
+        : m_device(device)
+        , m_pWindow(window) {
         memset(&m_gBuffer, 0, sizeof(GBufferTextures));
         m_finalRenderPipeline = nullptr;
         m_debugPipeline = nullptr;
@@ -25,8 +25,7 @@ namespace GTS {
         cleanup();
     }
 
-    void DeferredLightingRenderer::setGBufferTextures(const GBufferTextures& gBuffer)
-    {
+    void DeferredLightingRenderer::setGBufferTextures(const GBufferTextures& gBuffer) {
         m_gBuffer = gBuffer;
     }
 
@@ -40,18 +39,15 @@ namespace GTS {
 
         SDL_GPUColorTargetInfo colorTarget = {};
         colorTarget.texture = targetTexture;
-        colorTarget.clear_color = SDL_FColor{ 0.0f, 0.0f, 0.0f, 1.0f };
+        colorTarget.clear_color = SDL_FColor { 0.0f, 0.0f, 0.0f, 1.0f };
         colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
         colorTarget.store_op = SDL_GPU_STOREOP_STORE;
 
         SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdBuf, &colorTarget, 1, nullptr);
 
-        if (mode == DisplayMode::Final)
-        {
+        if (mode == DisplayMode::Final) {
             SDL_BindGPUGraphicsPipeline(renderPass, m_finalRenderPipeline);
-        }
-        else 
-        {
+        } else {
             SDL_BindGPUGraphicsPipeline(renderPass, m_debugPipeline);
         }
 
@@ -59,11 +55,10 @@ namespace GTS {
 
         SDL_GPUSampler* sampler = Ressource::SamplerManager::get(Ressource::SamplerManager::Preset::PointClamp).get();
 
-        SDL_GPUTextureSamplerBinding gbufferSamplers[3] = 
-        {
-            {m_gBuffer.position.get(), sampler},
-            {m_gBuffer.normal.get(), sampler},
-            {m_gBuffer.albedo.get(), sampler}
+        SDL_GPUTextureSamplerBinding gbufferSamplers[3] = {
+            { m_gBuffer.position.get(), sampler },
+            { m_gBuffer.normal.get(), sampler },
+            { m_gBuffer.albedo.get(), sampler }
         };
 
         SDL_BindGPUFragmentSamplers(renderPass, 0, gbufferSamplers, 3);
@@ -78,32 +73,26 @@ namespace GTS {
         SDL_EndGPURenderPass(renderPass);
     }
 
-    void DeferredLightingRenderer::cleanup()
-    {
-        if (m_finalRenderPipeline) 
-        {
+    void DeferredLightingRenderer::cleanup() {
+        if (m_finalRenderPipeline) {
             SDL_ReleaseGPUGraphicsPipeline(m_device, m_finalRenderPipeline);
             m_finalRenderPipeline = nullptr;
         }
-        if (m_debugPipeline) 
-        {
+        if (m_debugPipeline) {
             SDL_ReleaseGPUGraphicsPipeline(m_device, m_debugPipeline);
             m_debugPipeline = nullptr;
         }
-        if (m_fullscreenQuadVB)
-        {
+        if (m_fullscreenQuadVB) {
             SDL_ReleaseGPUBuffer(m_device, m_fullscreenQuadVB);
             m_fullscreenQuadVB = nullptr;
         }
-        if (m_fullscreenQuadIB)
-        {
+        if (m_fullscreenQuadIB) {
             SDL_ReleaseGPUBuffer(m_device, m_fullscreenQuadIB);
             m_fullscreenQuadIB = nullptr;
         }
     }
 
-    void DeferredLightingRenderer::createPipelines()
-    {
+    void DeferredLightingRenderer::createPipelines() {
         // Load shaders (simplified - you'd want proper error handling)
         std::shared_ptr<SDL_GPUShader> vs = Ressource::ShaderManager::get(m_device, "quad.vert", 0, 0, 0, 0);
         std::shared_ptr<SDL_GPUShader> fsFinal = Ressource::ShaderManager::get(m_device, "deferred_render.frag", 3, 0, 0, 0);
@@ -131,8 +120,7 @@ namespace GTS {
         pipelineInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
 
         m_finalRenderPipeline = SDL_CreateGPUGraphicsPipeline(m_device, &pipelineInfo);
-        if (m_finalRenderPipeline == nullptr)
-        {
+        if (m_finalRenderPipeline == nullptr) {
             GTS_ERROR("Failed to create render pipeline!");
         }
         // Debug pipeline (same except fragment shader)

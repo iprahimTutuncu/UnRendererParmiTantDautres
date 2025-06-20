@@ -1,23 +1,20 @@
 #pragma once
 
-#include <unordered_map>
-#include <memory>
-#include <string>
 #include <SDL3/SDL_gpu.h>
 
-namespace GTS 
-{
+#include <memory>
+#include <string>
+#include <unordered_map>
+
+namespace GTS {
     class Window;
     class Image;
 }
 
-namespace Ressource 
-{
-    class TextureManager
-    {
+namespace Ressource {
+    class TextureManager {
     public:
-        struct TextureInfo 
-        {
+        struct TextureInfo {
             SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
             SDL_GPUTextureUsageFlags usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
             int mipLevels = 1;

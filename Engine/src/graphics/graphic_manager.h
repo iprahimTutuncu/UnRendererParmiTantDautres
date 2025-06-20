@@ -1,14 +1,14 @@
 #pragma once
-#include "options.h"
-
+#include "deferred_gbuffer_renderer.h"
+#include "deferred_lighting_renderer.h"
 #include "sprite.h"
 
-#include "graphics/deferred_lighting_renderer.h"
-#include "graphics/deferred_gbuffer_renderer.h"
+#include "../options.h"
 
 #include <glm/glm.hpp>
-#include <memory>
+
 #include <functional>
+#include <memory>
 #include <vector>
 
 struct SDL_GPUDevice;
@@ -16,18 +16,17 @@ struct SDL_GPUBuffer;
 struct SDL_GPUTexture;
 struct SDL_GPUSampler;
 
-namespace GTS
-{
+namespace GTS {
     class Window;
     class DeferredLightingRenderer;
     struct Box;
     struct Particles;
 
-    class GraphicsManager
-    {
+    class GraphicsManager {
     public:
         GraphicsManager() = default;
         ~GraphicsManager() = default;
+
     public:
         void init(const Options& options, std::shared_ptr<Window> window, std::function<void(Options&, GraphicsManager&, const double&)> onDrawCallback);
         void update(Options& options, double dt);
@@ -56,6 +55,5 @@ namespace GTS
         Particles* particles;
         std::unique_ptr<DeferredLightingRenderer> deferredLightingRenderer;
         std::unique_ptr<DeferredGBufferRenderer> deferredGBufferRenderer;
-
     };
 }

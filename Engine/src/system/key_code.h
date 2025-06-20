@@ -1,8 +1,6 @@
 #pragma once
-namespace GTS
-{
-    enum Key
-    {
+namespace GTS {
+    enum Key {
         kFirst = 3,
         kA = 4,
         kB = 5,
@@ -191,7 +189,8 @@ namespace GTS
         kKpC = 190,
         kKpD = 191,
         kKpE = 192,
-        kKpF = 193, kKpXor = 194,
+        kKpF = 193,
+        kKpXor = 194,
         kKpPower = 195,
         kKpPercent = 196,
         kKpLess = 197,

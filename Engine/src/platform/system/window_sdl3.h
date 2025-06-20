@@ -1,18 +1,16 @@
 #pragma once
-#include <system/event.h>
-#include <system/window.h>
+#include "../../system/event.h"
+#include "../../system/window.h"
 
 #include <functional>
 
 struct SDL_Window;
 struct SDL_GPUDevice;
 
-namespace GTS
-{
+namespace GTS {
     class GpuDevice;
 
-    class WindowSDL3 : public Window
-    {
+    class WindowSDL3 : public Window {
     public:
         WindowSDL3() = default;
         ~WindowSDL3() = default;
@@ -29,11 +27,9 @@ namespace GTS
         GpuHandle getGpuDevice() override;
 
     private:
+        SDL_Window* sdlWindow { nullptr };
+        SDL_GPUDevice* sdlGPU { nullptr };
 
-        SDL_Window* sdlWindow{ nullptr };
-        SDL_GPUDevice* sdlGPU{ nullptr };
-
-        std::function<void(int, int)> resizeCallback{ nullptr };
-
+        std::function<void(int, int)> resizeCallback { nullptr };
     };
 }

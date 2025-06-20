@@ -1,40 +1,37 @@
 #pragma once
+
+#include <glm/glm.hpp>
+
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
-#include <glm/glm.hpp>
 
 class Texture;
 using TexturePtr = std::shared_ptr<Texture>;
 
-namespace GTS
-{
+namespace GTS {
     // --- Sprite State ---
-    struct Sprite
-    {
-        glm::vec3 position{ 0.0f };
-        glm::vec2 scale{ 1.0f };
+    struct Sprite {
+        glm::vec3 position { 0.0f };
+        glm::vec2 scale { 1.0f };
         float rotation = 0.0f;
-        glm::vec4 color{ 1.0f };       // RGBA tint (default: white)
-        glm::vec4 keyColor{ 0.0f };    // Color-key transparency (default: transparent black)
+        glm::vec4 color { 1.0f }; // RGBA tint (default: white)
+        glm::vec4 keyColor { 0.0f }; // Color-key transparency (default: transparent black)
         bool flipX = false;
         bool flipY = false;
         bool visible = true;
     };
 
-    class SpriteWorld
-    {
+    class SpriteWorld {
     public:
         using SpriteID = uint32_t;
         static constexpr SpriteID INVALID_ID = 0;
 
-
         // --- Animation Definition ---
-        struct Animation
-        {
+        struct Animation {
             std::string name;
-            std::vector<glm::vec4> frames;  // UV rects (x,y,w,h)
+            std::vector<glm::vec4> frames; // UV rects (x,y,w,h)
             float frameDuration = 0.1f;
             bool loop = true;
             float speed = 1.0f;
@@ -76,8 +73,7 @@ namespace GTS
         void drawAll() const; // Renders all visible sprites in zOrder
 
     private:
-        struct SpriteData
-        {
+        struct SpriteData {
             TexturePtr texture;
             Sprite state;
             std::unordered_map<std::string, Animation> animations;

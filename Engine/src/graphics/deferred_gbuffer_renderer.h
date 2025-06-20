@@ -1,28 +1,24 @@
 #pragma once
 
+#include "deferred_struct.h"
+
 #include <SDL3/SDL_gpu.h>
+
 #include <memory>
 #include <vector>
 
-#include "deferred_struct.h"
-
-namespace GTS
-{
+namespace GTS {
     class Window;
     struct Box;
     struct Particles;
 
-    class DeferredGBufferRenderer
-    {
-        enum RasterMode
-        {
+    class DeferredGBufferRenderer {
+        enum RasterMode {
             Fill,
             Line
         };
 
-
     public:
-
         DeferredGBufferRenderer(SDL_GPUDevice* device, std::shared_ptr<Window> window);
         ~DeferredGBufferRenderer();
 
@@ -32,9 +28,10 @@ namespace GTS
         void setCamera(const Camera& camera);
         void setParticles(const Particles& particles);
 
-
         // Get current G-Buffer output
-        const GBufferTextures& getGBufferOutput() const { return m_gBuffer; }
+        const GBufferTextures& getGBufferOutput() const {
+            return m_gBuffer;
+        }
 
         void render(SDL_GPUCommandBuffer* cmdBuf, const std::vector<const Box*>& boxes);
 
@@ -50,7 +47,7 @@ namespace GTS
         void createSphereGeometry();
 
         // Render boxes to G-Buffer
-        int particleCount{ 100 };
+        int particleCount { 100 };
 
         std::shared_ptr<Window> m_window;
         SDL_GPUDevice* m_gpuDevice;
@@ -67,28 +64,27 @@ namespace GTS
         SDL_GPUBuffer* m_boxVertexBuffer;
         SDL_GPUBuffer* m_boxIndexBuffer;
         std::shared_ptr<SDL_GPUTexture> default_white;
-        int default_white_width{ 32 };
-        int default_white_height{ 32 };
+        int default_white_width { 32 };
+        int default_white_height { 32 };
 
         // Particle resources
-        SDL_GPUBuffer* m_particlePositionBuffer{ nullptr };
-        SDL_GPUBuffer* m_particlesVertexBuffer{ nullptr };
-        SDL_GPUBuffer* m_particlesIndexBuffer{ nullptr };
+        SDL_GPUBuffer* m_particlePositionBuffer { nullptr };
+        SDL_GPUBuffer* m_particlesVertexBuffer { nullptr };
+        SDL_GPUBuffer* m_particlesIndexBuffer { nullptr };
 
-        uint16_t numSphereIndices{0};
-        SDL_GPUBuffer* m_sphereVertexBuffer{ nullptr };
-        SDL_GPUBuffer* m_sphereIndexBuffer{ nullptr };
+        uint16_t numSphereIndices { 0 };
+        SDL_GPUBuffer* m_sphereVertexBuffer { nullptr };
+        SDL_GPUBuffer* m_sphereIndexBuffer { nullptr };
 
         // goal modify the cube
         SDL_GPUComputePipeline* computePipeline;
 
-        struct TemporaryUniforms
-        {
+        struct TemporaryUniforms {
             float time;
         };
 
         TemporaryUniforms temporaryUniforms;
 
-        RasterMode rasterMode{ RasterMode::Fill };
+        RasterMode rasterMode { RasterMode::Fill };
     };
 }

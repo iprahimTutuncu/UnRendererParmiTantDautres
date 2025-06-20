@@ -1,22 +1,19 @@
 #pragma once
 
-#include <unordered_map>
-#include <memory>
-#include <string>
 #include <SDL3/SDL_gpu.h>
 
-namespace GTS
-{
+#include <memory>
+#include <string>
+#include <unordered_map>
+
+namespace GTS {
     class Window;
 }
 
-namespace Ressource
-{
+namespace Ressource {
 
-    class ShaderManager
-    {
+    class ShaderManager {
     public:
-
         static std::shared_ptr<SDL_GPUShader> get(SDL_GPUDevice* device,
             const std::string& shaderFilename,
             Uint32 samplerCount,

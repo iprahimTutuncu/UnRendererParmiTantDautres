@@ -1,21 +1,19 @@
 #pragma once
-#include <SDL3/SDL_gpu.h>
-#include <unordered_map>
-#include <string>
-#include <memory>
 
-namespace GTS
-{
+#include <SDL3/SDL_gpu.h>
+
+#include <memory>
+#include <string>
+#include <unordered_map>
+
+namespace GTS {
     class Window;
 }
 
-namespace Ressource
-{
-    class SamplerManager
-    {
+namespace Ressource {
+    class SamplerManager {
     public:
-        enum class Preset
-        {
+        enum class Preset {
             PointClamp,
             PointWrap,
             LinearClamp,
@@ -32,10 +30,8 @@ namespace Ressource
         static void init(std::shared_ptr<GTS::Window> window);
 
     private:
-        struct SamplerDeleter 
-        {
-            void operator()(SDL_GPUSampler* sampler) const
-            {
+        struct SamplerDeleter {
+            void operator()(SDL_GPUSampler* sampler) const {
                 if (sampler && m_gpu)
                     SDL_ReleaseGPUSampler(m_gpu, sampler);
             }

@@ -1,65 +1,54 @@
-#include "pch.h"
-#include "graphics/deferred_gbuffer_renderer.h"
-#include "graphics/geometry.h"
+#include "deferred_gbuffer_renderer.h"
+#include "geometry.h"
 
-#include "ressource_manager/shader_manager.h"
-#include "ressource_manager/sampler_manager.h"
-#include "ressource_manager/texture_manager.h"
+#include "../ressource_manager/sampler_manager.h"
+#include "../ressource_manager/shader_manager.h"
+#include "../ressource_manager/texture_manager.h"
+#include "../system/log.h"
+#include "../system/window.h"
 
-#include <system/log.h>
-#include <system/window.h>
+#include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_log.h>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/ext.hpp>
-#include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_render.h>
+#include <glm/ext.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 static UBO ubo;
 
-namespace GTS
-{
-    SDL_GPUComputePipeline* CreateComputePipelineFromShader(SDL_GPUDevice* device, const char* shaderFilename, SDL_GPUComputePipelineCreateInfo* createInfo)
-    {
-        std::array<char, 256> fullPath{};
+namespace GTS {
+    SDL_GPUComputePipeline* CreateComputePipelineFromShader(SDL_GPUDevice* device, const char* shaderFilename, SDL_GPUComputePipelineCreateInfo* createInfo) {
+        std::array<char, 256> fullPath {};
         SDL_GPUShaderFormat backendFormats = SDL_GetGPUShaderFormats(device);
         SDL_GPUShaderFormat format = SDL_GPU_SHADERFORMAT_INVALID;
         const char* entrypoint = nullptr;
 
-        if (backendFormats & SDL_GPU_SHADERFORMAT_SPIRV) 
-        {
+        if (backendFormats & SDL_GPU_SHADERFORMAT_SPIRV) {
             SDL_snprintf(fullPath.data(), fullPath.size(), "%smedia/shaders/compiled/SPIRV/%s.spv", SDL_GetBasePath(), shaderFilename);
             format = SDL_GPU_SHADERFORMAT_SPIRV;
             entrypoint = "main";
-        }
-        else if (backendFormats & SDL_GPU_SHADERFORMAT_MSL)
-        {
+        } else if (backendFormats & SDL_GPU_SHADERFORMAT_MSL) {
             SDL_snprintf(fullPath.data(), fullPath.size(), "%smedia/shaders/compiled/MSL/%s.msl", SDL_GetBasePath(), shaderFilename);
             format = SDL_GPU_SHADERFORMAT_MSL;
             entrypoint = "main0";
-        }
-        else if (backendFormats & SDL_GPU_SHADERFORMAT_DXIL)
-        {
+        } else if (backendFormats & SDL_GPU_SHADERFORMAT_DXIL) {
             SDL_snprintf(fullPath.data(), fullPath.size(), "%smedia/shaders/compiled/DXIL/%s.dxil", SDL_GetBasePath(), shaderFilename);
             format = SDL_GPU_SHADERFORMAT_DXIL;
             entrypoint = "main";
-        }
-        else 
-        {
+        } else {
             SDL_Log("Unrecognized backend shader format!");
             return nullptr;
         }
 
         size_t codeSize = 0;
         void* code = SDL_LoadFile(fullPath.data(), &codeSize);
-        if (code == nullptr) 
-        {
+        if (code == nullptr) {
             SDL_Log("Failed to load compute shader from disk! %s", fullPath.data());
             return nullptr;
         }
 
         SDL_GPUComputePipelineCreateInfo newCreateInfo = *createInfo;
-        newCreateInfo.code = (const Uint8*) code;
+        newCreateInfo.code = (const Uint8*)code;
         newCreateInfo.code_size = codeSize;
         newCreateInfo.entrypoint = entrypoint;
         newCreateInfo.format = format;
@@ -77,15 +66,13 @@ namespace GTS
             return nullptr;
         }
 
-
-
         SDL_free(code); // SDL_CreateGPUComputePipeline copies internally, so we can free now.
         return pipeline;
     }
 
     DeferredGBufferRenderer::DeferredGBufferRenderer(SDL_GPUDevice* device, std::shared_ptr<Window> window)
-        : m_gpuDevice(device), m_window(window)
-    {
+        : m_gpuDevice(device)
+        , m_window(window) {
         createPipelines();
         createBoxGeometry();
         createSphereGeometry();
@@ -96,48 +83,38 @@ namespace GTS
 
         ubo.proj = glm::perspective(glm::radians(50.f), (float)w / (float)h, 0.01f, 1000.f);
 
-        ubo.view = glm::lookAt
-        (
+        ubo.view = glm::lookAt(
             glm::vec3(0.f, 0.f, 15.f),
             glm::vec3(0.f, 0.f, 0.f),
-            glm::vec3(0.f, 1.f, 0.f)
-        );
+            glm::vec3(0.f, 1.f, 0.f));
 
         ubo.model = glm::mat4(1.f);
 
         default_white = Ressource::TextureManager::createSolidColorTextureRGBA8("default_white", default_white_width, default_white_height, 1.f, 1.f, 1.f, 1.f);
-
     }
 
-    DeferredGBufferRenderer::~DeferredGBufferRenderer()
-    {
+    DeferredGBufferRenderer::~DeferredGBufferRenderer() {
         releaseRessouces();
     }
 
-    void DeferredGBufferRenderer::setGBufferOutput(const GBufferTextures& gBuffer)
-    {
+    void DeferredGBufferRenderer::setGBufferOutput(const GBufferTextures& gBuffer) {
         m_gBuffer = gBuffer;
     }
 
-    void DeferredGBufferRenderer::setFillMode(RasterMode mode)
-    {
+    void DeferredGBufferRenderer::setFillMode(RasterMode mode) {
         rasterMode = mode;
     }
 
-    void DeferredGBufferRenderer::setCamera(const Camera& camera)
-    {
+    void DeferredGBufferRenderer::setCamera(const Camera& camera) {
         ubo.proj = glm::perspective(glm::radians(camera.fov), camera.aspect, camera.nearClip, camera.farClip);
 
-        ubo.view = glm::lookAt
-        (
+        ubo.view = glm::lookAt(
             camera.position,
             camera.target,
-            camera.up
-        );
+            camera.up);
     }
 
-    void DeferredGBufferRenderer::setParticles(const Particles& particles)
-    {
+    void DeferredGBufferRenderer::setParticles(const Particles& particles) {
         std::vector<glm::vec4> positions;
 
         for (auto p : particles.data)
@@ -145,8 +122,7 @@ namespace GTS
 
         particleCount = positions.size();
 
-        if (!m_particlePositionBuffer)
-        {
+        if (!m_particlePositionBuffer) {
             SDL_GPUBufferCreateInfo bufferInfo;
             bufferInfo.usage = SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ;
             bufferInfo.size = particleCount * sizeof(glm::vec4);
@@ -175,29 +151,26 @@ namespace GTS
         SDL_EndGPUCopyPass(copyPass);
         SDL_SubmitGPUCommandBuffer(cmdBuf);
         SDL_ReleaseGPUTransferBuffer(m_gpuDevice, transferBuffer);
-
     }
 
-    void DeferredGBufferRenderer::render(SDL_GPUCommandBuffer* cmdBuf, const std::vector<const Box*>& boxes)
-    {
-        if (!m_gBuffer.position || !m_gBuffer.normal || !m_gBuffer.albedo || !m_gBuffer.depth)
-        {
+    void DeferredGBufferRenderer::render(SDL_GPUCommandBuffer* cmdBuf, const std::vector<const Box*>& boxes) {
+        if (!m_gBuffer.position || !m_gBuffer.normal || !m_gBuffer.albedo || !m_gBuffer.depth) {
             GTS_ERROR("GBuffer textures not set!");
             return;
         }
 
         temporaryUniforms.time += 0.01f;
 
-        //pour si jamais je veux un storage texture dans le compute
-        //SDL_GPUStorageTextureReadWriteBinding bindings{};
-        //bindings.texture = default_white.get();
+        // pour si jamais je veux un storage texture dans le compute
+        // SDL_GPUStorageTextureReadWriteBinding bindings{};
+        // bindings.texture = default_white.get();
 
-        SDL_GPUStorageBufferReadWriteBinding bufferBindings{};
+        SDL_GPUStorageBufferReadWriteBinding bufferBindings {};
         bufferBindings.buffer = m_particlePositionBuffer;
 
         SDL_GPUCommandBuffer* cmdBufcomp = SDL_AcquireGPUCommandBuffer(m_gpuDevice);
 
-        //BEGIN
+        // BEGIN
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
         SDL_BindGPUComputePipeline(computePass, computePipeline);
 
@@ -206,7 +179,7 @@ namespace GTS
         SDL_DispatchGPUCompute(computePass, groupCount, 1, 1);
         SDL_EndGPUComputePass(computePass);
         SDL_SubmitGPUCommandBuffer(cmdBufcomp);
-        //END
+        // END
 
         SDL_GPUDepthStencilTargetInfo depthTarget = { 0 };
         depthTarget.texture = m_gBuffer.depth.get();
@@ -251,13 +224,11 @@ namespace GTS
         samplerBinding.sampler = Ressource::SamplerManager::get(Ressource::SamplerManager::Preset::LinearClamp).get();
         SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
 
-
         SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
         SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
         // Render each box
-        for (const Box* box : boxes)
-        {
+        for (const Box* box : boxes) {
             glm::vec3 size = box->max - box->min;
             glm::vec3 center = (box->max + box->min) * 0.5f;
 
@@ -296,16 +267,13 @@ namespace GTS
         SDL_EndGPURenderPass(pass);
     }
 
-    void DeferredGBufferRenderer::releaseRessouces()
-    {
-        if (m_gBufferFillPipeline) 
-        {
+    void DeferredGBufferRenderer::releaseRessouces() {
+        if (m_gBufferFillPipeline) {
             SDL_ReleaseGPUGraphicsPipeline(m_gpuDevice, m_gBufferFillPipeline);
             m_gBufferFillPipeline = nullptr;
         }
 
-        if (m_gBufferLinePipeline)
-        {
+        if (m_gBufferLinePipeline) {
             SDL_ReleaseGPUGraphicsPipeline(m_gpuDevice, m_gBufferLinePipeline);
             m_gBufferLinePipeline = nullptr;
         }
@@ -321,15 +289,14 @@ namespace GTS
         }
     }
 
-    void DeferredGBufferRenderer::createPipelines()
-    {
+    void DeferredGBufferRenderer::createPipelines() {
         createMeshPipeline();
         createParticlesPipeline();
 
         // this shouldn't exist xddd
         // have a fonciton that create all the compute shader eventually
         // if ray tracing ever happen, createSoftwareRaytracingPipelines
-        SDL_GPUComputePipelineCreateInfo pipelineInfo{};
+        SDL_GPUComputePipelineCreateInfo pipelineInfo {};
         pipelineInfo.num_readwrite_storage_textures = 0;
         pipelineInfo.num_readonly_storage_buffers = 0;
         pipelineInfo.num_readwrite_storage_buffers = 1;
@@ -344,19 +311,16 @@ namespace GTS
         temporaryUniforms.time = 0;
     }
 
-    void DeferredGBufferRenderer::createParticlesPipeline()
-    {
+    void DeferredGBufferRenderer::createParticlesPipeline() {
         // Load shaders
         auto vertexShader = Ressource::ShaderManager::get(m_gpuDevice, "deferred_gBuffer_particles.vert", 0, 1, 1, 0);
-        if (!vertexShader)
-        {
+        if (!vertexShader) {
             GTS_ERROR("Failed to load vertex shader: deferred_gBuffer_particles.vert");
             return;
         }
 
         auto fragmentShader = Ressource::ShaderManager::get(m_gpuDevice, "deferred_gBuffer.frag", 1, 0, 0, 0);
-        if (!fragmentShader)
-        {
+        if (!fragmentShader) {
             GTS_ERROR("Failed to load fragment shader: deferred_gBuffer.frag");
             return;
         }
@@ -405,9 +369,9 @@ namespace GTS
 
         // Color targets
         SDL_GPUColorTargetDescription colorTargets[3] = {};
-        colorTargets[0].format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT;  // Position
+        colorTargets[0].format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT; // Position
         colorTargets[1].format = SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT; // Normal
-        colorTargets[2].format = format; //SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;     // Albedo
+        colorTargets[2].format = format; // SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;     // Albedo
 
         // Pipeline creation
         SDL_GPUGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -424,16 +388,14 @@ namespace GTS
 
         // Create fill pipeline
         m_gBufferParticlesFillPipeline = SDL_CreateGPUGraphicsPipeline(m_gpuDevice, &pipelineInfo);
-        if (!m_gBufferParticlesFillPipeline)
-        {
+        if (!m_gBufferParticlesFillPipeline) {
             GTS_ERROR("Failed to create particle fill pipeline: %s", SDL_GetError());
         }
 
         // Create wireframe pipeline
         pipelineInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_LINE;
         m_gBufferParticlesLinePipeline = SDL_CreateGPUGraphicsPipeline(m_gpuDevice, &pipelineInfo);
-        if (!m_gBufferParticlesLinePipeline)
-        {
+        if (!m_gBufferParticlesLinePipeline) {
             GTS_ERROR("Failed to create particle wireframe pipeline: %s", SDL_GetError());
         }
 
@@ -443,10 +405,7 @@ namespace GTS
         Ressource::ShaderManager::releaseUnused();
     }
 
-
-
-    void DeferredGBufferRenderer::createMeshPipeline()
-    {
+    void DeferredGBufferRenderer::createMeshPipeline() {
         // Load shaders
         auto vertexShader = Ressource::ShaderManager::get(m_gpuDevice, "deferred_gBuffer.vert", 0, 1, 0, 0);
         auto fragmentShader = Ressource::ShaderManager::get(m_gpuDevice, "deferred_gBuffer.frag", 1, 0, 0, 0);
@@ -495,9 +454,9 @@ namespace GTS
 
         // Color targets
         SDL_GPUColorTargetDescription colorTargets[3] = {};
-        colorTargets[0].format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT;  // Position
+        colorTargets[0].format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT; // Position
         colorTargets[1].format = SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT; // Normal
-        colorTargets[2].format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;     // Albedo
+        colorTargets[2].format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM; // Albedo
 
         // Pipeline creation
         SDL_GPUGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -513,15 +472,13 @@ namespace GTS
         pipelineInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
 
         m_gBufferFillPipeline = SDL_CreateGPUGraphicsPipeline(m_gpuDevice, &pipelineInfo);
-        if (!m_gBufferFillPipeline)
-        {
+        if (!m_gBufferFillPipeline) {
             GTS_ERROR("Failed to create GBuffer pipeline: %s", SDL_GetError());
         }
 
         pipelineInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_LINE;
         m_gBufferLinePipeline = SDL_CreateGPUGraphicsPipeline(m_gpuDevice, &pipelineInfo);
-        if (m_gBufferLinePipeline == NULL)
-        {
+        if (m_gBufferLinePipeline == NULL) {
             GTS_ERROR("Failed to create line pipeline!");
         }
 
@@ -531,72 +488,64 @@ namespace GTS
     }
 
     template <typename tType>
-    inline void ZeroStruct(tType& aValue)
-    {
+    inline void ZeroStruct(tType& aValue) {
         SDL_memset(&aValue, 0, sizeof(tType));
     }
 
-
-    void DeferredGBufferRenderer::DoSomeComputeShaderThing()
-    {
-
-
+    void DeferredGBufferRenderer::DoSomeComputeShaderThing() {
     }
 
-    void DeferredGBufferRenderer::createBoxGeometry()
-    {
+    void DeferredGBufferRenderer::createBoxGeometry() {
         // Cube vertices (same as original)
-        Vertex vertices[] =
-        {
+        Vertex vertices[] = {
             // Front face (normal: 0,0,1)
-            {{-1, -1,  1}, 0, {0, 0, 1}, 0, {0, 0}, {0,0}},
-            {{ 1, -1,  1}, 0, {0, 0, 1}, 0, {1, 0}, {0,0}},
-            {{ 1,  1,  1}, 0, {0, 0, 1}, 0, {1, 1}, {0,0}},
-            {{-1,  1,  1}, 0, {0, 0, 1}, 0, {0, 1}, {0,0}},
+            { { -1, -1, 1 }, 0, { 0, 0, 1 }, 0, { 0, 0 }, { 0, 0 } },
+            { { 1, -1, 1 }, 0, { 0, 0, 1 }, 0, { 1, 0 }, { 0, 0 } },
+            { { 1, 1, 1 }, 0, { 0, 0, 1 }, 0, { 1, 1 }, { 0, 0 } },
+            { { -1, 1, 1 }, 0, { 0, 0, 1 }, 0, { 0, 1 }, { 0, 0 } },
 
             // Back face (normal: 0,0,-1)
-            {{ 1, -1, -1}, 0, {0, 0,-1}, 0, {0, 0}, {0,0}},
-            {{-1, -1, -1}, 0, {0, 0,-1}, 0, {1, 0}, {0,0}},
-            {{-1,  1, -1}, 0, {0, 0,-1}, 0, {1, 1}, {0,0}},
-            {{ 1,  1, -1}, 0, {0, 0,-1}, 0, {0, 1}, {0,0}},
+            { { 1, -1, -1 }, 0, { 0, 0, -1 }, 0, { 0, 0 }, { 0, 0 } },
+            { { -1, -1, -1 }, 0, { 0, 0, -1 }, 0, { 1, 0 }, { 0, 0 } },
+            { { -1, 1, -1 }, 0, { 0, 0, -1 }, 0, { 1, 1 }, { 0, 0 } },
+            { { 1, 1, -1 }, 0, { 0, 0, -1 }, 0, { 0, 1 }, { 0, 0 } },
 
             // Left face (normal: -1,0,0)
-            {{-1, -1, -1}, 0, {-1, 0, 0}, 0, {0, 0}, {0,0}},
-            {{-1, -1,  1}, 0, {-1, 0, 0}, 0, {1, 0}, {0,0}},
-            {{-1,  1,  1}, 0, {-1, 0, 0}, 0, {1, 1}, {0,0}},
-            {{-1,  1, -1}, 0, {-1, 0, 0}, 0, {0, 1}, {0,0}},
+            { { -1, -1, -1 }, 0, { -1, 0, 0 }, 0, { 0, 0 }, { 0, 0 } },
+            { { -1, -1, 1 }, 0, { -1, 0, 0 }, 0, { 1, 0 }, { 0, 0 } },
+            { { -1, 1, 1 }, 0, { -1, 0, 0 }, 0, { 1, 1 }, { 0, 0 } },
+            { { -1, 1, -1 }, 0, { -1, 0, 0 }, 0, { 0, 1 }, { 0, 0 } },
 
             // Right face (normal: 1,0,0)
-            {{ 1, -1,  1}, 0, {1, 0, 0}, 0, {0, 0}, {0,0}},
-            {{ 1, -1, -1}, 0, {1, 0, 0}, 0, {1, 0}, {0,0}},
-            {{ 1,  1, -1}, 0, {1, 0, 0}, 0, {1, 1}, {0,0}},
-            {{ 1,  1,  1}, 0, {1, 0, 0}, 0, {0, 1}, {0,0}},
+            { { 1, -1, 1 }, 0, { 1, 0, 0 }, 0, { 0, 0 }, { 0, 0 } },
+            { { 1, -1, -1 }, 0, { 1, 0, 0 }, 0, { 1, 0 }, { 0, 0 } },
+            { { 1, 1, -1 }, 0, { 1, 0, 0 }, 0, { 1, 1 }, { 0, 0 } },
+            { { 1, 1, 1 }, 0, { 1, 0, 0 }, 0, { 0, 1 }, { 0, 0 } },
 
             // Top face (normal: 0,1,0)
-            {{-1,  1,  1}, 0, {0, 1, 0}, 0, {0, 0}, {0,0}},
-            {{ 1,  1,  1}, 0, {0, 1, 0}, 0, {1, 0}, {0,0}},
-            {{ 1,  1, -1}, 0, {0, 1, 0}, 0, {1, 1}, {0,0}},
-            {{-1,  1, -1}, 0, {0, 1, 0}, 0, {0, 1}, {0,0}},
+            { { -1, 1, 1 }, 0, { 0, 1, 0 }, 0, { 0, 0 }, { 0, 0 } },
+            { { 1, 1, 1 }, 0, { 0, 1, 0 }, 0, { 1, 0 }, { 0, 0 } },
+            { { 1, 1, -1 }, 0, { 0, 1, 0 }, 0, { 1, 1 }, { 0, 0 } },
+            { { -1, 1, -1 }, 0, { 0, 1, 0 }, 0, { 0, 1 }, { 0, 0 } },
 
             // Bottom face (normal: 0,-1,0)
-            {{-1, -1, -1}, 0, {0,-1, 0}, 0, {0, 0}, {0,0}},
-            {{ 1, -1, -1}, 0, {0,-1, 0}, 0, {1, 0}, {0,0}},
-            {{ 1, -1,  1}, 0, {0,-1, 0}, 0, {1, 1}, {0,0}},
-            {{-1, -1,  1}, 0, {0,-1, 0}, 0, {0, 1}, {0,0}},
+            { { -1, -1, -1 }, 0, { 0, -1, 0 }, 0, { 0, 0 }, { 0, 0 } },
+            { { 1, -1, -1 }, 0, { 0, -1, 0 }, 0, { 1, 0 }, { 0, 0 } },
+            { { 1, -1, 1 }, 0, { 0, -1, 0 }, 0, { 1, 1 }, { 0, 0 } },
+            { { -1, -1, 1 }, 0, { 0, -1, 0 }, 0, { 0, 1 }, { 0, 0 } },
         };
-
 
         uint16_t indices[] = {
             // Front face
-            0,  1,  2,
-            2,  3,  0,
+            0, 1, 2,
+            2, 3, 0,
 
             // Back face
-            4,  5,  6,
-            6,  7,  4,
+            4, 5, 6,
+            6, 7, 4,
 
             // Left face
-            8,  9, 10,
+            8, 9, 10,
             10, 11, 8,
 
             // Right face
@@ -654,22 +603,19 @@ namespace GTS
         SDL_ReleaseGPUTransferBuffer(m_gpuDevice, transferBuffer);
     }
 
-    void DeferredGBufferRenderer::createSphereGeometry()
-    {
+    void DeferredGBufferRenderer::createSphereGeometry() {
         constexpr uint32_t kLatitudeBands = 32;
         constexpr uint32_t kLongitudeBands = 64;
 
         std::vector<Vertex> vertices;
         std::vector<uint16_t> indices;
 
-        for (uint32_t lat = 0; lat <= kLatitudeBands; ++lat)
-        {
+        for (uint32_t lat = 0; lat <= kLatitudeBands; ++lat) {
             float theta = lat * glm::pi<float>() / kLatitudeBands;
             float sinTheta = std::sin(theta);
             float cosTheta = std::cos(theta);
 
-            for (uint32_t lon = 0; lon <= kLongitudeBands; ++lon)
-            {
+            for (uint32_t lon = 0; lon <= kLongitudeBands; ++lon) {
                 float phi = lon * 2.0f * glm::pi<float>() / kLongitudeBands;
                 float sinPhi = std::sin(phi);
                 float cosPhi = std::cos(phi);
@@ -701,10 +647,8 @@ namespace GTS
             }
         }
 
-        for (uint32_t lat = 0; lat < kLatitudeBands; ++lat)
-        {
-            for (uint32_t lon = 0; lon < kLongitudeBands; ++lon)
-            {
+        for (uint32_t lat = 0; lat < kLatitudeBands; ++lat) {
+            for (uint32_t lon = 0; lon < kLongitudeBands; ++lon) {
                 uint16_t first = lat * (kLongitudeBands + 1) + lon;
                 uint16_t second = first + kLongitudeBands + 1;
 
@@ -757,7 +701,5 @@ namespace GTS
         SDL_SubmitGPUCommandBuffer(cmdBuf);
         SDL_ReleaseGPUTransferBuffer(m_gpuDevice, transferBuffer);
     }
-
-    
 
 }
