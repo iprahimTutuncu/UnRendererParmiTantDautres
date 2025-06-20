@@ -6,7 +6,7 @@
 #if defined(PLATFORM_WINDOWS)
 #define GTS_BREAK __debugbreak();
 #else
-#define GTS_BREAK _builtin_trap();
+#define GTS_BREAK __builtin_trap();
 #endif
 
 #ifdef DEBUG

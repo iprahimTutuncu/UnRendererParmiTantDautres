@@ -2,9 +2,7 @@
 
 #include "../system/log.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STBI_ONLY_PNG
-#include <stb_image/stb_image.h>
+#include <stb_image.h>
 
 namespace GTS {
     Image::Image(Image&& other) noexcept
@@ -32,13 +30,7 @@ namespace GTS {
     }
 
     bool Image::loadFromFile(const std::string& filename, int desiredChannels) {
-        if (!std::filesystem::exists(filename)) {
-            GTS_ERROR("File does not exist: {}", filename);
-            return false;
-        }
-
-        if (!pixels.empty())
-            pixels.clear();
+        pixels.clear();
 
         uint8_t* tempData = stbi_load(filename.c_str(), &width, &height, &channels, desiredChannels);
         if (!tempData) {

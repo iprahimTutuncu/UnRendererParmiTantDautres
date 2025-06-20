@@ -1,7 +1,6 @@
 #include "graphic_manager.h"
 
 #include "geometry.h"
-#include "image.h"
 
 #include "../options.h"
 #include "../ressource_manager/sampler_manager.h"
@@ -13,7 +12,7 @@
 #include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_gpu.h>
 #include <glm/ext.hpp>
-#include <stb_image/stb_image.h>
+#include <stb_image.h>
 
 #include <random>
 
@@ -135,9 +134,11 @@ namespace GTS {
     }
 
     void GraphicsManager::add(const Sprite* sprite) {
+        (void)sprite;
     }
 
     void GraphicsManager::remove(const Sprite* sprite) {
+        (void)sprite;
     }
 
 };

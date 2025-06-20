@@ -14,7 +14,7 @@ target_include_directories(OlafApplication
 
 target_link_libraries(OlafApplication
     PRIVATE
-        GTS::Engine
+        GTS
         ImGui
 )
 

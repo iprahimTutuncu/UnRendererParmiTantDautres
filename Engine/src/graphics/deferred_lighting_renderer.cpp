@@ -10,8 +10,8 @@
 namespace GTS {
 
     DeferredLightingRenderer::DeferredLightingRenderer(SDL_GPUDevice* device, std::shared_ptr<Window> window)
-        : m_device(device)
-        , m_pWindow(window) {
+        : m_pWindow(window)
+        , m_device(device) {
         memset(&m_gBuffer, 0, sizeof(GBufferTextures));
         m_finalRenderPipeline = nullptr;
         m_debugPipeline = nullptr;

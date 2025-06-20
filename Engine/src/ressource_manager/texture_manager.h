@@ -23,7 +23,7 @@ namespace Ressource {
         static void init(std::shared_ptr<GTS::Window> window);
         static void releaseUnused();
 
-        static std::shared_ptr<SDL_GPUTexture> get(const std::string& texturePath, const TextureInfo& info = {});
+        static std::shared_ptr<SDL_GPUTexture> get(const std::string& texturePath, const TextureInfo& info);
 
         static std::shared_ptr<SDL_GPUTexture> createSolidColorTextureRGBA8(const std::string& name_id, int width, int height, const float r, const float g, const float b, const float a);
 

@@ -1,11 +1,6 @@
 #include "common.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STBI_MALLOC  SDL_malloc
-#define STBI_REALLOC SDL_realloc
-#define STBI_FREE    SDL_free
-#define STBI_ONLY_HDR
-#include <stb/stb_image.h>
+#include <stb_image.h>
 
 int CommonInit(Context* context, SDL_WindowFlags windowFlags) {
     context->Device = SDL_CreateGPUDevice(
@@ -279,6 +274,7 @@ void* LoadASTCImage(const char* imageFilename, int* pWidth, int* pHeight, int* p
 }
 
 void* LoadDDSImage(const char* imageFilename, SDL_GPUTextureFormat format, int* pWidth, int* pHeight, int* pImageDataLength) {
+	(void)format;
     char fullPath[256];
     SDL_snprintf(fullPath, sizeof(fullPath), "%sContent/Images/%s", BasePath, imageFilename);
 

@@ -99,7 +99,8 @@ namespace Ressource {
             .num_samplers = samplerCount,
             .num_storage_textures = storageTextureCount,
             .num_storage_buffers = storageBufferCount,
-            .num_uniform_buffers = uniformBufferCount
+            .num_uniform_buffers = uniformBufferCount,
+            .props = 0,
         };
 
         SDL_GPUShader* shader = SDL_CreateGPUShader(device, &info);

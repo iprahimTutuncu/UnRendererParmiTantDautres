@@ -10,8 +10,6 @@
 
 namespace GTS {
     bool WindowSDL3::init(const int width, const int height, const char* title) {
-        bool success = false;
-
         this->width = width;
         this->height = height;
         this->title = title;
@@ -26,7 +24,6 @@ namespace GTS {
 
             sdlGPU = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, "vulkan");
 
-            int count = 0;
             const char* drivers = SDL_GetGPUDeviceDriver(sdlGPU);
             GTS_INFO("Available GPU driver: {}", drivers);
 

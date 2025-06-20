@@ -1,5 +1,5 @@
 ﻿#include "imgui/ImGuiSDLGPU.h"
-#include <gts/engine.h>
+#include <engine.h>
 
 class Neige : public GTS::Engine {
 public:
@@ -12,9 +12,6 @@ public:
     }
 
     void onStart() override {
-        Olaf::GpuHandle handle = window->getGpuDevice();
-        imgui = new ImGuiSDLGPU(handle.as<SDL_GPUDevice>(), window->getWindow().as<SDL_Window>());
-        imgui->initialize();
     }
 
     void onExit() override {
@@ -50,10 +47,11 @@ public:
 };
 
 int main(int argc, char** argv) {
-    GTS::Engine* engine = new Neige();
-    engine->init();
-    engine->start();
-    delete engine;
+    (void)argc;
+    (void)argv;
+    Neige engine {};
+    engine.init();
+    engine.start();
     return 0;
 }
 

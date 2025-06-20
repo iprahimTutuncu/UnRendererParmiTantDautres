@@ -71,8 +71,8 @@ namespace GTS {
     }
 
     DeferredGBufferRenderer::DeferredGBufferRenderer(SDL_GPUDevice* device, std::shared_ptr<Window> window)
-        : m_gpuDevice(device)
-        , m_window(window) {
+        : m_window(window)
+        , m_gpuDevice(device) {
         createPipelines();
         createBoxGeometry();
         createSphereGeometry();
@@ -181,7 +181,7 @@ namespace GTS {
         SDL_SubmitGPUCommandBuffer(cmdBufcomp);
         // END
 
-        SDL_GPUDepthStencilTargetInfo depthTarget = { 0 };
+        SDL_GPUDepthStencilTargetInfo depthTarget = {};
         depthTarget.texture = m_gBuffer.depth.get();
         depthTarget.cycle = true;
         depthTarget.clear_depth = 1;
@@ -449,8 +449,6 @@ namespace GTS {
         depthStencilState.enable_depth_write = true;
         depthStencilState.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
         depthStencilState.write_mask = 0xFF;
-
-        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(m_gpuDevice, m_window->getWindow().as<SDL_Window>());
 
         // Color targets
         SDL_GPUColorTargetDescription colorTargets[3] = {};

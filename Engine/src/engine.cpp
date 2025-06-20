@@ -1,6 +1,10 @@
 #define GLM_ENABLE_EXPERIMENTAL
 
 #include "engine.h"
+#include "ressource_manager/sampler_manager.h"
+#include "ressource_manager/texture_manager.h"
+#include "ressource_manager/shader_manager.h"
+#include "ressource_manager/sampler_manager.h"
 
 #include <SDL3/SDL_timer.h>
 #include <glm/gtx/transform.hpp>
