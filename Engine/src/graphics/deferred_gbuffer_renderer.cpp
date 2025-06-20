@@ -370,19 +370,19 @@ namespace GTS
 
         SDL_GPUVertexAttribute vertexAttributes[3] = {};
 
-        // position:vec3 à la location 0
+        // position:vec3 Ã  la location 0
         vertexAttributes[0].buffer_slot = 0;
         vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         vertexAttributes[0].location = 0;
         vertexAttributes[0].offset = 0;
 
-        // normal:vec3 à la  location 1
+        // normal:vec3 Ã  la  location 1
         vertexAttributes[1].buffer_slot = 0;
         vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         vertexAttributes[1].location = 1;
         vertexAttributes[1].offset = sizeof(float) * 4; // 16 bytes
 
-        // texCoord:vec2 à la  location 2
+        // texCoord:vec2 Ã  la  location 2
         vertexAttributes[2].buffer_slot = 0;
         vertexAttributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         vertexAttributes[2].location = 2;
@@ -460,19 +460,19 @@ namespace GTS
 
         SDL_GPUVertexAttribute vertexAttributes[3] = {};
 
-        // position:vec3 à la location 0
+        // position:vec3 Ã  la location 0
         vertexAttributes[0].buffer_slot = 0;
         vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         vertexAttributes[0].location = 0;
         vertexAttributes[0].offset = 0;
 
-        // normal:vec3 à la  location 1
+        // normal:vec3 Ã  la  location 1
         vertexAttributes[1].buffer_slot = 0;
         vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         vertexAttributes[1].location = 1;
         vertexAttributes[1].offset = sizeof(float) * 4; // 16 bytes
 
-        // texCoord:vec2 à la  location 2
+        // texCoord:vec2 Ã  la  location 2
         vertexAttributes[2].buffer_slot = 0;
         vertexAttributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         vertexAttributes[2].location = 2;
