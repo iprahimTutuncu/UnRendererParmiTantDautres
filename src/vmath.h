@@ -186,6 +186,14 @@ struct mat4 {
         std::memcpy(&v4[0].x, &m[0].x, sizeof(m));
         return *this;
     }
+
+    static inline mat4 identity() {
+        mat4 m = {};
+        for (size_t i = 0; i < 4; i++) {
+            m.v4[i][i] = 1.f;
+        }
+        return m;
+    }
 };
 
 template <typename T>
