@@ -1,9 +1,16 @@
 #include "graphics.h"
 
+#include "../camera.h"
 #include "components.h"
 
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_log.h>
+
+struct UniformBufferObject {
+    mat4 uProjMatrix;
+    mat4 uViewMatrix;
+    mat4 uModelMatrix;
+};
 
 static SDL_GPUShader* loadShader(
     SDL_GPUDevice* device,
@@ -351,6 +358,13 @@ SDL_AppResult graphics_iterate(AppState& state) {
     colorTargetInfo.texture = swapchainTexture;
     depthStencilTargetInfo.texture = state.graphics->depthSencilTexture;
     SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTargetInfo, 1, nullptr);
+
+    UniformBufferObject uniformBlob;
+    uniformBlob.uProjMatrix = state.camera->projection_matrix();
+    uniformBlob.uViewMatrix = state.camera->view_matrix();
+    uniformBlob.uModelMatrix = mat4::identity() ;
+
+    SDL_PushGPUVertexUniformData(cmdbuf, 0, &uniformBlob, sizeof(uniformBlob));
 
     SDL_GPUBufferBinding vertexBinding[] {
         {
