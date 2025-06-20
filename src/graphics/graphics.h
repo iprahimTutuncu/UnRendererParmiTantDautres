@@ -10,3 +10,15 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv);
 SDL_AppResult graphics_iterate(AppState& state);
 SDL_AppResult graphics_event(AppState& state, SDL_Event& event);
 void graphics_quit(AppState& state);
+
+struct alignas(16) PositionColorVertex {
+    float x, y, z;
+    std::uint8_t r, g, b, a;
+};
+
+
+struct GraphicState {
+
+
+
+};

@@ -8,7 +8,7 @@ struct SDL_Thread;
 
 struct CameraPerspective;
 struct ControlState;
-struct SDL_GPUShader;
+struct GraphicState;
 
 struct AppState {
     SDL_GPUDevice *device;
@@ -16,8 +16,7 @@ struct AppState {
 
     CameraPerspective *camera;
     ControlState *controls;
-
-    SDL_GPUShader *floorShader;
+    GraphicState *graphics;
 
     // some timing variables
     std::uint32_t lastTick, currentTick;
