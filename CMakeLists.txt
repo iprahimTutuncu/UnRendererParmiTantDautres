@@ -109,7 +109,7 @@ foreach(SHADER ${SHADERS})
 
     add_custom_command(
         OUTPUT ${SPV}
-        COMMAND glslc ${SHADER} -O -o ${SPV}
+        COMMAND glslang ${SHADER} --client vulkan1.3 -V -o ${SPV}
         DEPENDS ${SHADER}
         COMMENT "Compiling ${SHADER_DIR}/${SRC} to SPIR-V"
     )
