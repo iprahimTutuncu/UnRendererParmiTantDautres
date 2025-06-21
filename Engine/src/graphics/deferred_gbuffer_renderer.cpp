@@ -17,33 +17,14 @@
 static UBO ubo;
 
 namespace GTS {
-    SDL_GPUComputePipeline* CreateComputePipelineFromShader(SDL_GPUDevice* device, const char* shaderFilename, SDL_GPUComputePipelineCreateInfo* createInfo) {
-        std::array<char, 256> fullPath {};
-        SDL_GPUShaderFormat backendFormats = SDL_GetGPUShaderFormats(device);
-        SDL_GPUShaderFormat format = SDL_GPU_SHADERFORMAT_INVALID;
-        const char* entrypoint = nullptr;
-
-        if (backendFormats & SDL_GPU_SHADERFORMAT_SPIRV) {
-            SDL_snprintf(fullPath.data(), fullPath.size(), "%smedia/shaders/compiled/SPIRV/%s.spv", SDL_GetBasePath(), shaderFilename);
-            format = SDL_GPU_SHADERFORMAT_SPIRV;
-            entrypoint = "main";
-        } else if (backendFormats & SDL_GPU_SHADERFORMAT_MSL) {
-            SDL_snprintf(fullPath.data(), fullPath.size(), "%smedia/shaders/compiled/MSL/%s.msl", SDL_GetBasePath(), shaderFilename);
-            format = SDL_GPU_SHADERFORMAT_MSL;
-            entrypoint = "main0";
-        } else if (backendFormats & SDL_GPU_SHADERFORMAT_DXIL) {
-            SDL_snprintf(fullPath.data(), fullPath.size(), "%smedia/shaders/compiled/DXIL/%s.dxil", SDL_GetBasePath(), shaderFilename);
-            format = SDL_GPU_SHADERFORMAT_DXIL;
-            entrypoint = "main";
-        } else {
-            SDL_Log("Unrecognized backend shader format!");
-            return nullptr;
-        }
+    SDL_GPUComputePipeline* CreateComputePipelineFromShader(SDL_GPUDevice* device, const char* shaderPath, SDL_GPUComputePipelineCreateInfo* createInfo) {
+        SDL_GPUShaderFormat format = SDL_GPU_SHADERFORMAT_SPIRV;
+        const char* entrypoint = "main";
 
         size_t codeSize = 0;
-        void* code = SDL_LoadFile(fullPath.data(), &codeSize);
+        void* code = SDL_LoadFile(shaderPath, &codeSize);
         if (code == nullptr) {
-            SDL_Log("Failed to load compute shader from disk! %s", fullPath.data());
+            SDL_Log("Failed to load compute shader %s from disk: %s", shaderPath, SDL_GetError());
             return nullptr;
         }
 
@@ -54,13 +35,13 @@ namespace GTS {
         newCreateInfo.format = format;
 
         SDL_Log("Creating compute pipeline with shader: %s (format: %d, entrypoint: %s)",
-            fullPath.data(), format, entrypoint);
+            shaderPath, format, entrypoint);
 
         SDL_GPUComputePipeline* pipeline = SDL_CreateGPUComputePipeline(device, &newCreateInfo);
         if (pipeline == nullptr) {
 
             SDL_Log("Pipeline creation failed for shader: %s, format: %d, size: %zu",
-                fullPath.data(), format, codeSize);
+                shaderPath, format, codeSize);
 
             SDL_free(code);
             return nullptr;
@@ -307,19 +288,19 @@ namespace GTS {
         pipelineInfo.threadcount_y = 1;
         pipelineInfo.threadcount_z = 1;
 
-        computePipeline = CreateComputePipelineFromShader(m_gpuDevice, "particleUpdate.comp", &pipelineInfo);
+        computePipeline = CreateComputePipelineFromShader(m_gpuDevice, SHADERS_DIR "particleUpdate.comp", &pipelineInfo);
         temporaryUniforms.time = 0;
     }
 
     void DeferredGBufferRenderer::createParticlesPipeline() {
         // Load shaders
-        auto vertexShader = Ressource::ShaderManager::get(m_gpuDevice, "deferred_gBuffer_particles.vert", 0, 1, 1, 0);
+        auto vertexShader = Ressource::ShaderManager::get(m_gpuDevice, SHADERS_DIR "deferred_gBuffer_particles.vert", 0, 1, 1, 0);
         if (!vertexShader) {
             GTS_ERROR("Failed to load vertex shader: deferred_gBuffer_particles.vert");
             return;
         }
 
-        auto fragmentShader = Ressource::ShaderManager::get(m_gpuDevice, "deferred_gBuffer.frag", 1, 0, 0, 0);
+        auto fragmentShader = Ressource::ShaderManager::get(m_gpuDevice, SHADERS_DIR "deferred_gBuffer.frag", 1, 0, 0, 0);
         if (!fragmentShader) {
             GTS_ERROR("Failed to load fragment shader: deferred_gBuffer.frag");
             return;
