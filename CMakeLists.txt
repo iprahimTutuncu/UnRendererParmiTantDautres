@@ -146,35 +146,6 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSi
     add_compile_definitions(DEBUG=1)
 endif()
 
-# go to the different modules
-add_library(GTS STATIC
-    Engine/src/vendor/common.cpp
-    Engine/src/platform/system/window_sdl3.cpp
-    Engine/src/system/log_manager.cpp
-    Engine/src/system/system_manager.cpp
-    Engine/src/system/control_setting.cpp
-    Engine/src/system/keyboard.cpp
-    Engine/src/system/window.cpp
-    Engine/src/ressource_manager/image_manager.cpp
-    Engine/src/ressource_manager/shader_manager.cpp
-    Engine/src/ressource_manager/texture_manager.cpp
-    Engine/src/ressource_manager/sampler_manager.cpp
-    Engine/src/engine.cpp
-    Engine/src/graphics/deferred_gbuffer_renderer.cpp
-    Engine/src/graphics/graphic_manager.cpp
-    Engine/src/graphics/graphic_api.cpp
-    Engine/src/graphics/image.cpp
-    Engine/src/graphics/deferred_lighting_renderer.cpp
-)
-target_include_directories(GTS INTERFACE Engine/src)
-target_link_libraries(GTS PRIVATE
-    SDL3::SDL3
-    spdlog::spdlog
-    stb
-    glm
-)
-add_subdirectory(application EXCLUDE_FROM_ALL)
-
 add_executable(app
     src/main.cpp
     src/camera.cpp
