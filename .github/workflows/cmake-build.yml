@@ -8,7 +8,6 @@ jobs:
     outputs:
       cache-submodule-key: ${{ steps.strings.outputs.cache-submodule-key }}
       cache-builds-key: ${{ steps.strings.outputs.cache-builds-key }}
-
     steps:
     - uses: actions/checkout@v4
       with:
@@ -38,12 +37,6 @@ jobs:
     env:
       BUILD_TYPE: Debug
     steps:
-    - name: Prepare Vulkan SDK
-      uses: humbletim/setup-vulkan-sdk@v1.2.1
-      with:
-        vulkan-query-version: 1.4.313.0
-        vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang
-        vulkan-use-cache: true
     - uses: actions/checkout@v4
       with:
         submodules: true
@@ -101,12 +94,6 @@ jobs:
     runs-on: windows-2025
     needs: build-linux
     steps:
-    - name: Prepare Vulkan SDK
-      uses: humbletim/setup-vulkan-sdk@v1.2.1
-      with:
-        vulkan-query-version: 1.4.313.0
-        vulkan-components: Glslang
-        vulkan-use-cache: true
     - uses: actions/checkout@v4
       with:
         submodules: true

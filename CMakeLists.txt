@@ -99,6 +99,12 @@ add_subdirectory(libs/glm)
 
 set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 set(SHADER_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+set(GLSLANG_EXE ${CMAKE_CURRENT_SOURCE_DIR}/tools/glslang)
+set(SPIRV_OPT_EXE ${CMAKE_CURRENT_SOURCE_DIR}/tools/spirv-opt)
+if (WIN32 OR MSVC)
+    set(GLSLANG_EXE ${GLSLANG_EXE}.exe)
+    set(SPIRV_OPT_EXE ${SPIRV_OPT_EXE}.exe)
+endif()
 
 file(GLOB SHADERS "${SHADER_DIR}/*")
 set(SPIRV_FILES)
@@ -108,10 +114,16 @@ foreach(SHADER ${SHADERS})
     set(SPV ${SHADER_OUT_DIR}/${SRC}.spv)
 
     add_custom_command(
-        OUTPUT ${SPV}
-        COMMAND glslang ${SHADER} --client vulkan1.3 -V -o ${SPV}
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
+        COMMAND ${GLSLANG_EXE} ${SHADER} -V --target-env vulkan1.3 -o ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
         DEPENDS ${SHADER}
-        COMMENT "Compiling ${SHADER_DIR}/${SRC} to SPIR-V"
+        COMMENT "Compiling ${SRC} to SPIR-V"
+    )
+    add_custom_command(
+        OUTPUT ${SPV}
+        COMMAND ${SPIRV_OPT_EXE} -O ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv -o ${SPV}
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
+        COMMENT "Optimizing ${SRC}.spv"
     )
 
     list(APPEND SPIRV_FILES ${SPV})
@@ -159,7 +171,7 @@ target_link_libraries(GTS PRIVATE
     stb
     glm
 )
-add_subdirectory(application)
+add_subdirectory(application EXCLUDE_FROM_ALL)
 
 add_executable(app
     src/main.cpp
