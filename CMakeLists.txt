@@ -90,6 +90,11 @@ target_compile_definitions(stb PRIVATE
     STB_IMAGE_IMPLEMENTATION
 )
 
+
+# OpenGL Mathematics (GLM)
+add_subdirectory(libs/glm)
+
+
 #  ========== SHADERS ==========
 
 set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
@@ -152,6 +157,7 @@ target_link_libraries(GTS PRIVATE
     SDL3::SDL3
     spdlog::spdlog
     stb
+    glm
 )
 add_subdirectory(application)
 
