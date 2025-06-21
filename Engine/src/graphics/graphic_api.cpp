@@ -1,6 +1,6 @@
-#include <olaf/graphics/graphic_api.h>
+#include "graphic_api.h"
 
-namespace Olaf {
+namespace GTS {
     GraphicAPI Graphics::graphicAPI = GraphicAPI::SDL3;
 
     GraphicAPI get_graphic_API() {

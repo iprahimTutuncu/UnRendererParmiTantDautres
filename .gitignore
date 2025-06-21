@@ -23,7 +23,7 @@ _deps/
 *.opendb
 *.ncb
 *.log
-application/app_logs.txt
+**/app_logs.txt
 
 # Ignore compiled binaries
 *.exe

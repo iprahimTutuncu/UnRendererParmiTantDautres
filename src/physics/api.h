@@ -1,0 +1,12 @@
+#pragma once
+
+#include "../state.h"
+
+#include <SDL3/SDL_init.h>
+
+union SDL_Event;
+
+SDL_AppResult physics_init(AppState& state, int argc, char** argv);
+SDL_AppResult physics_iterate(AppState& state);
+SDL_AppResult physics_event(AppState& state, SDL_Event& event);
+void physics_quit(AppState& state);

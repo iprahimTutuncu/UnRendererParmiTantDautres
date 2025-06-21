@@ -1,17 +1,18 @@
-#include <olaf/system/system_manager.h>
+#include "system_manager.h"
 
-#include <olaf/options.h>
-#include <olaf/system/event.h>
-#include <olaf/system/log_manager.h>
-#include <olaf/system/window.h>
+#include "event.h"
+#include "log_manager.h"
+#include "window.h"
 
-namespace Olaf {
-    void Olaf::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback) {
+#include "../options.h"
+
+namespace GTS {
+    void GTS::SystemManager::init(WindowOptions& options, std::shared_ptr<ControlSetting> controlSetting, std::function<void(Options&, const double&, const std::vector<InputAction>&)> onInputCallback) {
         LogManager::init();
 
         pWindow = Window::create(WindowAPI::SDL3);
 
-        if (!pWindow->init(options.screenWidth, options.screenHeight, "Olaf Engine")) {
+        if (!pWindow->init(options.screenWidth, options.screenHeight, "GTS Engine")) {
             return;
         }
         pControlSetting = controlSetting;
@@ -20,7 +21,7 @@ namespace Olaf {
         pWindow->enableEventForHUD();
     }
 
-    void Olaf::SystemManager::update(Options& options, double dt) {
+    void GTS::SystemManager::update(Options& options, double dt) {
         std::vector<Event> events = pWindow->pollEvent();
 
         for (Event e : events)

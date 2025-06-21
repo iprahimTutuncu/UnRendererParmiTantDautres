@@ -72,11 +72,53 @@ set(SPDLOG_ENABLE_PCH ON)
 set(SPDLOG_BUILD_PIC ON)
 add_subdirectory(libs/spdlog)
 
+# stb_image: C library for loading images into memory with minimal dependencies
+set(GENERATED_STB_WRAPPER ${CMAKE_CURRENT_BINARY_DIR}/stb_wrapper.cpp)
+add_custom_command(
+    OUTPUT ${GENERATED_STB_WRAPPER}
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/libs/stb/stb_image.h
+        ${GENERATED_STB_WRAPPER}
+    DEPENDS libs/stb/stb_image.h
+    COMMENT "Generating stb_wrapper.cpp"
+)
+
+add_custom_target(generate_stb_wrapper ALL DEPENDS ${SPIRV_FILES})
+add_library(stb STATIC ${GENERATED_STB_WRAPPER})
+target_include_directories(stb INTERFACE libs/stb)
+target_compile_definitions(stb PRIVATE
+    STB_IMAGE_IMPLEMENTATION
+)
+
+#  ========== SHADERS ==========
+
+set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+set(SHADER_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+
+file(GLOB SHADERS "${SHADER_DIR}/*")
+set(SPIRV_FILES)
+foreach(SHADER ${SHADERS})
+    get_filename_component(SRC "${SHADER}" NAME)
+
+    set(SPV ${SHADER_OUT_DIR}/${SRC}.spv)
+
+    add_custom_command(
+        OUTPUT ${SPV}
+        COMMAND glslc ${SHADER} -O -o ${SPV}
+        DEPENDS ${SHADER}
+        COMMENT "Compiling ${SHADER_DIR}/${SRC} to SPIR-V"
+    )
+
+    list(APPEND SPIRV_FILES ${SPV})
+endforeach()
+
+add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
+
 #  ========== PROJECT ==========
 
 # Add warning flags for Windows and Linux
 if (WIN32 OR MSVC)
-    add_compile_options(/EHsc /W4 /WX /wd4458)
+    add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
@@ -86,7 +128,45 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSi
 endif()
 
 # go to the different modules
-add_subdirectory(Engine)
+add_library(GTS STATIC
+    Engine/src/vendor/common.cpp
+    Engine/src/platform/system/window_sdl3.cpp
+    Engine/src/system/log_manager.cpp
+    Engine/src/system/system_manager.cpp
+    Engine/src/system/control_setting.cpp
+    Engine/src/system/keyboard.cpp
+    Engine/src/system/window.cpp
+    Engine/src/ressource_manager/image_manager.cpp
+    Engine/src/ressource_manager/shader_manager.cpp
+    Engine/src/ressource_manager/texture_manager.cpp
+    Engine/src/ressource_manager/sampler_manager.cpp
+    Engine/src/engine.cpp
+    Engine/src/graphics/deferred_gbuffer_renderer.cpp
+    Engine/src/graphics/graphic_manager.cpp
+    Engine/src/graphics/graphic_api.cpp
+    Engine/src/graphics/image.cpp
+    Engine/src/graphics/deferred_lighting_renderer.cpp
+)
+target_include_directories(GTS INTERFACE Engine/src)
+target_link_libraries(GTS PRIVATE
+    SDL3::SDL3
+    spdlog::spdlog
+    stb
+)
 add_subdirectory(application)
+
+add_executable(app
+    src/main.cpp
+    src/camera.cpp
+    src/controls/controls.cpp
+    src/graphics/graphics.cpp
+    src/physics/physics.cpp
+)
+target_link_libraries(app PRIVATE
+    SDL3::SDL3
+)
+target_compile_definitions(app PRIVATE
+    SHADERS_DIR="${SHADER_OUT_DIR}/"
+)
 
 #  ========== TESTS ==========

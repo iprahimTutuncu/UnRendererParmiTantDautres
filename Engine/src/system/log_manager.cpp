@@ -1,5 +1,5 @@
-#include <olaf/system/log.h>
-#include <olaf/system/log_manager.h>
+#include "log_manager.h"
+#include "log.h"
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -16,14 +16,14 @@ void LogManager::init(const std::string& logFileName) {
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFileName, true);
         file_sink->set_level(spdlog::level::debug);
 
-        logger_ = std::make_shared<spdlog::logger>("OLAF", spdlog::sinks_init_list { console_sink, file_sink });
+        logger_ = std::make_shared<spdlog::logger>("GTS", spdlog::sinks_init_list { console_sink, file_sink });
         spdlog::set_default_logger(logger_);
 
         spdlog::set_level(spdlog::level::trace);
 
         spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%t] %^[%l] %v%$");
 
-        OLAF_INFO("Logger initialized.");
+        GTS_INFO("Logger initialized.");
         isInitialized = true;
     }
 }
