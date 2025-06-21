@@ -136,7 +136,7 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
 if (WIN32 OR MSVC)
     add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
 else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
+    add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
 endif()
 
 if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"))

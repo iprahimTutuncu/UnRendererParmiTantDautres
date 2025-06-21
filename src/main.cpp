@@ -24,12 +24,12 @@ static inline void setFPSinTitle(std::uint32_t i, char *title) {
 }
 
 static void updateTiming(AppState &state) {
-    std::uint64_t now = SDL_GetPerformanceCounter();
-
     state.numFrames++;
-    state.delta_time = (now - state.last) / (double)SDL_GetPerformanceFrequency();
-    state.last = now;
-    std::uint32_t timeDelta = (state.currentTick = SDL_GetTicks()) - state.lastTick;
+
+    std::uint64_t performanceCounter = SDL_GetPerformanceCounter();
+    state.deltaTime = static_cast<float>(performanceCounter - state.lastPerformanceCounter) / static_cast<float>(SDL_GetPerformanceFrequency());
+    state.lastPerformanceCounter = performanceCounter;
+    std::uint32_t timeDelta = (state.currentTick = static_cast<std::uint32_t>(SDL_GetTicks())) - state.lastTick;
     if (timeDelta >= 1000ull) [[unlikely]] {
         static char title[] = "Running at XXX fps.";
         constexpr int indexFirstX = 11;
@@ -76,9 +76,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     state.device = device;
     state.window = window;
     state.lastTick = 0ull;
-    state.currentTick = 0ull;
+    state.lastPerformanceCounter = SDL_GetPerformanceCounter();
     state.numFrames = 0u;
-    state.delta_time = 0.f;
+    state.deltaTime = 0.f;
 
     state.camera = new CameraPerspective {};
     CameraPerspective &camera = *state.camera;

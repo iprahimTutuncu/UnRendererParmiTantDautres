@@ -20,7 +20,7 @@ struct AppState {
 
     // some timing variables
     std::uint32_t lastTick, currentTick;
-    std::uint64_t last;
+    std::uint64_t lastPerformanceCounter;
     std::uint32_t numFrames;
-    float delta_time;
+    float deltaTime;
 };

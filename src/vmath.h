@@ -75,7 +75,8 @@ constexpr vec3 operator*(vec3 const& v, float f) {
 }
 
 constexpr vec3 operator*(int i, vec3 const& v) {
-    return { i * v.x, i * v.y, i * v.z };
+    const float j = static_cast<float>(i);
+    return { j * v.x, j * v.y, j * v.z };
 }
 
 struct mat3 {
