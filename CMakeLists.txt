@@ -43,16 +43,13 @@ endif()
 
 #  ========== LIBRARIES ==========
 
-# OpenGL - The Industry Standard for High Performance Graphics
-find_package(OpenGL 4.5 REQUIRED)
-
 # Simple DirectMedia Layer (SDL for short)
 set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
 add_subdirectory(libs/SDL EXCLUDE_FROM_ALL)
 
 # ImGui: bloat-free graphical user interface library for C++
-add_library(ImGui STATIC
+add_library(ImGui STATIC EXCLUDE_FROM_ALL
     libs/imgui/imgui.cpp
     libs/imgui/imgui_draw.cpp
     libs/imgui/imgui_tables.cpp
@@ -70,7 +67,7 @@ target_link_libraries(ImGui PRIVATE
 # spdlog: Fast C++ logging library
 set(SPDLOG_ENABLE_PCH ON)
 set(SPDLOG_BUILD_PIC ON)
-add_subdirectory(libs/spdlog)
+add_subdirectory(libs/spdlog EXCLUDE_FROM_ALL)
 
 # stb_image: C library for loading images into memory with minimal dependencies
 set(GENERATED_STB_WRAPPER ${CMAKE_CURRENT_BINARY_DIR}/stb_wrapper.cpp)
@@ -83,22 +80,19 @@ add_custom_command(
     COMMENT "Generating stb_wrapper.cpp"
 )
 
-add_custom_target(generate_stb_wrapper ALL DEPENDS ${SPIRV_FILES})
-add_library(stb STATIC ${GENERATED_STB_WRAPPER})
-target_include_directories(stb INTERFACE libs/stb)
-target_compile_definitions(stb PRIVATE
-    STB_IMAGE_IMPLEMENTATION
-)
-
-
 # OpenGL Mathematics (GLM)
-add_subdirectory(libs/glm)
-
+add_subdirectory(libs/glm EXCLUDE_FROM_ALL)
 
 #  ========== SHADERS ==========
 
 set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 set(SHADER_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+set(GLSLANG_EXE ${CMAKE_CURRENT_SOURCE_DIR}/tools/glslang)
+set(SPIRV_OPT_EXE ${CMAKE_CURRENT_SOURCE_DIR}/tools/spirv-opt)
+if (WIN32 OR MSVC)
+    set(GLSLANG_EXE ${GLSLANG_EXE}.exe)
+    set(SPIRV_OPT_EXE ${SPIRV_OPT_EXE}.exe)
+endif()
 
 file(GLOB SHADERS "${SHADER_DIR}/*")
 set(SPIRV_FILES)
@@ -108,10 +102,19 @@ foreach(SHADER ${SHADERS})
     set(SPV ${SHADER_OUT_DIR}/${SRC}.spv)
 
     add_custom_command(
-        OUTPUT ${SPV}
-        COMMAND glslc ${SHADER} -O -o ${SPV}
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
+        COMMAND ${GLSLANG_EXE} -V --target-env vulkan1.3 ${SHADER} -o ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
         DEPENDS ${SHADER}
-        COMMENT "Compiling ${SHADER_DIR}/${SRC} to SPIR-V"
+        COMMENT "Compiling ${SRC} to SPIR-V"
+        VERBATIM
+    )
+    add_custom_command(
+        OUTPUT ${SPV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUT_DIR}
+        COMMAND ${SPIRV_OPT_EXE} -O ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv -o ${SPV}
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
+        COMMENT "Optimizing ${SRC}.spv"
+        VERBATIM
     )
 
     list(APPEND SPIRV_FILES ${SPV})
@@ -125,41 +128,12 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
 if (WIN32 OR MSVC)
     add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
 else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
+    add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
 endif()
 
 if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"))
     add_compile_definitions(DEBUG=1)
 endif()
-
-# go to the different modules
-add_library(GTS STATIC
-    Engine/src/vendor/common.cpp
-    Engine/src/platform/system/window_sdl3.cpp
-    Engine/src/system/log_manager.cpp
-    Engine/src/system/system_manager.cpp
-    Engine/src/system/control_setting.cpp
-    Engine/src/system/keyboard.cpp
-    Engine/src/system/window.cpp
-    Engine/src/ressource_manager/image_manager.cpp
-    Engine/src/ressource_manager/shader_manager.cpp
-    Engine/src/ressource_manager/texture_manager.cpp
-    Engine/src/ressource_manager/sampler_manager.cpp
-    Engine/src/engine.cpp
-    Engine/src/graphics/deferred_gbuffer_renderer.cpp
-    Engine/src/graphics/graphic_manager.cpp
-    Engine/src/graphics/graphic_api.cpp
-    Engine/src/graphics/image.cpp
-    Engine/src/graphics/deferred_lighting_renderer.cpp
-)
-target_include_directories(GTS INTERFACE Engine/src)
-target_link_libraries(GTS PRIVATE
-    SDL3::SDL3
-    spdlog::spdlog
-    stb
-    glm
-)
-add_subdirectory(application)
 
 add_executable(app
     src/main.cpp
@@ -168,6 +142,7 @@ add_executable(app
     src/graphics/graphics.cpp
     src/physics/physics.cpp
 )
+add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
     SDL3::SDL3
 )

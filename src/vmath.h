@@ -75,7 +75,8 @@ constexpr vec3 operator*(vec3 const& v, float f) {
 }
 
 constexpr vec3 operator*(int i, vec3 const& v) {
-    return { i * v.x, i * v.y, i * v.z };
+    const float j = static_cast<float>(i);
+    return { j * v.x, j * v.y, j * v.z };
 }
 
 struct mat3 {
@@ -84,17 +85,17 @@ struct mat3 {
         vec3 cols[3];
     };
 
-    constexpr vec3& operator[](std::size_t index) {
+    inline vec3& operator[](std::size_t index) {
         assert(index < 3);
         return cols[index];
     }
 
-    constexpr vec3 const& operator[](std::size_t index) const {
+    inline vec3 const& operator[](std::size_t index) const {
         assert(index < 3);
         return cols[index];
     }
 
-    constexpr vec3 operator*(vec3 const& v) const {
+    inline vec3 operator*(vec3 const& v) const {
 #ifndef __SSE4_1__
         return {
             cols[0].x * v.x + cols[0].y * v.y + cols[0].z * v.z,

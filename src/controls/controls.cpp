@@ -18,29 +18,29 @@ SDL_AppResult controls_init(AppState& state, int argc, char** argv) {
 }
 
 SDL_AppResult controls_iterate(AppState& state) {
-    float velocity = state.controls->mouse.movement_speed * state.delta_time;
+    float velocity = state.controls->mouse.movement_speed * state.deltaTime;
     bool const* keystate = SDL_GetKeyboardState(nullptr);
 
     if (keystate[SDL_SCANCODE_LCTRL]) {
         velocity *= 10;
     }
     if (keystate[SDL_SCANCODE_A]) {
-        state.camera->position -= velocity * state.delta_time * mat3_cast(state.camera->rotation)[0];
+        state.camera->position -= velocity * state.deltaTime * mat3_cast(state.camera->rotation)[0];
     }
     if (keystate[SDL_SCANCODE_D]) {
-        state.camera->position += velocity * state.delta_time * mat3_cast(state.camera->rotation)[0];
+        state.camera->position += velocity * state.deltaTime * mat3_cast(state.camera->rotation)[0];
     }
     if (keystate[SDL_SCANCODE_S]) {
-        state.camera->position -= velocity * state.delta_time * mat3_cast(state.camera->rotation)[2];
+        state.camera->position -= velocity * state.deltaTime * mat3_cast(state.camera->rotation)[2];
     }
     if (keystate[SDL_SCANCODE_W]) {
-        state.camera->position += velocity * state.delta_time * mat3_cast(state.camera->rotation)[2];
+        state.camera->position += velocity * state.deltaTime * mat3_cast(state.camera->rotation)[2];
     }
     if (keystate[SDL_SCANCODE_SPACE]) {
-        state.camera->position += velocity * state.delta_time * mat3_cast(state.camera->rotation)[1];
+        state.camera->position += velocity * state.deltaTime * mat3_cast(state.camera->rotation)[1];
     }
     if (keystate[SDL_SCANCODE_LSHIFT]) {
-        state.camera->position -= velocity * state.delta_time * mat3_cast(state.camera->rotation)[1];
+        state.camera->position -= velocity * state.deltaTime * mat3_cast(state.camera->rotation)[1];
     }
 
     return SDL_APP_CONTINUE;

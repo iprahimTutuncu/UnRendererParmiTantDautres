@@ -342,27 +342,14 @@ SDL_AppResult graphics_iterate(AppState& state) {
         .padding1 = 0,
         .padding2 = 0,
     };
-    static SDL_GPUDepthStencilTargetInfo depthStencilTargetInfo {
-        .texture = nullptr,
-        .clear_depth = 0,
-        .load_op = SDL_GPU_LOADOP_CLEAR,
-        .store_op = SDL_GPU_STOREOP_DONT_CARE,
-        .stencil_load_op = SDL_GPU_LOADOP_CLEAR,
-        .stencil_store_op = SDL_GPU_STOREOP_DONT_CARE,
-        .cycle = true,
-        .clear_stencil = 0,
-        .padding1 = 0,
-        .padding2 = 0,
-    };
 
     colorTargetInfo.texture = swapchainTexture;
-    depthStencilTargetInfo.texture = state.graphics->depthSencilTexture;
     SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTargetInfo, 1, nullptr);
 
     UniformBufferObject uniformBlob;
     uniformBlob.uProjMatrix = state.camera->projection_matrix();
     uniformBlob.uViewMatrix = state.camera->view_matrix();
-    uniformBlob.uModelMatrix = mat4::identity() ;
+    uniformBlob.uModelMatrix = mat4::identity();
 
     SDL_PushGPUVertexUniformData(cmdbuf, 0, &uniformBlob, sizeof(uniformBlob));
 

@@ -63,3 +63,7 @@ CMakeFiles/
 cmake_install.cmake
 CMakeSettings.json
 
+# Keep tools
+!tools/glslang.exe
+!tools/spirv-opt.exe
+
