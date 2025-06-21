@@ -94,7 +94,6 @@ target_compile_definitions(stb PRIVATE
 # OpenGL Mathematics (GLM)
 add_subdirectory(libs/glm)
 
-
 #  ========== SHADERS ==========
 
 set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
@@ -115,7 +114,7 @@ foreach(SHADER ${SHADERS})
 
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
-        COMMAND ${GLSLANG_EXE} ${SHADER} -V --target-env vulkan1.3 -o ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
+        COMMAND ${GLSLANG_EXE} -V --target-env vulkan1.3 ${SHADER} -o ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
         DEPENDS ${SHADER}
         COMMENT "Compiling ${SRC} to SPIR-V"
     )
