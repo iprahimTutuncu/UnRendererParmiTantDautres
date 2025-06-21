@@ -18,7 +18,7 @@ mat4 CameraPerspective::view_matrix() const {
 mat4 CameraPerspective::projection_matrix() const {
     assert(std::abs(aspect - std::numeric_limits<float>::epsilon()) > 0.f);
     assert(far - near != 0.f);
-    const float tanHalfFovy = std::tanf(fov / 2.f);
+    const float tanHalfFovy = std::tan(fov / 2.f);
     mat4 m = {};
 
     m[0].x = 1 / (aspect * tanHalfFovy);
