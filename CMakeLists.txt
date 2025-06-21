@@ -43,9 +43,6 @@ endif()
 
 #  ========== LIBRARIES ==========
 
-# OpenGL - The Industry Standard for High Performance Graphics
-find_package(OpenGL 4.5 REQUIRED)
-
 # Simple DirectMedia Layer (SDL for short)
 set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
