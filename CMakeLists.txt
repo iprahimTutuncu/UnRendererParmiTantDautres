@@ -49,7 +49,7 @@ set(SDL_SHARED OFF)
 add_subdirectory(libs/SDL EXCLUDE_FROM_ALL)
 
 # ImGui: bloat-free graphical user interface library for C++
-add_library(ImGui STATIC
+add_library(ImGui STATIC EXCLUDE_FROM_ALL
     libs/imgui/imgui.cpp
     libs/imgui/imgui_draw.cpp
     libs/imgui/imgui_tables.cpp
@@ -67,7 +67,7 @@ target_link_libraries(ImGui PRIVATE
 # spdlog: Fast C++ logging library
 set(SPDLOG_ENABLE_PCH ON)
 set(SPDLOG_BUILD_PIC ON)
-add_subdirectory(libs/spdlog)
+add_subdirectory(libs/spdlog EXCLUDE_FROM_ALL)
 
 # stb_image: C library for loading images into memory with minimal dependencies
 set(GENERATED_STB_WRAPPER ${CMAKE_CURRENT_BINARY_DIR}/stb_wrapper.cpp)
@@ -80,7 +80,6 @@ add_custom_command(
     COMMENT "Generating stb_wrapper.cpp"
 )
 
-add_custom_target(generate_stb_wrapper ALL DEPENDS ${SPIRV_FILES})
 add_library(stb STATIC ${GENERATED_STB_WRAPPER})
 target_include_directories(stb INTERFACE libs/stb)
 target_compile_definitions(stb PRIVATE
@@ -89,7 +88,7 @@ target_compile_definitions(stb PRIVATE
 
 
 # OpenGL Mathematics (GLM)
-add_subdirectory(libs/glm)
+add_subdirectory(libs/glm EXCLUDE_FROM_ALL)
 
 #  ========== SHADERS ==========
 
