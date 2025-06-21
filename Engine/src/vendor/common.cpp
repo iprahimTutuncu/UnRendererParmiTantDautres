@@ -109,34 +109,15 @@ SDL_GPUShader* LoadShader(
 
 SDL_GPUComputePipeline* CreateComputePipelineFromShader(
     SDL_GPUDevice* device,
-    const char* shaderFilename,
+    const char* shaderPath,
     SDL_GPUComputePipelineCreateInfo* createInfo) {
-    char fullPath[256];
-    SDL_GPUShaderFormat backendFormats = SDL_GetGPUShaderFormats(device);
-    SDL_GPUShaderFormat format = SDL_GPU_SHADERFORMAT_INVALID;
-    const char* entrypoint;
-
-    if (backendFormats & SDL_GPU_SHADERFORMAT_SPIRV) {
-        SDL_snprintf(fullPath, sizeof(fullPath), "%sContent/Shaders/Compiled/SPIRV/%s.spv", BasePath, shaderFilename);
-        format = SDL_GPU_SHADERFORMAT_SPIRV;
-        entrypoint = "main";
-    } else if (backendFormats & SDL_GPU_SHADERFORMAT_MSL) {
-        SDL_snprintf(fullPath, sizeof(fullPath), "%sContent/Shaders/Compiled/MSL/%s.msl", BasePath, shaderFilename);
-        format = SDL_GPU_SHADERFORMAT_MSL;
-        entrypoint = "main0";
-    } else if (backendFormats & SDL_GPU_SHADERFORMAT_DXIL) {
-        SDL_snprintf(fullPath, sizeof(fullPath), "%sContent/Shaders/Compiled/DXIL/%s.dxil", BasePath, shaderFilename);
-        format = SDL_GPU_SHADERFORMAT_DXIL;
-        entrypoint = "main";
-    } else {
-        SDL_Log("%s", "Unrecognized backend shader format!");
-        return nullptr;
-    }
+    SDL_GPUShaderFormat format = SDL_GPU_SHADERFORMAT_SPIRV;
+    const char* entrypoint = "main";
 
     size_t codeSize;
-    void* code = SDL_LoadFile(fullPath, &codeSize);
+    void* code = SDL_LoadFile(shaderPath, &codeSize);
     if (code == nullptr) {
-        SDL_Log("Failed to load compute shader from disk! %s", fullPath);
+        SDL_Log("Failed to load compute shader from disk! %s", shaderPath);
         return nullptr;
     }
 
@@ -274,7 +255,7 @@ void* LoadASTCImage(const char* imageFilename, int* pWidth, int* pHeight, int* p
 }
 
 void* LoadDDSImage(const char* imageFilename, SDL_GPUTextureFormat format, int* pWidth, int* pHeight, int* pImageDataLength) {
-	(void)format;
+    (void)format;
     char fullPath[256];
     SDL_snprintf(fullPath, sizeof(fullPath), "%sContent/Images/%s", BasePath, imageFilename);
 
