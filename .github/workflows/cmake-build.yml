@@ -12,10 +12,6 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: test shader compilation
-      run: |
-        ./tools/glslang -V --target-env vulkan1.3 ./shaders/floorShader.frag -o floorShader.frag.spv
-        ./tools/spirv-opt -O floorShader.frag.spv -o floorShader.frag.opti.spv
     - name: Set reusable strings
       id: strings
       run: |

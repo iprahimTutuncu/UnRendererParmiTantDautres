@@ -117,12 +117,15 @@ foreach(SHADER ${SHADERS})
         COMMAND ${GLSLANG_EXE} -V --target-env vulkan1.3 ${SHADER} -o ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
         DEPENDS ${SHADER}
         COMMENT "Compiling ${SRC} to SPIR-V"
+        VERBATIM
     )
     add_custom_command(
         OUTPUT ${SPV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUT_DIR}
         COMMAND ${SPIRV_OPT_EXE} -O ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv -o ${SPV}
         DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
         COMMENT "Optimizing ${SRC}.spv"
+        VERBATIM
     )
 
     list(APPEND SPIRV_FILES ${SPV})
