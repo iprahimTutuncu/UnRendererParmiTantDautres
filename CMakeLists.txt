@@ -80,13 +80,6 @@ add_custom_command(
     COMMENT "Generating stb_wrapper.cpp"
 )
 
-add_library(stb STATIC ${GENERATED_STB_WRAPPER})
-target_include_directories(stb INTERFACE libs/stb)
-target_compile_definitions(stb PRIVATE
-    STB_IMAGE_IMPLEMENTATION
-)
-
-
 # OpenGL Mathematics (GLM)
 add_subdirectory(libs/glm EXCLUDE_FROM_ALL)
 
@@ -149,6 +142,7 @@ add_executable(app
     src/graphics/graphics.cpp
     src/physics/physics.cpp
 )
+add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
     SDL3::SDL3
 )
