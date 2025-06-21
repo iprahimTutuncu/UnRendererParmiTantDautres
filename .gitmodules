@@ -15,4 +15,4 @@
 	url = https://github.com/nothings/stb.git
 [submodule "libs/glm"]
 	path = libs/glm
-	url = git@github.com:g-truc/glm.git
+	url = https://github.com/g-truc/glm.git
