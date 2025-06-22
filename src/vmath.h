@@ -264,7 +264,7 @@ static inline float dot(vec3 const& a, vec3 const& b) {
 #endif
 }
 
-static inline float inversesqrt(float f) {
+static inline float inversesqrt(const float f) {
     return 1.f / std::sqrt(f);
 }
 
