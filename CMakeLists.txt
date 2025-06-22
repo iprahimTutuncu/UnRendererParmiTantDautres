@@ -140,6 +140,7 @@ add_executable(app
     src/camera.cpp
     src/controls/controls.cpp
     src/graphics/graphics.cpp
+    src/graphics/shaders.cpp
     src/physics/physics.cpp
 )
 add_dependencies(app compile_shaders)
