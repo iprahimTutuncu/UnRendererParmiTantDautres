@@ -312,8 +312,6 @@ SDL_AppResult graphics_iterate(AppState& state) {
     uniformBlob.uViewMatrix = state.camera->view_matrix();
     uniformBlob.uModelMatrix = mat4::identity();
 
-inversesqrt(13.5f)
-
     SDL_PushGPUVertexUniformData(cmdbuf, 0, &uniformBlob, sizeof(uniformBlob));
 
     SDL_GPUBufferBinding vertexBinding[] {
