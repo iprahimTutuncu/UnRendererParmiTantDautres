@@ -19,12 +19,12 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 if (WIN32 OR MSVC)
-    add_compile_options(/utf-8)
+    add_compile_options(/utf-8 /arch:AVX2)
 endif()
 
 # Optimization
 if (NOT (WIN32 OR MSVC))
-    add_compile_options(-march=native -mtune=native)
+    add_compile_options(-march=native -mtune=native -mavx2)
 endif()
 
 # IPO / LTO
@@ -140,6 +140,7 @@ add_executable(app
     src/camera.cpp
     src/controls/controls.cpp
     src/graphics/graphics.cpp
+    src/graphics/shaders.cpp
     src/physics/physics.cpp
 )
 add_dependencies(app compile_shaders)

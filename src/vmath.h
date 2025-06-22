@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <utility>
 
 #ifdef _MSC_VER
 #include "x86intrin.hpp"
@@ -46,16 +48,15 @@ struct alignas(16) vec3 {
         return { -x, -y, -z };
     }
 
-    inline vec3& operator=(vec3 const& v) {
-        _mm_store_ps(&this->x, _mm_load_ps(&v.x));
-        return *this;
-    }
-
     inline vec3& operator+=(vec3 const& v) {
         this->x += v.x;
         this->y += v.y;
         this->z += v.z;
         return *this;
+    }
+
+    inline vec3 operator*(vec3 const& v) {
+        return { x * v.x, y * v.y, z * v.z };
     }
 
     inline vec3& operator-=(vec3 const& v) {
@@ -198,11 +199,11 @@ struct mat4 {
 };
 
 template <typename T>
-constexpr T radians(T degrees) {
+static constexpr T radians(T degrees) {
     return degrees * static_cast<T>(0.01745329251994329576923690768489);
 }
 
-inline void sincos(__m128 x, __m128* sin_out, __m128* cos_out) {
+static inline void sincos(__m128 x, __m128* sin_out, __m128* cos_out) {
     const __m128 c3 = _mm_set1_ps(-1.0f / 6.0f);
     const __m128 c2 = _mm_set1_ps(-1.0f / 2.0f);
     const __m128 c4 = _mm_set1_ps(1.0f / 24.0f);
@@ -215,7 +216,7 @@ inline void sincos(__m128 x, __m128* sin_out, __m128* cos_out) {
     *cos_out = 1.0f + x2 * (c2 + x2 * (c4 + x2 * c6));
 }
 
-inline quat angleAxis(float angle, vec3 const& v) {
+static inline quat angleAxis(float angle, vec3 const& v) {
     __m128 r0 = _mm_set1_ps(angle / 2);
     __m128 r1, sin, cos;
     sincos(r0, &sin, &cos);
@@ -228,7 +229,7 @@ inline quat angleAxis(float angle, vec3 const& v) {
 #endif
 }
 
-inline mat3 mat3_cast(quat q) {
+static inline mat3 mat3_cast(quat q) {
     mat3 m;
     float qxx(q.x * q.x);
     float qyy(q.y * q.y);
@@ -251,4 +252,124 @@ inline mat3 mat3_cast(quat q) {
     m[1].y = 1 - m[1].y;
     m[2].z = 1 - m[2].z;
     return m;
+}
+
+static inline float dot(vec3 const& a, vec3 const& b) {
+#ifndef __SSE4_1__
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+#else
+    __m128 r0 = _mm_load_ps(&a.x);
+    __m128 r1 = _mm_load_ps(&b.x);
+    return _mm_cvtss_f32(_mm_dp_ps(r0, r1, 0x71));
+#endif
+}
+
+static inline float inversesqrt(const float f) {
+    return 1.f / std::sqrt(f);
+}
+
+static inline vec3 normalize(vec3 const& v) {
+    __m128 r0 = _mm_load_ps(&v.x);
+    __m128 r1 = _mm_dp_ps(r0, r0, 0x7F);
+    __m128 r2 = _mm_rsqrt_ps(r1);
+
+    r0 = _mm_mul_ps(r0, r2);
+
+    vec3 r;
+    _mm_store_ps(&r.x, r0);
+    return r;
+}
+
+static inline vec4 normalize(vec4 const& v) {
+    __m128 r0 = _mm_load_ps(&v.x);
+    __m128 r1 = _mm_dp_ps(r0, r0, 0xFF);
+    __m128 r2 = _mm_rsqrt_ps(r1);
+
+    vec4 r;
+    _mm_store_ps(&r.x, _mm_mul_ps(r0, r2));
+    return r;
+}
+
+static inline __m128 normalize3(__m128 const& v) {
+    __m128 r0 = _mm_dp_ps(v, v, 0x77);
+    __m128 r2 = _mm_rsqrt_ps(r0);
+
+    return _mm_mul_ps(r0, r2);
+}
+
+static inline __m128 normalize(__m128 const& v) {
+    __m128 r0 = _mm_dp_ps(v, v, 0xFF);
+    __m128 r2 = _mm_rsqrt_ps(r0);
+
+    return _mm_mul_ps(r0, r2);
+}
+
+static inline vec3 cross(vec3 const& x, vec3 const& y) {
+    __m128 vec0 = _mm_load_ps(&x.x);
+    __m128 vec1 = _mm_load_ps(&y.x);
+    __m128 tmp0 = _mm_shuffle_ps(vec0, vec0, _MM_SHUFFLE(3, 0, 2, 1));
+    __m128 tmp1 = _mm_shuffle_ps(vec1, vec1, _MM_SHUFFLE(3, 1, 0, 2));
+    __m128 tmp2 = _mm_mul_ps(tmp0, vec1);
+    __m128 tmp4 = _mm_shuffle_ps(tmp2, tmp2, _MM_SHUFFLE(3, 0, 2, 1));
+    vec3 v;
+    _mm_store_ps(&v.x, _mm_fmsub_ps(tmp0, tmp1, tmp4));
+    return v;
+}
+
+static inline vec4 cross(vec4 const& x, vec4 const& y) {
+    __m128 vec0 = _mm_load_ps(&x.x);
+    __m128 vec1 = _mm_load_ps(&y.x);
+    __m128 tmp0 = _mm_shuffle_ps(vec0, vec0, _MM_SHUFFLE(3, 0, 2, 1));
+    __m128 tmp1 = _mm_shuffle_ps(vec1, vec1, _MM_SHUFFLE(3, 1, 0, 2));
+    __m128 tmp2 = _mm_mul_ps(tmp0, vec1);
+    __m128 tmp4 = _mm_shuffle_ps(tmp2, tmp2, _MM_SHUFFLE(3, 0, 2, 1));
+    vec4 v;
+    _mm_store_ps(&v.x, _mm_fmsub_ps(tmp0, tmp1, tmp4));
+    return v;
+}
+
+static inline __m128 cross(__m128 const& vec0, __m128 const& vec1) {
+    __m128 tmp0 = _mm_shuffle_ps(vec0, vec0, _MM_SHUFFLE(3, 0, 2, 1));
+    __m128 tmp1 = _mm_shuffle_ps(vec1, vec1, _MM_SHUFFLE(3, 1, 0, 2));
+    __m128 tmp2 = _mm_mul_ps(tmp0, vec1);
+    __m128 tmp4 = _mm_shuffle_ps(tmp2, tmp2, _MM_SHUFFLE(3, 0, 2, 1));
+    return _mm_fmsub_ps(tmp0, tmp1, tmp4);
+}
+
+static inline quat quat_cast(mat3 const& m) {
+    float fourXSquaredMinus1 = m[0].x - m[1].y - m[2].z;
+    float fourYSquaredMinus1 = m[1].y - m[0].x - m[2].z;
+    float fourZSquaredMinus1 = m[2].z - m[0].x - m[1].y;
+    float fourWSquaredMinus1 = m[0].x + m[1].y + m[2].z;
+
+    int biggestIndex = 0;
+    float fourBiggestSquaredMinus1 = fourWSquaredMinus1;
+    if (fourXSquaredMinus1 > fourBiggestSquaredMinus1) {
+        fourBiggestSquaredMinus1 = fourXSquaredMinus1;
+        biggestIndex = 1;
+    }
+    if (fourYSquaredMinus1 > fourBiggestSquaredMinus1) {
+        fourBiggestSquaredMinus1 = fourYSquaredMinus1;
+        biggestIndex = 2;
+    }
+    if (fourZSquaredMinus1 > fourBiggestSquaredMinus1) {
+        fourBiggestSquaredMinus1 = fourZSquaredMinus1;
+        biggestIndex = 3;
+    }
+
+    float biggestVal = std::sqrt(fourBiggestSquaredMinus1 + 1.f) / 2.f;
+    float mult = 0.25f / biggestVal;
+
+    switch (biggestIndex) {
+    case 0:
+        return quat { biggestVal, (m[1].z - m[2].y) * mult, (m[2].x - m[0].z) * mult, (m[0].y - m[1].x) * mult };
+    case 1:
+        return quat { (m[1].z - m[2].y) * mult, biggestVal, (m[0].y + m[1].x) * mult, (m[2].x + m[0].z) * mult };
+    case 2:
+        return quat { (m[2].x - m[0].z) * mult, (m[0].y + m[1].x) * mult, biggestVal, (m[1].z + m[2].y) * mult };
+    case 3:
+        return quat { (m[0].y - m[1].x) * mult, (m[2].x + m[0].z) * mult, (m[1].z + m[2].y) * mult, biggestVal };
+    default:
+        std::unreachable();
+    }
 }

@@ -41,6 +41,9 @@ static void updateTiming(AppState &state) {
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
+    const int width = 1280;
+    const int height = 768;
+
     if (!SDL_SetAppMetadata("Olaf engine renderer", "0.1.1", "ca.etsmtl.olaf")) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to set app metadata: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -57,7 +60,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         return SDL_APP_FAILURE;
     }
 
-    SDL_Window *window = SDL_CreateWindow("Olaf Engine", 1280, 768, SDL_WINDOW_RESIZABLE);
+    SDL_Window *window = SDL_CreateWindow(nullptr, 1280, 768, SDL_WINDOW_RESIZABLE);
     if (window == nullptr) {
         SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Failed to create SDL Window: %s", SDL_GetError());
         SDL_DestroyGPUDevice(device);
@@ -71,7 +74,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         return SDL_APP_FAILURE;
     }
 
-    *appstate = new AppState;
+    *appstate = new AppState {};
     AppState &state = *static_cast<AppState *>(*appstate);
     state.device = device;
     state.window = window;
@@ -80,11 +83,19 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     state.numFrames = 0u;
     state.deltaTime = 0.f;
 
-    state.camera = new CameraPerspective {};
-    CameraPerspective &camera = *state.camera;
-    camera.near = 0.1f;
-    camera.far = 100.0f;
-    camera.fov = radians(90.0f);
+    static const vec3 position { 13.25f, 5.0f, 13.25f };
+    static const vec3 worldUp { 0.f, 1.f, 0.f };
+    const vec3 front = normalize(position);
+    const vec3 right = normalize(cross(worldUp, front));
+    const vec3 up = cross(front, right);
+    state.camera = new CameraPerspective {
+        .rotation = quat_cast({ .cols { right, up, front } }),
+        .position = position,
+        .aspectRatio = static_cast<float>(width) / static_cast<float>(height),
+        .fov = radians(90.0f),
+        .near = 0.1f,
+        .far = 100.0f,
+    };
 
     SDL_AppResult result;
     result = physics_init(state, argc, argv);
