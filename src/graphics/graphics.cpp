@@ -2,6 +2,7 @@
 
 #include "../camera.h"
 #include "components.h"
+#include "pipeline.h"
 #include "shaders.h"
 
 #include <SDL3/SDL_gpu.h>
@@ -19,6 +20,24 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
 
     state.graphics = new GraphicState {}; // will be free in graphics_quit()
     GraphicState& graphics = *state.graphics;
+
+    SDL_GPUTextureFormat depthStencilFormat;
+    if (SDL_GPUTextureSupportsFormat(
+            state.device,
+            SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT,
+            SDL_GPU_TEXTURETYPE_2D,
+            SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
+        depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT;
+    } else if (SDL_GPUTextureSupportsFormat(
+                   state.device,
+                   SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT,
+                   SDL_GPU_TEXTURETYPE_2D,
+                   SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
+        depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT;
+    } else [[unlikely]] {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No suitable depth stencil format found for the GPU device: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
 
     // create the shaders
     SDL_GPUShader* vertShader = loadShader(state.device, SHADERS_DIR "floorShader.vert.spv", 0, 1, 1, 0);
@@ -38,135 +57,13 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
         return SDL_APP_FAILURE;
     }
 
-    SDL_GPUTextureFormat depthStencilFormat;
-    if (SDL_GPUTextureSupportsFormat(
-            state.device,
-            SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT,
-            SDL_GPU_TEXTURETYPE_2D,
-            SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
-        depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT;
-    } else if (SDL_GPUTextureSupportsFormat(
-                   state.device,
-                   SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT,
-                   SDL_GPU_TEXTURETYPE_2D,
-                   SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
-        depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT;
-    } else {
-        SDL_Log("Stencil formats not supported!");
-        SDL_ReleaseGPUShader(state.device, fragShader);
-        SDL_ReleaseGPUShader(state.device, vertShader);
-        return SDL_APP_FAILURE;
-    }
-
-    static SDL_GPUColorTargetDescription colorTargetDescription[] {
-        {
-            .format = SDL_GPU_TEXTUREFORMAT_INVALID,
-            .blend_state = {
-                .src_color_blendfactor = SDL_GPUBlendFactor::SDL_GPU_BLENDFACTOR_ONE,
-                .dst_color_blendfactor = SDL_GPUBlendFactor::SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-                .color_blend_op = SDL_GPU_BLENDOP_ADD,
-                .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE,
-                .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-                .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
-                .color_write_mask = SDL_GPU_COLORCOMPONENT_R | SDL_GPU_COLORCOMPONENT_G | SDL_GPU_COLORCOMPONENT_B,
-                .enable_blend = true,
-                .enable_color_write_mask = false,
-                .padding1 = 0,
-                .padding2 = 0,
-            },
-        },
-    };
-    colorTargetDescription[0].format = SDL_GetGPUSwapchainTextureFormat(state.device, state.window);
-
-    static_assert(sizeof(PositionColorVertex) == 16, "by std140, the byte pitch between vec3 must be 16 bytes");
-    static constexpr SDL_GPUVertexBufferDescription vertexBufferDescription[] {
-        {
-            .slot = 0,
-            .pitch = sizeof(PositionColorVertex),
-            .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
-            .instance_step_rate = 0,
-        },
-    };
-    static constexpr SDL_GPUVertexAttribute vertexAttributes[] {
-        {
-            .location = 0,
-            .buffer_slot = 0,
-            .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-            .offset = 0,
-        },
-    };
-
-    static SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo {
-        .vertex_shader = nullptr,
-        .fragment_shader = nullptr,
-        .vertex_input_state = {
-            .vertex_buffer_descriptions = vertexBufferDescription,
-            .num_vertex_buffers = 1,
-            .vertex_attributes = vertexAttributes,
-            .num_vertex_attributes = 1,
-        },
-        .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-        .rasterizer_state = {
-            .fill_mode = SDL_GPU_FILLMODE_FILL,
-            .cull_mode = SDL_GPU_CULLMODE_NONE,
-            .front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE,
-            .depth_bias_constant_factor = 0,
-            .depth_bias_clamp = 0,
-            .depth_bias_slope_factor = 0,
-            .enable_depth_bias = false,
-            .enable_depth_clip = false,
-            .padding1 = 0,
-            .padding2 = 0,
-        },
-        .multisample_state = {
-            .sample_count = SDL_GPU_SAMPLECOUNT_1,
-            .sample_mask = 0,
-            .enable_mask = false,
-            .padding1 = 0,
-            .padding2 = 0,
-            .padding3 = 0,
-        },
-        .depth_stencil_state = {
-            .compare_op = SDL_GPU_COMPAREOP_NEVER,
-            .back_stencil_state = {
-                .fail_op = SDL_GPU_STENCILOP_REPLACE,
-                .pass_op = SDL_GPU_STENCILOP_KEEP,
-                .depth_fail_op = SDL_GPU_STENCILOP_KEEP,
-                .compare_op = SDL_GPU_COMPAREOP_NEVER,
-            },
-            .front_stencil_state = {
-                .fail_op = SDL_GPU_STENCILOP_REPLACE,
-                .pass_op = SDL_GPU_STENCILOP_KEEP,
-                .depth_fail_op = SDL_GPU_STENCILOP_KEEP,
-                .compare_op = SDL_GPU_COMPAREOP_NEVER,
-            },
-            .compare_mask = 0,
-            .write_mask = 0xFF,
-            .enable_depth_test = false,
-            .enable_depth_write = false,
-            .enable_stencil_test = true,
-            .padding1 = 0,
-            .padding2 = 0,
-            .padding3 = 0,
-        },
-        .target_info = {
-            .color_target_descriptions = colorTargetDescription,
-            .num_color_targets = 1,
-            .depth_stencil_format = depthStencilFormat,
-            .has_depth_stencil_target = false,
-            .padding1 = 0,
-            .padding2 = 0,
-            .padding3 = 0,
-        },
-        .props = 0,
-    };
-
-    pipelineCreateInfo.vertex_shader = vertShader;
-    pipelineCreateInfo.fragment_shader = fragShader;
-
-    graphics.pipeline = SDL_CreateGPUGraphicsPipeline(state.device, &pipelineCreateInfo);
+    graphics.pipeline = createGPUPipeline(state.device, state.window, depthStencilFormat, vertShader, fragShader);
     SDL_ReleaseGPUShader(state.device, fragShader);
     SDL_ReleaseGPUShader(state.device, vertShader);
+    if (graphics.pipeline == nullptr) [[unlikely]] {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create the render pipeline: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
 
     if (graphics.pipeline == nullptr) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create the render pipeline: %s", SDL_GetError());
@@ -175,7 +72,7 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
 
     // ======= Floor =======
 
-    static constexpr PositionVertex positions[] {
+    static PositionVertex positions[] {
         { -1.f, 0.f, -1.f },
         { 1.f, 0.f, 1.f },
         { 1.f, 0.f, -1.f },
@@ -183,6 +80,12 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
         { -1.f, 0.f, -1.f },
         { -1.f, 0.f, 1.f },
     };
+
+    for (std::size_t i = 0; i < sizeof(positions) / sizeof(PositionVertex); ++i) {
+        positions[i].x *= 50.f / 2.f;
+        positions[i].y *= 50.f / 2.f;
+        positions[i].z *= 50.f / 2.f;
+    }
 
     static constexpr SDL_GPUBufferCreateInfo bufferCreateInfo = {
         .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
