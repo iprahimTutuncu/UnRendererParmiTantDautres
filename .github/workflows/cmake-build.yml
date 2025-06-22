@@ -8,6 +8,13 @@ jobs:
     env:
       BUILD_TYPE: Debug
     steps:
+    - name: Install dependencies on Ubuntu
+      run: >
+        sudo apt-get install -y
+        libegl1-mesa-dev
+        libwayland-dev
+        libxkbcommon-dev
+        wayland-protocols
     - uses: actions/checkout@v4
       with:
         submodules: true
@@ -16,35 +23,17 @@ jobs:
       run: |
         HASH=$(git submodule status | sha256sum | cut -d ' ' -f1)
         echo "Computed hash: $HASH"
-        echo "cache-submodule-key=${{ runner.os }}-submodules-$HASH" >> $GITHUB_OUTPUT
-        echo "cache-builds-key=${{ runner.os }}-builds-${{ hashFiles('CMakeLists.txt') }}-$HASH" >> $GITHUB_OUTPUT
-    - uses: actions/cache/restore@v4
+        echo "cache-key=${{ runner.os }}-$HASH" >> $GITHUB_OUTPUT
+    - uses: actions/cache@v4
       id: cache
       with:
-        key: ${{ steps.strings.outputs.cache-submodule-key }}
-        path: ${{ github.workspace }}/libs
-    - uses: actions/cache/save@v4
-      if: steps.cache.outputs.cache-hit != 'true'
-      with:
-        key: ${{ steps.strings.outputs.cache-submodule-key }}
-        path: ${{ github.workspace }}/libs
-    - name: Install dependencies on Ubuntu
-      run: >
-        sudo apt-get install -y
-        libegl1-mesa-dev
-        libwayland-dev
-        libxkbcommon-dev
-        wayland-protocols
-    - uses: actions/cache/restore@v4
-      name: Restore build's artifacts
-      id: cache_build
-      with:
-        key: ${{ steps.strings.outputs.cache-builds-key }}
+        key: ${{ steps.strings.outputs.cache-key }}
         path: |
+          ${{ github.workspace }}/libs
           ${{ github.workspace }}/build-clang
           ${{ github.workspace }}/build-gcc
     - name: Configure CMake with GCC
-      if: steps.cache_build.outputs.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       run: >
         cmake -B ${{ github.workspace }}/build-gcc
         -DCMAKE_CXX_COMPILER=g++
@@ -54,7 +43,7 @@ jobs:
     - name: Build with gcc
       run: cmake --build ${{ github.workspace }}/build-gcc
     - name: Configure CMake with Clang
-      if: steps.cache_build.outputs.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       run: >
         cmake -B ${{ github.workspace }}/build-clang
         -DCMAKE_CXX_COMPILER=clang++
@@ -63,13 +52,6 @@ jobs:
         -S ${{ github.workspace }}
     - name: Build with Clang
       run: cmake --build ${{ github.workspace }}/build-clang
-    - uses: actions/cache/save@v4
-      if: steps.cache_build.outputs.cache-hit != 'true'
-      with:
-        key: ${{ steps.strings.outputs.cache-builds-key }}
-        path: |
-          ${{ github.workspace }}/build-clang
-          ${{ github.workspace }}/build-gcc
 
   build-windows:
     runs-on: windows-2025
