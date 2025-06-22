@@ -1,7 +1,7 @@
 #pragma once
 
 // SSE4.1 instructions
-#include <smmintrin.h>
+#include <immintrin.h>
 
 #ifdef _MSC_VER
 
