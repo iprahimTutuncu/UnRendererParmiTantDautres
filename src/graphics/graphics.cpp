@@ -7,6 +7,12 @@
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_log.h>
 
+struct UniformBufferObject {
+    mat4 uProjMatrix;
+    mat4 uViewMatrix;
+    mat4 uModelMatrix;
+};
+
 SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
     (void)argc;
     (void)argv;
