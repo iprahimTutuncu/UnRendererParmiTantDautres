@@ -17,7 +17,7 @@ jobs:
         HASH=$(git submodule status | sha256sum | cut -d ' ' -f1)
         echo "Computed hash: $HASH"
         echo "cache-submodule-key=${{ runner.os }}-submodules-$HASH" >> $GITHUB_OUTPUT
-        echo "cache-builds-key=${{ runner.os }}-builds-${{ hashFiles('CMakeLists.txt') }}-$HASH" >> $GITHUB_OUTPUT
+        echo "cache-builds-key=${{ runner.os }}-builds-$HASH" >> $GITHUB_OUTPUT
     - uses: actions/cache/restore@v4
       id: cache
       with:
