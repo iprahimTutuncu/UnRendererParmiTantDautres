@@ -11,11 +11,27 @@ SDL_AppResult graphics_iterate(AppState& state);
 SDL_AppResult graphics_event(AppState& state, SDL_Event& event);
 void graphics_quit(AppState& state);
 
+enum PipelineIndex {
+    ScenePipeline,
+    NumPipelines, // must be last
+};
+
+enum BufferIndex {
+    SceneBuffer,
+    NumBuffers, // must be last
+};
+
+enum TextureIndex {
+    SceneColorTexture,
+    SceneDepthTexture,
+    NumTextures, // must be last
+};
+
 struct SDL_GPUGraphicsPipeline;
 struct SDL_GPUBuffer;
 struct SDL_GPUTexture;
 struct GraphicState {
-    SDL_GPUGraphicsPipeline* pipeline;
-    SDL_GPUBuffer* vertexBuffer;
-    SDL_GPUTexture* depthSencilTexture;
+    SDL_GPUGraphicsPipeline* pipeline[NumPipelines];
+    SDL_GPUBuffer* buffers[NumBuffers];
+    SDL_GPUTexture* textures[NumTextures];
 };

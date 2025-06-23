@@ -2,6 +2,8 @@
 
 #include "components.h"
 
+#include <stddef.h>
+
 enum VertexAttributesLocationOrder {
     Position,
     NumVertexAttributes // must be last
@@ -12,7 +14,7 @@ enum VertexBuffers {
     NumVertexBuffers // must be last
 };
 
-SDL_GPUGraphicsPipeline* createGPUPipeline(
+SDL_GPUGraphicsPipeline* createScenePipeline(
     SDL_GPUDevice* device,
     SDL_Window* window,
     SDL_GPUTextureFormat depthStencilFormat,
@@ -33,7 +35,7 @@ SDL_GPUGraphicsPipeline* createGPUPipeline(
     vertexAttributes[Position].location = VertexAttributesLocationOrder::Position;
     vertexAttributes[Position].buffer_slot = 0;
     vertexAttributes[Position].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-    vertexAttributes[Position].offset = 0;
+    vertexAttributes[Position].offset = offsetof(PositionColorVertex, x);
 
     pipelineCreateInfo.vertex_input_state.vertex_buffer_descriptions = vertexBufferDescriptions;
     pipelineCreateInfo.vertex_input_state.num_vertex_buffers = 1;
