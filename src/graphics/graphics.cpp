@@ -6,6 +6,7 @@
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_log.h>
 
+#include <cstring>
 #include <stddef.h>
 
 SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
@@ -15,26 +16,8 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
     state.graphics = new GraphicState {}; // will be free in graphics_quit()
     GraphicState& graphics = *state.graphics;
 
-    SDL_GPUTextureFormat depthStencilFormat;
-    if (SDL_GPUTextureSupportsFormat(
-            state.device,
-            SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT,
-            SDL_GPU_TEXTURETYPE_2D,
-            SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
-        depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT;
-    } else if (SDL_GPUTextureSupportsFormat(
-                   state.device,
-                   SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT,
-                   SDL_GPU_TEXTURETYPE_2D,
-                   SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)) {
-        depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT;
-    } else [[unlikely]] {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No suitable depth stencil format found for the GPU device: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
     // create the shaders
-    SDL_GPUShader* vertShader = loadShader(state.device, SHADER_PATH("PositionColor.vert"), 0, 0, 0, 0);
+    SDL_GPUShader* vertShader = loadShader(state.device, SHADER_PATH("PositionColor.vert"), 0, 0, 1, 1);
     if (vertShader == nullptr) [[unlikely]] {
         return SDL_APP_FAILURE;
     }
@@ -45,13 +28,11 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
         return SDL_APP_FAILURE;
     }
 
-    // create the graphics pipeline
+    // Graphics pipeline creation
     {
-        SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo {};
-        pipelineCreateInfo.vertex_shader = vertShader;
-        pipelineCreateInfo.fragment_shader = fragShader;
+        SDL_GPUColorTargetDescription colorTargetDescription {};
+        colorTargetDescription.format = SDL_GetGPUSwapchainTextureFormat(state.device, state.window);
 
-        // Vertex input state
         SDL_GPUVertexBufferDescription vertexBufferDescriptions[NumBuffers] {};
         vertexBufferDescriptions[VertexBuffer].slot = 0;
         vertexBufferDescriptions[VertexBuffer].pitch = sizeof(PositionColorVertex);
@@ -67,31 +48,24 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
         vertexAttributes[Color].format = SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4_NORM;
         vertexAttributes[Color].offset = offsetof(PositionColorVertex, r);
 
+        SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo {};
+        pipelineCreateInfo.target_info.color_target_descriptions = &colorTargetDescription;
+        pipelineCreateInfo.target_info.num_color_targets = 1;
+        pipelineCreateInfo.vertex_shader = vertShader;
+        pipelineCreateInfo.fragment_shader = fragShader;
         pipelineCreateInfo.vertex_input_state.vertex_buffer_descriptions = vertexBufferDescriptions;
         pipelineCreateInfo.vertex_input_state.num_vertex_buffers = NumBuffers;
         pipelineCreateInfo.vertex_input_state.vertex_attributes = vertexAttributes;
         pipelineCreateInfo.vertex_input_state.num_vertex_attributes = NumVertexAttributes;
 
-        // Depth stencil state
-        pipelineCreateInfo.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
-        pipelineCreateInfo.depth_stencil_state.write_mask = 0xFF;
-        pipelineCreateInfo.depth_stencil_state.enable_depth_write = true;
-        pipelineCreateInfo.depth_stencil_state.enable_stencil_test = true;
-
         // Target info
-        SDL_GPUColorTargetDescription colorTargetDescription[1] {};
-        colorTargetDescription[0].format = SDL_GetGPUSwapchainTextureFormat(state.device, state.window);
-        pipelineCreateInfo.target_info.color_target_descriptions = colorTargetDescription;
-        pipelineCreateInfo.target_info.num_color_targets = 1;
-        pipelineCreateInfo.target_info.depth_stencil_format = depthStencilFormat;
-        pipelineCreateInfo.target_info.has_depth_stencil_target = false;
         graphics.pipeline[Pipeline] = SDL_CreateGPUGraphicsPipeline(state.device, &pipelineCreateInfo);
     }
 
     SDL_ReleaseGPUShader(state.device, fragShader);
     SDL_ReleaseGPUShader(state.device, vertShader);
     if (graphics.pipeline[Pipeline] == nullptr) [[unlikely]] {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create the render pipeline: %s", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create the pipeline: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
@@ -103,14 +77,17 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
         { 0, 1, 0, 0, 0, 255, 255 },
     };
 
-    SDL_GPUBufferCreateInfo bufferCreateInfo {};
-    bufferCreateInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
-    bufferCreateInfo.size = sizeof(positions);
+    // Create the VertexBuffer
+    {
+        SDL_GPUBufferCreateInfo bufferCreateInfo {};
+        bufferCreateInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+        bufferCreateInfo.size = sizeof(positions);
 
-    graphics.buffers[VertexBuffer] = SDL_CreateGPUBuffer(state.device, &bufferCreateInfo);
-    if (graphics.buffers[VertexBuffer] == nullptr) [[unlikely]] {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a vertex buffers: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
+        graphics.buffers[VertexBuffer] = SDL_CreateGPUBuffer(state.device, &bufferCreateInfo);
+        if (graphics.buffers[VertexBuffer] == nullptr) [[unlikely]] {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a vertex buffers: %s", SDL_GetError());
+            return SDL_APP_FAILURE;
+        }
     }
 
     SDL_GPUTransferBufferCreateInfo transferBufferCreateInfo {};
@@ -122,7 +99,8 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a GPU transfer buffer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
-    PositionColorVertex* transferData = reinterpret_cast<PositionColorVertex*>(SDL_MapGPUTransferBuffer(state.device, transferBuffer, false));
+
+    void* transferData = SDL_MapGPUTransferBuffer(state.device, transferBuffer, false);
     if (transferData == nullptr) [[unlikely]] {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to map GPU transfer buffer: %s", SDL_GetError());
         SDL_ReleaseGPUTransferBuffer(state.device, transferBuffer);
@@ -130,10 +108,7 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
     }
 
     // Copy the vertex data to the transfer buffer
-    for (size_t i = 0; i < sizeof(positions) / sizeof(PositionColorVertex); i++) {
-        transferData[i] = positions[i];
-    }
-
+    std::memcpy(transferData, positions, sizeof(positions));
     SDL_UnmapGPUTransferBuffer(state.device, transferBuffer);
 
     SDL_GPUCommandBuffer* uploadCmdBuf = SDL_AcquireGPUCommandBuffer(state.device);
@@ -144,12 +119,14 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
     }
 
     SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(uploadCmdBuf);
-    SDL_GPUTransferBufferLocation transfertLocation {};
+    SDL_GPUTransferBufferLocation transfertLocation;
     transfertLocation.transfer_buffer = transferBuffer;
+    transfertLocation.offset = 0;
 
-    SDL_GPUBufferRegion bufferRegion {};
+    SDL_GPUBufferRegion bufferRegion;
     bufferRegion.buffer = graphics.buffers[VertexBuffer];
-    bufferRegion.size = transferBufferCreateInfo.size;
+    bufferRegion.offset = 0;
+    bufferRegion.size = sizeof(positions);
 
     SDL_UploadToGPUBuffer(copyPass, &transfertLocation, &bufferRegion, false);
     SDL_EndGPUCopyPass(copyPass);
@@ -186,7 +163,7 @@ SDL_AppResult graphics_iterate(AppState& state) {
         return SDL_APP_CONTINUE;
     }
 
-    SDL_GPUColorTargetInfo colorTargetInfo;
+    SDL_GPUColorTargetInfo colorTargetInfo {};
     colorTargetInfo.texture = swapchainTexture;
     colorTargetInfo.clear_color = SDL_FColor { 0.f, 0.f, 0.f, 1.0f };
     colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
@@ -210,10 +187,7 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
     SDL_EndGPURenderPass(renderPass);
 
-    if (!SDL_SubmitGPUCommandBuffer(cmdbuf)) [[unlikely]] {
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to submit GPU Command Buffer: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
+    SDL_SubmitGPUCommandBuffer(cmdbuf);
 
     return SDL_APP_CONTINUE;
 }
