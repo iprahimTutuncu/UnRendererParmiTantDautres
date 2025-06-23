@@ -1,6 +1,7 @@
 #include "graphics.h"
 
 #include "components.h"
+#include "imguisdl.h"
 #include "shaders.h"
 
 #include <SDL3/SDL_gpu.h>
@@ -186,6 +187,7 @@ SDL_AppResult graphics_iterate(AppState& state) {
     SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
 
     SDL_EndGPURenderPass(renderPass);
+    imgui_iterate(state, renderPass, swapchainTexture, cmdbuf);
 
     SDL_SubmitGPUCommandBuffer(cmdbuf);
 
