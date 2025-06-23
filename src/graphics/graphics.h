@@ -12,12 +12,12 @@ SDL_AppResult graphics_event(AppState& state, SDL_Event& event);
 void graphics_quit(AppState& state);
 
 enum PipelineIndex {
-    ScenePipeline,
+    Pipeline,
     NumPipelines, // must be last
 };
 
 enum BufferIndex {
-    SceneBuffer,
+    VertexBuffer,
     NumBuffers, // must be last
 };
 
