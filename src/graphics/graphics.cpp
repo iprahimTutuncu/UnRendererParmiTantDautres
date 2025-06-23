@@ -187,7 +187,7 @@ SDL_AppResult graphics_iterate(AppState& state) {
     SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
 
     // Imgui rendering
-    imgui_iterate(state, renderPass, swapchainTexture, cmdbuf);
+    imgui_iterate(state, renderPass, cmdbuf);
 
     SDL_EndGPURenderPass(renderPass);
 

@@ -3,11 +3,9 @@
 #include <backends/imgui_impl_sdlgpu3.h>
 #include <imgui.h>
 
-
 SDL_AppResult imgui_init(AppState& state, int argc, char** argv) {
     (void)argc;
     (void)argv;
-
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -34,7 +32,7 @@ SDL_AppResult imgui_init(AppState& state, int argc, char** argv) {
     return SDL_APP_CONTINUE;
 }
 
-void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUTexture* swapchainTexture, SDL_GPUCommandBuffer* cmdbuf) {
+void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* cmdbuf) {
     (void)state;
 
     bool show_demo_window = true;
@@ -77,24 +75,12 @@ void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUTextur
         ImGui::End();
     }
 
-    if (swapchainTexture != nullptr) {
-        // Setup and start a render pass
-        SDL_GPUColorTargetInfo target_info = {};
-        target_info.texture = swapchainTexture;
-        target_info.clear_color = SDL_FColor { 0.3f, 0.4f, 0.5f, 1.0f };
-        target_info.load_op = SDL_GPU_LOADOP_LOAD;
-        target_info.store_op = SDL_GPU_STOREOP_STORE;
-        target_info.mip_level = 0;
-        target_info.layer_or_depth_plane = 0;
-        target_info.cycle = false;
-
-        // Render ImGui
-        ImGui::Render();
-        ImDrawData* draw_data = ImGui::GetDrawData();
-        if (draw_data && draw_data->DisplaySize.x > 0 && draw_data->DisplaySize.y > 0) {
-            Imgui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
-            ImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, renderPass);
-        }
+    // Render ImGui
+    ImGui::Render();
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    if (draw_data && draw_data->DisplaySize.x > 0 && draw_data->DisplaySize.y > 0) {
+        Imgui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
+        ImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, renderPass);
     }
 }
 
