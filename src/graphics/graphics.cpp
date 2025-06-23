@@ -45,13 +45,7 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
         return SDL_APP_FAILURE;
     }
 
-    SDL_GPUShader* fragShader = loadShader(
-        state.device,
-        SHADERS_DIR "floorShader.frag.spv",
-        0,
-        0,
-        1,
-        0);
+    SDL_GPUShader* fragShader = loadShader(state.device, SHADERS_DIR "floorShader.frag.spv", 0, 0, 1, 0);
     if (fragShader == nullptr) [[unlikely]] {
         SDL_ReleaseGPUShader(state.device, vertShader);
         return SDL_APP_FAILURE;
