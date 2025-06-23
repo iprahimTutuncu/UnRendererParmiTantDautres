@@ -51,21 +51,17 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
         return SDL_APP_FAILURE;
     }
 
-    graphics.pipeline = createGPUPipeline(state.device, state.window, depthStencilFormat, vertShader, fragShader);
+    graphics.pipeline[ScenePipeline] = createScenePipeline(state.device, state.window, depthStencilFormat, vertShader, fragShader);
     SDL_ReleaseGPUShader(state.device, fragShader);
     SDL_ReleaseGPUShader(state.device, vertShader);
-    if (graphics.pipeline == nullptr) [[unlikely]] {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create the render pipeline: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
-    if (graphics.pipeline == nullptr) {
+    if (graphics.pipeline[ScenePipeline] == nullptr) [[unlikely]] {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create the render pipeline: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
     // ======= Floor =======
 
+    constexpr float size = 50.f;
     static PositionVertex positions[] {
         { -1.f, 0.f, -1.f },
         { 1.f, 0.f, 1.f },
@@ -76,42 +72,42 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
     };
 
     for (std::size_t i = 0; i < sizeof(positions) / sizeof(PositionVertex); ++i) {
-        positions[i].x *= 50.f / 2.f;
-        positions[i].y *= 50.f / 2.f;
-        positions[i].z *= 50.f / 2.f;
+        positions[i].x *= size / 2.f;
+        positions[i].y *= size / 2.f;
+        positions[i].z *= size / 2.f;
     }
 
-    static constexpr SDL_GPUBufferCreateInfo bufferCreateInfo = {
-        .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
-        .size = sizeof(positions),
-        .props = 0,
-    };
-    graphics.vertexBuffer = SDL_CreateGPUBuffer(state.device, &bufferCreateInfo);
-    if (graphics.vertexBuffer == nullptr) {
+    SDL_GPUBufferCreateInfo bufferCreateInfo {};
+    bufferCreateInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+    bufferCreateInfo.size = sizeof(positions);
+
+    graphics.buffers[SceneBuffer] = SDL_CreateGPUBuffer(state.device, &bufferCreateInfo);
+    if (graphics.buffers[SceneBuffer] == nullptr) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a vertex buffers: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    int width, height;
-    SDL_GetWindowSizeInPixels(state.window, &width, &height);
+    // Create the floor texture
+    {
+        int width, height;
+        SDL_GetWindowSizeInPixels(state.window, &width, &height);
 
-    SDL_GPUTextureCreateInfo gpuTextureCreateInfo {
-        .type = SDL_GPU_TEXTURETYPE_3D,
-        .format = depthStencilFormat,
-        .usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
-        .width = static_cast<Uint32>(width),
-        .height = static_cast<Uint32>(height),
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-        .sample_count = SDL_GPU_SAMPLECOUNT_1,
-        .props = 0,
-    };
+        SDL_GPUTextureCreateInfo gpuTextureCreateInfo {};
+        gpuTextureCreateInfo.type = SDL_GPU_TEXTURETYPE_2D;
+        gpuTextureCreateInfo.format = depthStencilFormat;
+        gpuTextureCreateInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+        gpuTextureCreateInfo.width = static_cast<Uint32>(width);
+        gpuTextureCreateInfo.height = static_cast<Uint32>(height);
+        gpuTextureCreateInfo.layer_count_or_depth = 1;
+        gpuTextureCreateInfo.num_levels = 1;
+        gpuTextureCreateInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
 
-    graphics.depthSencilTexture = SDL_CreateGPUTexture(state.device, &gpuTextureCreateInfo);
-    if (graphics.depthSencilTexture == nullptr) [[unlikely]] {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a GPU Texture: %s", SDL_GetError());
+        graphics.textures[SceneDepthTexture] = SDL_CreateGPUTexture(state.device, &gpuTextureCreateInfo);
+        if (graphics.textures[SceneDepthTexture] == nullptr) [[unlikely]] {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a GPU Texture: %s", SDL_GetError());
 
-        return SDL_APP_FAILURE;
+            return SDL_APP_FAILURE;
+        }
     }
 
     SDL_GPUTransferBufferCreateInfo transferBufferCreateInfo {
@@ -149,7 +145,7 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
         .offset = 0,
     };
     const SDL_GPUBufferRegion bufferRegion {
-        .buffer = graphics.vertexBuffer,
+        .buffer = graphics.buffers[SceneBuffer],
         .offset = 0,
         .size = transferBufferCreateInfo.size,
     };
@@ -213,14 +209,14 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
     SDL_GPUBufferBinding vertexBinding[] {
         {
-            .buffer = state.graphics->vertexBuffer,
+            .buffer = state.graphics->buffers[SceneBuffer],
             .offset = 0,
         }
     };
     SDL_BindGPUVertexBuffers(renderPass, 0, vertexBinding, 1);
 
     SDL_SetGPUStencilReference(renderPass, 1);
-    SDL_BindGPUGraphicsPipeline(renderPass, state.graphics->pipeline);
+    SDL_BindGPUGraphicsPipeline(renderPass, state.graphics->pipeline[ScenePipeline]);
     SDL_DrawGPUPrimitives(renderPass, 6, 1, 0, 0);
     SDL_EndGPURenderPass(renderPass);
 
@@ -240,14 +236,20 @@ SDL_AppResult graphics_event(AppState& state, SDL_Event& event) {
 
 void graphics_quit(AppState& state) {
     if (state.graphics) {
-        if (state.graphics->pipeline)
-            SDL_ReleaseGPUGraphicsPipeline(state.device, state.graphics->pipeline);
+        for (std::size_t i = 0; i < NumPipelines; i++) {
+            if (state.graphics->pipeline[i])
+                SDL_ReleaseGPUGraphicsPipeline(state.device, state.graphics->pipeline[i]);
+        }
 
-        if (state.graphics->vertexBuffer)
-            SDL_ReleaseGPUBuffer(state.device, state.graphics->vertexBuffer);
+        for (std::size_t i = 0; i < NumBuffers; i++) {
+            if (state.graphics->buffers[i])
+                SDL_ReleaseGPUBuffer(state.device, state.graphics->buffers[i]);
+        }
 
-        if (state.graphics->depthSencilTexture)
-            SDL_ReleaseGPUTexture(state.device, state.graphics->depthSencilTexture);
+        for (std::size_t i = 0; i < NumTextures; i++) {
+            if (state.graphics->textures[i])
+                SDL_ReleaseGPUTexture(state.device, state.graphics->textures[i]);
+        }
 
         delete state.graphics;
     }

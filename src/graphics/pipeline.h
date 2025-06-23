@@ -2,7 +2,7 @@
 
 #include <SDL3/SDL_gpu.h>
 
-SDL_GPUGraphicsPipeline* createGPUPipeline(
+SDL_GPUGraphicsPipeline* createScenePipeline(
     SDL_GPUDevice* device,
     SDL_Window* window,
     SDL_GPUTextureFormat depthStencilFormat,
