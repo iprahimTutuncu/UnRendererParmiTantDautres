@@ -3,16 +3,11 @@
 #include <backends/imgui_impl_sdlgpu3.h>
 #include <imgui.h>
 
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_gpu.h>
 
 SDL_AppResult imgui_init(AppState& state, int argc, char** argv) {
     (void)argc;
     (void)argv;
 
-    // Setup Dear ImGui context
-    SDL_SetWindowPosition(state.window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-    SDL_ShowWindow(state.window);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();

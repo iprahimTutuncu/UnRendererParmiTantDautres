@@ -2,7 +2,6 @@
 
 #include "camera.h"
 #include "controls/controls.h"
-#include "graphics/imguisdl.h"
 #include "graphics/graphics.h"
 #include "physics/api.h"
 
@@ -108,9 +107,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     result = controls_init(state, argc, argv);
     if (result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
-    result = imgui_init(state, argc, argv);
-    if (result != SDL_APP_CONTINUE) [[unlikely]]
-        return result;
 
     return SDL_APP_CONTINUE;
 }
@@ -160,9 +156,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     result = graphics_event(app, *event);
     if (result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
-    result = imgui_event(app, *event);
-    if (result != SDL_APP_CONTINUE) [[unlikely]]
-        return result;
     return SDL_APP_CONTINUE;
 }
 
@@ -174,7 +167,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         controls_quit(app);
         physics_quit(app);
         graphics_quit(app);
-        imgui_quit(app);
         if (app.device && app.window)
             SDL_ReleaseWindowFromGPUDevice(app.device, app.window);
         if (app.window)

@@ -139,7 +139,7 @@ SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
 
     SDL_ReleaseGPUTransferBuffer(state.device, transferBuffer);
 
-    return SDL_APP_CONTINUE;
+    return imgui_init(state, argc, argv);
 }
 
 SDL_AppResult graphics_iterate(AppState& state) {
@@ -186,8 +186,10 @@ SDL_AppResult graphics_iterate(AppState& state) {
     SDL_BindGPUVertexBuffers(renderPass, 0, vertexBinding, sizeof(vertexBinding) / sizeof(SDL_GPUBufferBinding));
     SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
 
-    SDL_EndGPURenderPass(renderPass);
+    // Imgui rendering
     imgui_iterate(state, renderPass, swapchainTexture, cmdbuf);
+
+    SDL_EndGPURenderPass(renderPass);
 
     SDL_SubmitGPUCommandBuffer(cmdbuf);
 
@@ -195,13 +197,12 @@ SDL_AppResult graphics_iterate(AppState& state) {
 }
 
 SDL_AppResult graphics_event(AppState& state, SDL_Event& event) {
-    (void)state;
-    (void)event;
-    return SDL_APP_CONTINUE;
+    return imgui_event(state, event);
 }
 
 void graphics_quit(AppState& state) {
     if (state.graphics) {
+        imgui_quit(state);
         for (std::size_t i = 0; i < NumPipelines; i++) {
             if (state.graphics->pipeline[i])
                 SDL_ReleaseGPUGraphicsPipeline(state.device, state.graphics->pipeline[i]);
