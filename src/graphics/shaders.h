@@ -4,6 +4,8 @@
 struct SDL_GPUShader;
 struct SDL_GPUDevice;
 
+#define SHADER_PATH(name) SHADERS_DIR name ".spv"
+
 SDL_GPUShader* loadShader(
     SDL_GPUDevice* device,
     const char* shaderPath,

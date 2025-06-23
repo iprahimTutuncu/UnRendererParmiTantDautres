@@ -94,7 +94,10 @@ if (WIN32 OR MSVC)
     set(SPIRV_OPT_EXE ${SPIRV_OPT_EXE}.exe)
 endif()
 
-file(GLOB SHADERS "${SHADER_DIR}/*")
+set(SHADERS
+    ${SHADER_DIR}/PositionColor.vert
+    ${SHADER_DIR}/SolidColor.frag
+)
 set(SPIRV_FILES)
 foreach(SHADER ${SHADERS})
     get_filename_component(SRC "${SHADER}" NAME)
@@ -140,7 +143,6 @@ add_executable(app
     src/camera.cpp
     src/controls/controls.cpp
     src/graphics/graphics.cpp
-    src/graphics/pipeline.cpp
     src/graphics/shaders.cpp
     src/physics/physics.cpp
 )
