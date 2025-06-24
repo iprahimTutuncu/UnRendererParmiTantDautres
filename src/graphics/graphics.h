@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../state.h"
+#include "../vmath.h"
 
 #include <SDL3/SDL_init.h>
 
@@ -12,6 +13,7 @@ SDL_AppResult graphics_event(AppState& state, SDL_Event& event);
 void graphics_quit(AppState& state);
 
 enum PipelineIndex {
+    MaskPipeline,
     Pipeline,
     NumPipelines, // must be last
 };
@@ -22,9 +24,14 @@ enum BufferIndex {
 };
 
 enum TextureIndex {
-    SceneColorTexture,
-    SceneDepthTexture,
+    DepthTexture,
     NumTextures, // must be last
+};
+
+struct UniformBuffer {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
 };
 
 struct SDL_GPUGraphicsPipeline;
@@ -34,4 +41,5 @@ struct GraphicState {
     SDL_GPUGraphicsPipeline* pipeline[NumPipelines];
     SDL_GPUBuffer* buffers[NumBuffers];
     SDL_GPUTexture* textures[NumTextures];
+    UniformBuffer uniformBuffer;
 };
