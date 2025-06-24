@@ -156,7 +156,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     result = graphics_event(app, *event);
     if (result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
-
     return SDL_APP_CONTINUE;
 }
 
@@ -168,7 +167,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         controls_quit(app);
         physics_quit(app);
         graphics_quit(app);
-
         if (app.device && app.window)
             SDL_ReleaseWindowFromGPUDevice(app.device, app.window);
         if (app.window)

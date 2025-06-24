@@ -142,14 +142,17 @@ add_executable(app
     src/main.cpp
     src/camera.cpp
     src/controls/controls.cpp
+    src/graphics/imguisdl.cpp
     src/graphics/graphics.cpp
     src/graphics/shaders.cpp
-    src/physics/physics.cpp
+    src/physics/physics.cpp 
 )
 add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
     SDL3::SDL3
+    ImGui
 )
+
 target_compile_definitions(app PRIVATE
     SHADERS_DIR="${SHADER_OUT_DIR}/"
 )
