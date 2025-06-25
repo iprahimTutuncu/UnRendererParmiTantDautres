@@ -83,7 +83,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     state.numFrames = 0u;
     state.deltaTime = 0.f;
 
-    static const vec3 position { 13.25f, 5.0f, 13.25f };
+    static const vec3 position { 30, 30, 30 };
     static const vec3 worldUp { 0.f, 1.f, 0.f };
     const vec3 front = normalize(position);
     const vec3 right = normalize(cross(worldUp, front));
@@ -92,9 +92,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         .rotation = quat_cast({ .cols { right, up, front } }),
         .position = position,
         .aspectRatio = static_cast<float>(width) / static_cast<float>(height),
-        .fov = radians(90.0f),
-        .near = 0.1f,
-        .far = 100.0f,
+        .fov = radians(75.f),
+        .near = 20.f,
+        .far = 60.0f,
     };
 
     SDL_AppResult result;
@@ -156,6 +156,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     result = graphics_event(app, *event);
     if (result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
+
     return SDL_APP_CONTINUE;
 }
 
@@ -167,6 +168,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         controls_quit(app);
         physics_quit(app);
         graphics_quit(app);
+
         if (app.device && app.window)
             SDL_ReleaseWindowFromGPUDevice(app.device, app.window);
         if (app.window)

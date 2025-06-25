@@ -67,3 +67,6 @@ CMakeSettings.json
 !tools/glslang.exe
 !tools/spirv-opt.exe
 
+# ignore imgui settings
+imgui.ini
+
