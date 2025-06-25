@@ -1,6 +1,6 @@
 #include "gfx/Renderer.hpp"
 
-const glm::vec3 camera_pos = glm::vec3(1.0f,0.5f,1.0f);
+const glm::vec3 camera_pos = glm::vec3(0.0f,0.5f,2.0f);
 const glm::vec3 camera_at = glm::vec3(0.0);
 
 

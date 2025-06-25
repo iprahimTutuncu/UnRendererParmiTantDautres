@@ -2,13 +2,13 @@
 
 #include <glm/glm.hpp>
 
-const float DEFAULT_YAW			=  -135.0f;
+const float DEFAULT_YAW			=  -90.0f;
 const float DEFAULT_PITCH		=  0.0f;
 const float DEFAULT_SPEED		=  2.5f;
 const float DEFAULT_SENSITIVITY		=  0.1f;
 const float DEFAULT_ZOOM_MAX		=  120.0f;
 const float DEFAULT_ZOOM_MIN		=  1.0f;
-const float DEFAULT_ZOOM		=  90.0f;
+const float DEFAULT_ZOOM		=  45.0f;
 const float DEFAULT_NEAR		=  0.1f;
 const float DEFAULT_FAR                 =  100.0f;
 const float DEFAULT_FOV                 =  glm::radians(90.0f);
