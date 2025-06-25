@@ -18,23 +18,30 @@
 #include "MpmSolver.hpp"
 #include <algorithm>
 #include <iostream>
+#include <memory>
 
 // TODO: add variable particle spacing, etc.
-MpmSolver::MpmSolver(vec3 grid_origin, vec3 grid_size, double grid_spacing, double particle_spacing, vec3 particle_velocity) :
-    particle_spacing{particle_spacing},
-    grid{grid_origin, grid_size.x(), grid_size.y(), grid_size.z(), grid_spacing},
-    is_ready{false}
+MpmSolver::MpmSolver() :
+    params{}, is_ready{false}
 {
-    vec3 center = vec3(0.0, 1.0, 0.0);
-    unsigned int seed = 33;
-    create_particle_clumpy_sphere(center, 0.10, particle_velocity, 250, 0.2, &seed);
-    positions.resize(particles.size());
 }
 
 void MpmSolver::initialize() {
-    this->dt = 0.025;
+    this->dt = 4.0E-4;
 
-    grid.reset_nodes();
+    grid = std::make_unique<MpmGrid>(
+            params.grid_origin, 
+            params.grid_size.x(), params.grid_size.y(), params.grid_size.z(), 
+            params.grid_spacing);
+
+    create_particle_clumpy_sphere(
+            params.ball_origin, params.ball_radius, params.ball_velocity, 250, 0.2, &params.ball_seed);
+//    create_particle_sphere(params.ball_origin, params.ball_radius, params.ball_velocity);
+    positions.resize(particles.size());
+
+    update_lame_params();
+
+    grid->reset_nodes();
     step1_rasterize_particles_to_grid();
     step2_compute_volumes_and_densities();
 }
@@ -42,7 +49,7 @@ void MpmSolver::initialize() {
 void MpmSolver::iterate(double dt) {
     this->dt = dt;
 
-    grid.reset_nodes();
+    grid->reset_nodes();
     step1_rasterize_particles_to_grid();
     step3_compute_grid_forces();
     step4_update_grid_velocities();
@@ -62,6 +69,13 @@ void MpmSolver::iterate(double dt) {
     }
 }
 
+void MpmSolver::update_lame_params() {
+    mu_0 = params.initial_youngs_modulus 
+        / (2.0 * (1.0 + params.poisson_ratio));
+    lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) 
+        / ((1.0 + params.poisson_ratio) * (1.0 - 2.0 * params.poisson_ratio));
+}
+
 void MpmSolver::create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity) {
     // initialize test particles
 
@@ -69,12 +83,12 @@ void MpmSolver::create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity
     vec3 min_c = c - half_size;
     vec3 max_c = c + half_size;
 
-    for (double x = min_c.x(); x <= max_c.x(); x += particle_spacing) {
-    for (double y = min_c.y(); y <= max_c.y(); y += particle_spacing) {
-    for (double z = min_c.z(); z <= max_c.z(); z += particle_spacing) {
+    for (double x = min_c.x(); x <= max_c.x(); x += params.particle_spacing) {
+    for (double y = min_c.y(); y <= max_c.y(); y += params.particle_spacing) {
+    for (double z = min_c.z(); z <= max_c.z(); z += params.particle_spacing) {
         MpmParticle p{};
         p.position = vec3(x, y, z);
-        p.mass = initial_density * particle_spacing * particle_spacing * particle_spacing;
+        p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
         p.velocity = initial_velocity;
         particles.emplace_back(p);
     }}}
@@ -98,15 +112,15 @@ void MpmSolver::create_particle_clumpy_sphere(
 
         double r1 = get_random(0.5 * r, r, seed) * clump_radius_factor;
 
-        for (double x = clump_center.x() - r1; x <= clump_center.x() + r1; x += particle_spacing) {
-        for (double y = clump_center.y() - r1; y <= clump_center.y() + r1; y += particle_spacing) {
-        for (double z = clump_center.z() - r1; z <= clump_center.z() + r1; z += particle_spacing) {
+        for (double x = clump_center.x() - r1; x <= clump_center.x() + r1; x += params.particle_spacing) {
+        for (double y = clump_center.y() - r1; y <= clump_center.y() + r1; y += params.particle_spacing) {
+        for (double z = clump_center.z() - r1; z <= clump_center.z() + r1; z += params.particle_spacing) {
 
             vec3 pos(x, y, z);
             if ((pos - clump_center).squaredNorm() <= r1 * r1) {
                 MpmParticle p{};
                 p.position = pos;
-                p.mass = initial_density * particle_spacing * particle_spacing * particle_spacing;
+                p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
                 p.velocity = initial_velocity;
                 particles.emplace_back(p);
             }
@@ -116,16 +130,16 @@ void MpmSolver::create_particle_clumpy_sphere(
 
 void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity) {
     // Iterate over a bounding box that contains the sphere
-    for (double x = c.x() - r; x <= c.x() + r; x += particle_spacing) {
-    for (double y = c.y() - r; y <= c.y() + r; y += particle_spacing) {
-    for (double z = c.z() - r; z <= c.z() + r; z += particle_spacing) {
+    for (double x = c.x() - r; x <= c.x() + r; x += params.particle_spacing) {
+    for (double y = c.y() - r; y <= c.y() + r; y += params.particle_spacing) {
+    for (double z = c.z() - r; z <= c.z() + r; z += params.particle_spacing) {
         
         vec3 pos(x, y, z);
         
         if ((pos - c).squaredNorm() <= r * r) {
             MpmParticle p{};
             p.position = pos;
-            p.mass = initial_density * particle_spacing * particle_spacing * particle_spacing;
+            p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
             p.velocity = initial_velocity;
             particles.emplace_back(p);
         }
@@ -167,11 +181,11 @@ double MpmSolver::d_N(const double x) {
 // Transfer mass using the weighing function 
 // Transfer velocity using normalized weights 
 void MpmSolver::step1_rasterize_particles_to_grid() {
-    double inv_h = 1.0 / grid.spacing;
+    double inv_h = 1.0 / grid->spacing;
 
     for (MpmParticle& p : particles) {
         // find the closest bottom-left node to the current cell
-        vec3 p_position_rel = (p.position - grid.origin) * inv_h;
+        vec3 p_position_rel = (p.position - grid->origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         p.weights.fill(0.0);
@@ -183,7 +197,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         for (int z = 0; z < 4; ++z) {
             // calculate particle offset
             vec3i node_position_local = base_position + vec3i(x, y, z);
-            MpmGridNode* node = grid.get_node_from_local(node_position_local);
+            MpmGridNode* node = grid->get_node_from_local(node_position_local);
             if (!node) continue;
 
             vec3 p_off = p_position_rel - node_position_local.cast<double>();
@@ -216,13 +230,13 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         }}}
     }
 
-    for (MpmGridNode& node : grid.nodes) {
+    for (MpmGridNode& node : grid->nodes) {
         // v_i = sum( v_p * m_p * w_ip / m_i )
         // p = mv -> v = p/m
         if (node.mass > EPSILON) {
             if (!node.is_active) {
                 node.is_active = true;
-                grid.active_nodes.push_back(&node);
+                grid->active_nodes.push_back(&node);
             }
 
             node.velocity = node.momentum / node.mass;
@@ -232,11 +246,11 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
 
 // First time step only - initial configuration
 void MpmSolver::step2_compute_volumes_and_densities() {
-    double inv_h = 1.0 / grid.spacing;
+    double inv_h = 1.0 / grid->spacing;
     double inv_h3 = inv_h * inv_h * inv_h;
 
     for (MpmParticle& p : particles) {
-        vec3 p_position_rel = (p.position - grid.origin) * inv_h;
+        vec3 p_position_rel = (p.position - grid->origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         double rho_p = 0.0;
@@ -245,7 +259,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
         for (int y = 0; y < 4; ++y) {
         for (int z = 0; z < 4; ++z) {
             vec3i node_position_local = base_position + vec3i(x, y, z);
-            MpmGridNode* node = grid.get_node_from_local(node_position_local);
+            MpmGridNode* node = grid->get_node_from_local(node_position_local);
             if (!node) continue;
 
             // rho_p = sum(w_ip * (m_i * / h^3))
@@ -268,10 +282,10 @@ void MpmSolver::step2_compute_volumes_and_densities() {
 // gradient_w_ip is the gradient of N_i(xp), the derivative of the cubic b-spline N() above
 // See p.5 https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf for more on the equations
 void MpmSolver::step3_compute_grid_forces() {
-    double inv_h = 1.0 / grid.spacing;
+    double inv_h = 1.0 / grid->spacing;
 
     for (MpmParticle& p : particles) {
-        vec3 p_position_rel = (p.position - grid.origin) * inv_h;
+        vec3 p_position_rel = (p.position - grid->origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         // Polar decomposition
@@ -289,34 +303,36 @@ void MpmSolver::step3_compute_grid_forces() {
             R = U * V.transpose();
         }
 
-        mat3& Fe = p.deform_elastic;
+        mat3 Fe = p.deform_elastic;
         mat3& Fp = p.deform_plastic;
 
         double Jp = p.deform_plastic.determinant();
         double Je = p.deform_elastic.determinant();
         double J = (p.deform_plastic * p.deform_elastic).determinant();
 
-        double mu = mu_0 * std::exp(hardening_coefficient * (1.0 - Jp));
-        double lambda = lambda_0 * std::exp(hardening_coefficient * (1.0 - Jp));
+        double mu = mu_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
+        double lambda = lambda_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
 
         mat3 Fe_T = Fe.transpose();
+        mat3 Fp_T = Fp.transpose();
         mat3 Fe_invT = Fe.inverse().transpose();
+        mat3 Fp_invT = Fp.inverse().transpose();
+
         mat3 dPsi = 2.0 * mu * (Fe - R) + lambda * (Je - 1.0) * Je * Fe_invT;
         mat3 sigma = (1 / J) * dPsi * Fe_T;
-
-        double volume = J * p.volume_0;
-        mat3 force = volume * sigma;
 
         // add force to nodes
         for (int x = 0; x < 4; ++x) {
         for (int y = 0; y < 4; ++y) {
         for (int z = 0; z < 4; ++z) {
             vec3i node_position_local = base_position + vec3i(x, y, z);
-            MpmGridNode* node = grid.get_node_from_local(node_position_local);
+            MpmGridNode* node = grid->get_node_from_local(node_position_local);
             if (!node) continue;
 
             vec3 w_ip_grad = p.weights_gradient[x + y*4 + z*4*4];
-            node->force -= force * w_ip_grad;
+            double volume = Jp * p.volume_0;
+
+            node->force -= volume * sigma * w_ip_grad;
         }}}
     }
 }
@@ -326,9 +342,9 @@ void MpmSolver::step3_compute_grid_forces() {
 // forces include internal and external (gravity)
 // this will then be used in step 6 in euler semi-implicite integration as the right side of the linear system
 void MpmSolver::step4_update_grid_velocities() {
-    for (MpmGridNode* node : grid.active_nodes) {
+    for (MpmGridNode* node : grid->active_nodes) {
         if (node->mass > 0.0) {
-            vec3 f_ext = node->mass * gravity;
+            vec3 f_ext = node->mass * params.gravity;
             vec3 f_i = node->force + f_ext;
             node->velocity_star = node->velocity + dt * f_i / node->mass;
         }
@@ -339,30 +355,30 @@ void MpmSolver::step4_update_grid_velocities() {
 // collisions are processed twice each time step, once here, and again before updating positions
 // see section 8 of Stomakhin
 void MpmSolver::step5_grid_based_collisions() {
-    for (MpmGridNode* node : grid.active_nodes) {
-        vec3 node_position_world = grid.get_node_world_coords(node->local_pos);
+    for (MpmGridNode* node : grid->active_nodes) {
+        vec3 node_position_world = grid->get_node_world_coords(node->local_pos);
 
-        if (!node || (node_position_world.y() - world_floor) > EPSILON) {
+        if (!node || (node_position_world.y() - params.world_floor) > EPSILON) {
             continue;
         }
 
         // velocity relative to collider (ground)
-        vec3 v_rel = node->velocity_star - v_co;
-        double v_n = v_rel.dot(n_co);
+        vec3 v_rel = node->velocity_star - params.v_co;
+        double v_n = v_rel.dot(params.n_co);
 
         // if moving towards collider 
         if (v_n < 0.0) {
-            vec3 v_t = v_rel - (v_n * n_co);
+            vec3 v_t = v_rel - (v_n * params.n_co);
             double v_t_norm = v_t.norm();
 
-            if (v_t_norm <= (-mu_surface * v_n)) {
+            if (v_t_norm <= (-params.mu_surface * v_n)) {
                 v_rel = vec3::Zero();
             }
             else {
-                v_rel = v_t + mu_surface * v_n * (v_t / v_t_norm);
+                v_rel = v_t + params.mu_surface * v_n * (v_t / v_t_norm);
             }
 
-            node->velocity_star = v_rel + v_co;
+            node->velocity_star = v_rel + params.v_co;
         }
     }
 }
@@ -375,7 +391,7 @@ void MpmSolver::calculate_Ar(
         std::vector<int>& global_to_active_map)
 {
     df.setZero();
-    double inv_h = 1.0 / grid.spacing;
+    double inv_h = 1.0 / grid->spacing;
 
     // calculate Ar
     for (MpmParticle& p : particles) {
@@ -383,14 +399,14 @@ void MpmSolver::calculate_Ar(
         // 3.23 - velocity gradient
         mat3 velocities_grad = mat3::Zero();
 
-        vec3 p_position_rel = (p.position - grid.origin) * inv_h;
+        vec3 p_position_rel = (p.position - grid->origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         for (int x = 0; x < 4; ++x) {
         for (int y = 0; y < 4; ++y) {
         for (int z = 0; z < 4; ++z) {
             vec3i node_position_local = base_position + vec3i(x, y, z);
-            MpmGridNode* node = grid.get_node_from_local(node_position_local);
+            MpmGridNode* node = grid->get_node_from_local(node_position_local);
             if (!node) continue;
 
             int active_id = global_to_active_map[node->index];
@@ -446,6 +462,7 @@ void MpmSolver::calculate_Ar(
         mat3 JFinvT = Je * FinvT;
 
         // Frobenius inner product
+//        double JFinvT_dF = (JFinvT.cwiseProduct(dFEp)).sum();
         double JFinvT_dF = (JFinvT.array() * dFEp.array()).sum();
 
         //mat3& CO = JFinvT;
@@ -514,13 +531,10 @@ void MpmSolver::calculate_Ar(
         mat3 dJFinvT = tr_Finv_dF * JFinvT + Je * dFinvT;
 
         // 3.26 - Ap
-        double mu = mu_0 * expf(hardening_coefficient * (1.0 - Jp));
-        double lambda = lambda_0 * expf(hardening_coefficient * (1.0 - Jp));
+        double mu = mu_0 * expf(params.hardening_coefficient * (1.0 - Jp));
+        double lambda = lambda_0 * expf(params.hardening_coefficient * (1.0 - Jp));
 
-        double J = (p.deform_plastic * p.deform_elastic).determinant();
-        double volume = J * p.volume_0;
-
-        mat3 Ap = volume * (2.0 * mu * (dFEp - dR) 
+        mat3 Ap = p.volume_0 * (2.0 * mu * (dFEp - dR) 
                 + lambda * JFinvT * JFinvT_dF
                 + lambda * (Je - 1.0) * dJFinvT) * Fe.transpose();
 
@@ -529,7 +543,7 @@ void MpmSolver::calculate_Ar(
         for (int y = 0; y < 4; ++y) {
         for (int z = 0; z < 4; ++z) {
             vec3i node_position_local = base_position + vec3i(x, y, z);
-            MpmGridNode* node = grid.get_node_from_local(node_position_local);
+            MpmGridNode* node = grid->get_node_from_local(node_position_local);
             if (!node) continue;
 
             int active_id = global_to_active_map[node->index];
@@ -540,11 +554,11 @@ void MpmSolver::calculate_Ar(
         }}}
     }
 
-    for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
+    for (size_t i = 0; i < grid->active_nodes.size(); ++i) {
         Av_next.col(i) = v_next.col(i);
-        double& node_mass = grid.active_nodes[i]->mass;
+        double& node_mass = grid->active_nodes[i]->mass;
         if (node_mass > 0.0) {
-            Av_next.col(i) -= beta_integration * dt * df.col(i) / node_mass;
+            Av_next.col(i) -= params.beta_integration * dt * df.col(i) / node_mass;
         }
     }
 }
@@ -553,15 +567,15 @@ void MpmSolver::calculate_Ar(
 // See https://nccastaff.bournemouth.ac.uk/jmacey/MastersProject/MSc15/05Esther/thesisEMdeJong.pdf
 // Zhuo Lo's implementation re-calculates Ar and Ap every iteration, but Jong does not.
 void MpmSolver::step6_solve_linear_system() {
-    if (beta_integration == 0.0 || grid.active_nodes.empty()) {
+    if (params.beta_integration == 0.0 || grid->active_nodes.empty()) {
         return;
     }
 
-    int nb_active_nodes = grid.active_nodes.size();
-    std::vector<int> global_to_active_map(grid.nodes.size(), -1);
+    int nb_active_nodes = grid->active_nodes.size();
+    std::vector<int> global_to_active_map(grid->nodes.size(), -1);
 
     for (int i = 0; i < nb_active_nodes; ++i) {
-        global_to_active_map[grid.active_nodes[i]->index] = i;
+        global_to_active_map[grid->active_nodes[i]->index] = i;
     }
 
     mat3n velocity_star(3, nb_active_nodes);
@@ -576,8 +590,8 @@ void MpmSolver::step6_solve_linear_system() {
     mat3n search_dir(3, nb_active_nodes);
 
     for (int i = 0; i < nb_active_nodes; ++i) {
-        velocity_next.col(i) = grid.active_nodes[i]->velocity_star; 
-        velocity_star.col(i) = grid.active_nodes[i]->velocity_star; 
+        velocity_next.col(i) = grid->active_nodes[i]->velocity_star; 
+        velocity_star.col(i) = grid->active_nodes[i]->velocity_star; 
     }
 
     calculate_Ar(Ax, velocity_next, df, global_to_active_map);
@@ -586,12 +600,13 @@ void MpmSolver::step6_solve_linear_system() {
     search_dir = residuals;
 
     calculate_Ar(Ar, residuals, df, global_to_active_map);
-    calculate_Ar(Ap, search_dir, df, global_to_active_map);
+
+    Ap = Ar;
 
     double rAr = residuals.cwiseProduct(Ar).sum();
 
-    for (int k = 0; k < max_iterations; ++k) {
-        if ((residuals.norm() / velocity_next.norm()) < tolerance) {
+    for (int k = 0; k < params.max_iterations; ++k) {
+        if ((residuals.norm() / velocity_next.norm()) < params.tolerance) {
             break;
         }
 
@@ -614,18 +629,18 @@ void MpmSolver::step6_solve_linear_system() {
         }
 
         search_dir = residuals + beta * search_dir;
-        calculate_Ar(Ap, search_dir, df, global_to_active_map);
+        Ap = Ar + beta * Ap;
     }
 
     for (int i = 0; i < nb_active_nodes; ++i) {
-        grid.active_nodes[i]->velocity_star = velocity_next.col(i);
+        grid->active_nodes[i]->velocity_star = velocity_next.col(i);
     }
 }
 
 void MpmSolver::step7_update_deformation_gradient() {
-    double inv_h = 1.0 / grid.spacing;
+    double inv_h = 1.0 / grid->spacing;
     for (MpmParticle& p : particles) {
-        vec3 p_position_rel = (p.position - grid.origin) * inv_h;
+        vec3 p_position_rel = (p.position - grid->origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         // 3.23 - velolity gradient
@@ -636,7 +651,7 @@ void MpmSolver::step7_update_deformation_gradient() {
         for (int y = 0; y < 4; ++y) {
         for (int z = 0; z < 4; ++z) {
             vec3i node_position_local = base_position + vec3i(x, y, z);
-            MpmGridNode* node = grid.get_node_from_local(node_position_local);
+            MpmGridNode* node = grid->get_node_from_local(node_position_local);
             if (!node) continue;
 
             vec3 w_ip_grad = p.weights_gradient[x + y*4 + z*4*4];
@@ -650,11 +665,12 @@ void MpmSolver::step7_update_deformation_gradient() {
         Eigen::JacobiSVD<mat3> svd{tmp_FE, Eigen::ComputeFullU | Eigen::ComputeFullV};
         mat3 V = svd.matrixV();
         mat3 U = svd.matrixU();
+
         vec3 sigma_hat = svd.singularValues();
         vec3 sigma = sigma_hat;
 
         for (int i = 0; i < 3; ++i) {
-            sigma(i) = std::clamp(sigma(i), 1.0 - critical_compression , 1.0 + critical_stretch);
+            sigma(i) = std::clamp(sigma(i), 1.0 - params.critical_compression , 1.0 + params.critical_stretch);
         }
 
         p.deform_elastic = U * sigma.asDiagonal() * V.transpose();
@@ -665,15 +681,16 @@ void MpmSolver::step7_update_deformation_gradient() {
             std::abs(sigma_hat.z()) > EPSILON ? 1.0 / sigma_hat.z() : 0.0
         );
 
-        mat3 Fp_update = V * sigma_hat_inv.asDiagonal() * sigma.asDiagonal() * V.transpose();
-        p.deform_plastic = p.deform_plastic * Fp_update;
+        vec3 S_ratio = sigma.array() / sigma_hat.array();
+        mat3 Fp_update = V * S_ratio.asDiagonal() * V.transpose();
+        p.deform_plastic = Fp_update * p.deform_plastic;
     }
 }
 
 void MpmSolver::step8_update_particle_velocities() {
-    double inv_h = 1.0 / grid.spacing;
+    double inv_h = 1.0 / grid->spacing;
     for (MpmParticle& p : particles) {
-        vec3 p_position_rel = (p.position - grid.origin) * inv_h;
+        vec3 p_position_rel = (p.position - grid->origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         // 3.23 - velolity gradient
@@ -684,7 +701,7 @@ void MpmSolver::step8_update_particle_velocities() {
         for (int y = 0; y < 4; ++y) {
         for (int z = 0; z < 4; ++z) {
             vec3i node_position_local = base_position + vec3i(x, y, z);
-            MpmGridNode* node = grid.get_node_from_local(node_position_local);
+            MpmGridNode* node = grid->get_node_from_local(node_position_local);
             if (!node) continue;
 
             double w_ip = p.weights[x + y*4 + z*4*4];
@@ -701,27 +718,27 @@ void MpmSolver::step8_update_particle_velocities() {
 
 void MpmSolver::step9_particle_based_collisions() {
     for (MpmParticle& p : particles) {
-        if ((p.position.y() - world_floor) > 0.0) {
+        if ((p.position.y() - params.world_floor) > EPSILON) {
             continue;
         }
 
         // velocity relative to collider (ground)
-        vec3 v_rel = p.velocity - v_co;
-        double v_n = v_rel.dot(n_co);
+        vec3 v_rel = p.velocity - params.v_co;
+        double v_n = v_rel.dot(params.n_co);
 
         // if moving towards collider 
         if (v_n < 0.0) {
-            vec3 v_t = v_rel - (v_n * n_co);
+            vec3 v_t = v_rel - (v_n * params.n_co);
             double v_t_norm = v_t.norm();
 
-            if (v_t_norm <= (-mu_surface * v_n)) {
+            if (v_t_norm <= (-params.mu_surface * v_n)) {
                 v_rel = vec3::Zero();
             }
             else {
-                v_rel = v_t + mu_surface * v_n * (v_t / v_t_norm);
+                v_rel = v_t + params.mu_surface * v_n * (v_t / v_t_norm);
             }
 
-            p.velocity = v_rel + v_co;
+            p.velocity = v_rel + params.v_co;
         }
     }
 }
