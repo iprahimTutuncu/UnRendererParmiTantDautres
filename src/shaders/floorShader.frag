@@ -7,7 +7,7 @@ in vec3 fPosition;
 vec3 color1 = vec3(0.6, 0.6, 0.6);
 vec3 color2 = vec3(0.3, 0.3, 0.3);
 
-float tile_scale = 4.0;
+float tile_scale = 2.0;
 
 void main()
 {
