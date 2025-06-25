@@ -358,7 +358,7 @@ void MpmSolver::step5_grid_based_collisions() {
     for (MpmGridNode* node : grid->active_nodes) {
         vec3 node_position_world = grid->get_node_world_coords(node->local_pos);
 
-        if (!node || (node_position_world.y() - params.world_floor) > EPSILON) {
+        if (!node || (node_position_world.y() - params.world_floor + grid->spacing) > EPSILON) {
             continue;
         }
 
