@@ -37,16 +37,12 @@ static constexpr PositionColorVertex positions[] {
     { 10, 10, -10, 0, 0, 255, 255 },
 };
 
-SDL_AppResult graphics_init(AppState& state, int argc, char** argv) {
+SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
     state.graphics = new GraphicState {}; // will be free in graphics_quit()
     GraphicState& graphics = *state.graphics;
 
-    auto result = imgui_init(state, argc, argv);
-    if (result != SDL_APP_CONTINUE) [[unlikely]] {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize ImGui: %s", SDL_GetError());
-        return result;
-    }
+    imgui_init(state);
 
     // create the shaders
     SDL_GPUShader* vertShader = loadShader(state.device, SHADER_PATH("PositionColor.vert"), 0, 1, 1, 0);
@@ -311,11 +307,7 @@ SDL_AppResult graphics_iterate(AppState& state) {
 }
 
 SDL_AppResult graphics_event(AppState& state, SDL_Event& event) {
-    auto result = imgui_event(state, event);
-    if (result != SDL_APP_CONTINUE) [[unlikely]] {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to process ImGui event: %s", SDL_GetError());
-        return result;
-    }
+    imgui_event(state, event);
 
     return SDL_APP_CONTINUE;
 }
