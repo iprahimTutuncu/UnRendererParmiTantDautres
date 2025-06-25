@@ -666,24 +666,30 @@ void MpmSolver::step7_update_deformation_gradient() {
         mat3 V = svd.matrixV();
         mat3 U = svd.matrixU();
 
-        vec3 sigma_hat = svd.singularValues();
-        vec3 sigma = sigma_hat;
+        vec3 sigma = svd.singularValues();
+        sigma = sigma.cwiseMin(1.f + params.critical_stretch).cwiseMax(1.f - params.critical_compression);
 
-        for (int i = 0; i < 3; ++i) {
-            sigma(i) = std::clamp(sigma(i), 1.0 - params.critical_compression , 1.0 + params.critical_stretch);
-        }
-
+        p.deform_plastic = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * F;
         p.deform_elastic = U * sigma.asDiagonal() * V.transpose();
 
-        vec3 sigma_hat_inv = vec3(
-            std::abs(sigma_hat.x()) > EPSILON ? 1.0 / sigma_hat.x() : 0.0,
-            std::abs(sigma_hat.y()) > EPSILON ? 1.0 / sigma_hat.y() : 0.0,
-            std::abs(sigma_hat.z()) > EPSILON ? 1.0 / sigma_hat.z() : 0.0
-        );
-
-        vec3 S_ratio = sigma.array() / sigma_hat.array();
-        mat3 Fp_update = V * S_ratio.asDiagonal() * V.transpose();
-        p.deform_plastic = Fp_update * p.deform_plastic;
+//        vec3 sigma_hat = svd.singularValues();
+//        vec3 sigma = sigma_hat;
+//
+//        for (int i = 0; i < 3; ++i) {
+//            sigma(i) = std::clamp(sigma(i), 1.0 - params.critical_compression , 1.0 + params.critical_stretch);
+//        }
+//
+//        p.deform_elastic = U * sigma.asDiagonal() * V.transpose();
+//
+//        vec3 sigma_hat_inv = vec3(
+//            std::abs(sigma_hat.x()) > EPSILON ? 1.0 / sigma_hat.x() : 0.0,
+//            std::abs(sigma_hat.y()) > EPSILON ? 1.0 / sigma_hat.y() : 0.0,
+//            std::abs(sigma_hat.z()) > EPSILON ? 1.0 / sigma_hat.z() : 0.0
+//        );
+//
+//        vec3 S_ratio = sigma.array() / sigma_hat.array();
+//        mat3 Fp_update = V * S_ratio.asDiagonal() * V.transpose();
+//        p.deform_plastic = Fp_update * p.deform_plastic;
     }
 }
 
