@@ -99,9 +99,15 @@ void Application::process_events() {
 
 void Application::iterate_particles() {
     unsigned int iteration = 0;
+
+    const double frequency = static_cast<double>(SDL_GetPerformanceFrequency());
+    double old_time = SDL_GetPerformanceCounter();
     while (m_main_window.is_active()) {
+        double new_time = SDL_GetPerformanceCounter();
+        double delta_time = (new_time - old_time) / frequency;
+        old_time = new_time;
         m_mpm_solver.iterate(simulation_dt);
-        std::cout << "Iteration " << ++iteration << " done!" << std::endl;
+        std::cout << "Iteration " << ++iteration << " done! " << delta_time << "s" << std::endl;
     }
 }
 
