@@ -3,7 +3,7 @@
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/SVD>
 
-const float EPSILON = 1E-9;
+const float EPSILON = 1E-12;
 
 using vec3d = Eigen::Vector3d;
 using vec3i = Eigen::Vector3i;
