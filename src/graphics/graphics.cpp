@@ -276,7 +276,8 @@ SDL_AppResult graphics_iterate(AppState& state) {
     colorTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
     colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
 
-    SDL_GPUDepthStencilTargetInfo depthStencilTargetInfo {};
+    // BUG: the screen is black if we pass depthStencilTargetInfo into SDL_BeginGPURenderPass.
+    [[maybe_unused]] SDL_GPUDepthStencilTargetInfo depthStencilTargetInfo {};
     depthStencilTargetInfo.texture = state.graphics->textures[DepthTexture];
     depthStencilTargetInfo.cycle = true;
     depthStencilTargetInfo.load_op = SDL_GPU_LOADOP_CLEAR;
