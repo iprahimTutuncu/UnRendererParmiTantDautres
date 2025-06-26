@@ -1,0 +1,66 @@
+@startuml seuqnce_diagram
+
+== Initialisation ==
+
+participant "SDL3" as sdl
+participant "main.cpp" as main
+
+sdl -> main ++ : SDL_AppInit(void \*\*appstate, int argc, char **argv)
+
+main -> sdl : SDL_SetAppMetadata(...)
+main -> sdl : SDL_InitSubSystem(...)
+main -> sdl : SDL_CreateGPUDevice(...)
+main -> sdl : SDL_CreateWindow(...)
+main -> sdl : SDL_ClaimWindowForGPUDevice(...)
+main -> sdl : SDL_CreateGPUDevice(...)
+main -> AppState ** : state = new AppState{}
+activate AppState
+main -> CameraPerspective ** : state->camera = new CameraPerspective{}
+activate CameraPerspective
+
+
+participant "physics/physics.cpp" as physics
+participant "graphics/graphics.cpp" as graphics
+participant "controls/controls.cpp" as controls
+main -> physics ++ : physics_init(state)
+main -> graphics ++ : graphics_init(state)
+main -> controls ++ : controls_init(state)
+
+sdl <<-- main -- : return SDL_APP_CONTINUE
+
+== Main Loop ==
+
+loop Each frame
+    sdl -> main ++ : SDL_AppIterate(void* appstate)
+    main -> controls : controls_iterate()
+    main -> physics : physics_iterate()
+    main -> graphics : graphics_iterate()
+    sdl <<-- main -- : return SDL_APP_CONTINUE
+end
+
+== Event Handling ==
+
+alt on event
+    sdl -> main ++ : SDL_AppEvent(void *appstate, event)
+    main -> controls : controls_event(event)
+    main -> physics : physics_event(event)
+    main -> graphics : graphics_event(event)
+    sdl <<-- main -- : return SDL_APP_CONTINUE
+end
+
+== Quit ==
+
+sdl -> main ++ : SDL_AppQuit(void *appstate)
+main -> controls : controls_quit()
+destroy controls
+main -> physics : physics_quit()
+destroy physics
+main -> graphics : graphics_quit()
+destroy graphics
+main -> CameraPerspective : delete state->camera
+destroy CameraPerspective
+main -> AppState : delete state
+destroy AppState
+sdl <<-- main -- : SDL_DestroyWindow(), SDL_DestroyGPUDevice()
+
+@enduml
