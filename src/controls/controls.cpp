@@ -4,6 +4,13 @@
 #include "../vmath.h"
 
 #include <SDL3/SDL_keyboard.h>
+inline vec3 rotate_vec3_by_quat(const vec3& v, const quat& q) {
+    // q * v * q^-1
+    quat vq { 0, v.x, v.y, v.z };
+    quat q_inv { q.w, -q.x, -q.y, -q.z };
+    quat result = q * vq * q_inv;
+    return { result.x, result.y, result.z };
+}
 
 SDL_AppResult controls_init(AppState& state, int argc, char** argv) {
     (void)argc;
@@ -55,13 +62,39 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
     } break;
     case SDL_EVENT_MOUSE_MOTION: {
         SDL_MouseMotionEvent const& evt = (SDL_MouseMotionEvent&)event;
+        float mouse_x, mouse_y;
+        Uint32 mouse_buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
+        // Check if left mouse button is held
+        if (mouse_buttons & SDL_BUTTON_LMASK) {
+           
+            vec3 right = state.camera->right();
+            vec3 up = { 0, 1, 0 }; 
 
-        float angle_h = -radians(evt.xrel);
-        float angle_v = -radians(evt.yrel);
-        quat q_h = angleAxis(angle_h, vec3 { 0, 1, 0 });
-        quat q_v = angleAxis(angle_v, state.camera->right());
+            state.camera->target -= right * evt.xrel ;
+            state.camera->target += up * evt.yrel;
 
-        state.camera->rotation = q_h * q_v * state.camera->rotation;
+            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.camera->distance }, state.camera->rotation);
+            state.camera->position = vec3 {
+                state.camera->target.x + offset.x,
+                state.camera->target.y + offset.y,
+                state.camera->target.z + offset.z
+            };
+        } else {
+            // Orbit as before
+            float angle_h = -radians(evt.xrel);
+            float angle_v = -radians(evt.yrel);
+            quat q_h = angleAxis(angle_h, vec3 { 0, 1, 0 });
+            quat q_v = angleAxis(angle_v, state.camera->right());
+
+            state.camera->rotation = q_h * q_v * state.camera->rotation;
+
+            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.camera->distance }, state.camera->rotation);
+            state.camera->position = vec3 {
+                state.camera->target.x + offset.x,
+                state.camera->target.y + offset.y,
+                state.camera->target.z + offset.z
+            };
+        }
     } break;
     case SDL_EVENT_MOUSE_WHEEL: {
         SDL_MouseWheelEvent const& evt = (SDL_MouseWheelEvent&)event;
