@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 /*
@@ -18,15 +19,51 @@ and Young’s modulus, with the opposite producing muddy snow.
 */
 
 
+
+
 class MpmSolver {
 public:
-    MpmSolver(vec3 grid_origin, vec3 grid_size, double grid_spacing, double particle_spacing, vec3 particle_velocity);
+    MpmSolver();
 
     void initialize(); 
     void iterate(double dt);
+    void update_lame_params();
 
-public:
-    MpmGrid grid;
+    struct {
+        double particle_spacing = 1.0;
+
+        vec3 ball_velocity = vec3::Zero();
+        vec3 ball_origin = vec3(0.0, 1.0, 0.0);
+        double ball_radius = 0.10;
+        unsigned int ball_seed = 33;
+
+        double grid_spacing = 0.070;
+        vec3 grid_origin = vec3(-2.5, -1.0, -2.5);
+        vec3 grid_size = vec3(5.0, 11.0, 5.0);
+
+        double critical_compression = 2.5E-2;     // theta_c
+        double critical_stretch = 7.5E-3;         // theta_s
+        double hardening_coefficient = 10.0;      // xi
+        double initial_density = 4.0E2;           // rho_0
+        double initial_youngs_modulus = 1.4E5;    // E_0
+        double poisson_ratio = 0.2;               // nu
+        vec3 gravity{0.0, -9.81, 0.0};          // g
+
+        double world_floor = 0.0;
+
+        vec3 v_co = vec3::Zero(); // collider velocity
+        vec3 n_co = vec3(0.0, 1.0, 0.0); // collider normal
+        double mu_surface = 0.5; // Coulomb friction coefficient
+
+        int max_iterations = 33;
+        double tolerance = 1E-4;
+
+        // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
+        double beta_integration = 1.0;
+    } params;
+
+    std::unique_ptr<MpmGrid> grid;
+
     std::vector<MpmParticle> particles;
     std::vector<vec3> positions;
 
@@ -34,33 +71,8 @@ public:
 
 private:
     double dt;
-
-    const double particle_spacing;
-
-    const double initial_density = 4.0E2;           // rho_0
-    const double critical_compression = 2.5E-2;     // theta_c
-    const double critical_stretch = 7.5E-3;         // theta_s
-    const double hardening_coefficient = 10.0;      // xi
-    const double initial_youngs_modulus = 1.4E5;    // E_0
-    const double poisson_ratio = 0.2;               // nu
-    const double world_floor = 0.0;
-
-    const vec3 gravity{0.0, -9.81, 0.0};          // g
-
-    // lame coefficients
-    const double mu_0 = initial_youngs_modulus / (2.0 * (1.0 + poisson_ratio));
-    const double lambda_0 = 
-        (initial_youngs_modulus * poisson_ratio) / ((1.0 + poisson_ratio) * (1.0 - 2.0 * poisson_ratio));
-
-    const vec3 v_co = vec3::Zero(); // collider velocity
-    const vec3 n_co = vec3(0.0, 1.0, 0.0); // collider normal
-    const double mu_surface = 0.5; // Coulomb friction coefficient
-
-    const int max_iterations = 100;
-    const double tolerance = 1E-5;
-
-    // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
-    const double beta_integration = 1.0;
+    double mu_0;
+    double lambda_0;
 
     void calculate_Ar(mat3n& residuals, mat3n& Ar, mat3n& df, std::vector<int>& global_to_active_map);
     double N(const double x);
@@ -68,7 +80,12 @@ private:
 
     void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity);
     void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity);
-    void create_particle_clumpy_sphere(vec3& c, double r, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed);
+
+    void create_particle_clumpy_sphere(
+            vec3& center, double radius,
+            vec3& initial_velocity,
+            int num_clumps, double clump_radius_factor, 
+            unsigned int* seed);
 
     void step1_rasterize_particles_to_grid();
     void step2_compute_volumes_and_densities();
