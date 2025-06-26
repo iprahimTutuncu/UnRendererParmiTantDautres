@@ -60,7 +60,16 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
         if (evt.key == SDLK_ESCAPE) [[unlikely]]
             return SDL_APP_SUCCESS;
     } break;
+    // Handle Right Mouse Button Click to toggle camera lock
+    case SDL_EVENT_MOUSE_BUTTON_DOWN: {
+        SDL_MouseButtonEvent const& evt = (SDL_MouseButtonEvent&)event;
+        if (evt.button == SDL_BUTTON_RIGHT) {
+            state.camera->locked = !state.camera->locked;
+        }
+    } break;
     case SDL_EVENT_MOUSE_MOTION: {
+        if (state.camera->locked) break; // Ignore camera movement if locked
+
         SDL_MouseMotionEvent const& evt = (SDL_MouseMotionEvent&)event;
         float mouse_x, mouse_y;
         Uint32 mouse_buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
