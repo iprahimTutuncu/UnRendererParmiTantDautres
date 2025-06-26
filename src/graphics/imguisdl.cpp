@@ -68,6 +68,13 @@ void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUComman
                 ImGui::TableSetColumnIndex(1);
                 ImGui::Text("(%.2f, %.2f, %.2f)", state.camera->target.x, state.camera->target.y, state.camera->target.z);
 
+                // Camera FOV (optional, for perspective zoom)
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("FOV");
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%.2f deg", state.camera->fov * (180.0f / 3.14159265f));
+
                 // Reset button row
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
@@ -86,11 +93,6 @@ void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUComman
         }
         ImGui::EndTabBar();
     }
-
-
-
-
-
 
     ImGui::End();
     ImGui::Render();
