@@ -31,17 +31,20 @@ sdl <<-- main -- : return SDL_APP_CONTINUE
 == Main Loop ==
 
 loop Each frame
-    alt On SDL_Event
-        sdl -> main ++ : SDL_AppEvent(void *appstate, event)
-        main -> controls : controls_event(event)
-        main -> physics : physics_event(event)
-        main -> graphics : graphics_event(event)
-        sdl <<-- main -- : return SDL_APP_CONTINUE
-    end
     sdl -> main ++ : SDL_AppIterate(void* appstate)
     main -> controls : controls_iterate()
     main -> physics : physics_iterate()
     main -> graphics : graphics_iterate()
+    sdl <<-- main -- : return SDL_APP_CONTINUE
+end
+
+== Event Handling ==
+
+alt on event
+    sdl -> main ++ : SDL_AppEvent(void *appstate, event)
+    main -> controls : controls_event(event)
+    main -> physics : physics_event(event)
+    main -> graphics : graphics_event(event)
     sdl <<-- main -- : return SDL_APP_CONTINUE
 end
 
@@ -54,6 +57,10 @@ main -> physics : physics_quit()
 destroy physics
 main -> graphics : graphics_quit()
 destroy graphics
+main -> CameraPerspective : delete state->camera
+destroy CameraPerspective
+main -> AppState : delete state
+destroy AppState
 sdl <<-- main -- : SDL_DestroyWindow(), SDL_DestroyGPUDevice()
 
 @enduml
