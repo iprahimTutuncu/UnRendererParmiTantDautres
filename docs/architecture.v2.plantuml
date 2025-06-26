@@ -9,15 +9,15 @@ file state.h {
     struct AppState{
         +device: SDL_GPUDevice*
         +window: SDL_Window*
-        +threadPhysic: SDL_Thread*
+
+        + graphics: GraphicsState*
+        + physics: PhysicsState*
+        + controls: ControlsState*
 
         // some timing variables
         +lastTime: std::uint64_t
         +currentTime: std::uint64_t
         +numFrames: std::uint32_t
-
-        // d'autres variables utilisées
-        // par graphics et physics
     }
 }
 

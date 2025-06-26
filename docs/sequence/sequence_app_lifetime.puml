@@ -1,4 +1,4 @@
-@startuml seuqnce_diagram
+@startuml sequence_app_lifetime
 
 == Initialisation ==
 
