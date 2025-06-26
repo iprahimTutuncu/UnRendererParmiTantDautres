@@ -81,7 +81,7 @@ void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUComman
                 ImGui::Text("Reset");
                 ImGui::TableSetColumnIndex(1);
                 if (ImGui::Button("Reset Camera")) {
-                    state.camera->position = { 0.0f, 0.0f, state.camera->distance };
+                    state.camera->position = { 0.0f, 0.0f, state.camera->distanceFromTarget };
                     state.camera->target = { 0.0f, 0.0f, 0.0f };
                     state.camera->rotation = { 1.0f, 0.0f, 0.0f, 0.0f };
                     state.camera->locked = false;

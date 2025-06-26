@@ -82,7 +82,7 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
             state.camera->target -= right * evt.xrel ;
             state.camera->target += up * evt.yrel;
 
-            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.camera->distance }, state.camera->rotation);
+            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.camera->distanceFromTarget }, state.camera->rotation);
             state.camera->position = vec3 {
                 state.camera->target.x + offset.x,
                 state.camera->target.y + offset.y,
@@ -97,7 +97,7 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
 
             state.camera->rotation = q_h * q_v * state.camera->rotation;
 
-            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.camera->distance }, state.camera->rotation);
+            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.camera->distanceFromTarget }, state.camera->rotation);
             state.camera->position = vec3 {
                 state.camera->target.x + offset.x,
                 state.camera->target.y + offset.y,
