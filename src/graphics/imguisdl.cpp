@@ -35,7 +35,6 @@ void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUComman
 
     ImGui::BeginGroup();
 
-    ImGui::SliderFloat3("World coordinates", &state.graphics->uniformBuffer.model.v4[3].x, -100.0f, 100.0f);
     ImGui::SliderFloat3("Camera", &state.camera->position.x, -100.0f, 100.0f);
 
     ImGui::EndGroup();

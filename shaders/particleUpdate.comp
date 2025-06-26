@@ -1,0 +1,27 @@
+#version 450
+
+layout(set = 1, binding = 0) buffer ParticlesBuffer
+{
+    vec4 positions[];
+};
+
+layout(set = 2, binding = 0) uniform UBO 
+{
+    float time;
+};
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+void main() 
+{
+    uint index = gl_GlobalInvocationID.x;
+
+    // Get the vertex position
+    vec3 pos = positions[index].xyz;
+
+    // Apply time-based non-uniform scale using sin/cos
+    float s = sin(time);
+    float c = cos(time);
+
+     positions[index].xyz = pos + vec3(s,c,0.0);
+}

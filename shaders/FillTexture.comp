@@ -1,0 +1,42 @@
+#version 450
+
+struct Vertex 
+{
+    vec3 position;
+    float _pad1;
+    vec3 normal;
+    float _pad2;
+    vec2 texCoord;
+    float _pad3[2];
+};
+
+
+layout(set = 1, binding = 0) buffer VertexBuffer 
+{
+    Vertex vertices[];
+};
+layout(set = 2, binding = 0) uniform UBO 
+{
+    float time;
+};
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+void main() 
+{
+    uint index = gl_GlobalInvocationID.x;
+
+    // Get the vertex position
+    vec3 pos = vertices[index].position;
+
+    // Apply time-based non-uniform scale using sin/cos
+    float s = sin(time);
+    float c = cos(time);
+    mat3 scaleMatrix = mat3(
+        s, 0.0, 0.0,
+        0.0, c, 0.0,
+        0.0, 0.0, (s + c) * 0.5
+    );
+
+    vertices[index].position = pos + c * 0.01f;
+}
