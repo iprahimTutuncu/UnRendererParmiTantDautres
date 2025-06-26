@@ -39,8 +39,6 @@ Bien que ces principes soient à la base orientés objet, ils sont également ap
 #### Architecture avant
 
 ```plantuml
-@startuml architecture_v1
-
 skinparam backgroundColor white
 
 set separator ::
@@ -429,15 +427,11 @@ Olaf::system::window.h ..> std::vector
 Olaf::system::window.cpp ..|> Olaf::system::window.h
 Olaf::system::window.cpp ..> Olaf::platform::system::window_sdl3.h
 Olaf::system::window.cpp ..> Olaf::system::log.h
-
-
-@enduml
 ```
 
 #### Architecture proposé
 
 ```plantuml
-@startuml architecture.v2
 skinparam backgroundColor white
 set separator ::
 
@@ -499,13 +493,11 @@ controls <- main.cpp
 controls -right-> imgui.h
 controls -right-> ImGuiSDLGPU.h
 
-@enduml
 ```
 
 Apres avoir retravailler un peu les concept, voici comment la vie de l'application va se dérouler:
 
 ```plantuml
-@startuml sequence_diagram
 
 == Initialisation ==
 
@@ -570,7 +562,6 @@ main -> AppState : delete state
 destroy AppState
 sdl <<-- main -- : SDL_DestroyWindow(), SDL_DestroyGPUDevice()
 
-@enduml
 ```
 
 Chaque sous modules sont maintenant responsable de leur propre état tout en gardant tout disponnible pour chaque module. ça permet de faire des snapshot de l'état de l'application à tout moment et de reproduire des images pour effectuer des tests.
