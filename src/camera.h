@@ -11,7 +11,7 @@ struct CameraPerspective {
     float fov;
     float near;
     float far;
-    bool locked; // Lock camera movement when true
+    bool locked = false; // Lock camera movement when true
 
     inline constexpr vec3 right() const {
         return vec3 {
