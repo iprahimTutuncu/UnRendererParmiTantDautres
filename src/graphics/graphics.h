@@ -81,9 +81,9 @@ struct Rect {
     float halfHeight;
 };
 
-struct alignas(16) Particle {
-    float position[4];
-    float color[4];
+struct Particle {
+    alignas(16) float position[4];
+    alignas(16) float color[4];
 };
 
 struct Vertex {
