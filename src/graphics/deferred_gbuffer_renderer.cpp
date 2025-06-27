@@ -160,7 +160,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         graphics.geometryBufferUniform.view = state.camera->view_matrix();
         graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
         SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(graphics.geometryBufferUniform));
-        SDL_DrawGPUIndexedPrimitives(pass, 36, 1, 0, 0, 0);
+        SDL_DrawGPUIndexedPrimitives(pass, graphics.numBoxIndices, 1, 0, 0, 0);
     }
 
     SDL_GPUGraphicsPipeline* particlePipeline = graphics.rasterMode == RasterMode_Fill
