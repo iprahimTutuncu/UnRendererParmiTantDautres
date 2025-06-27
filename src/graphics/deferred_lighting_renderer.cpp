@@ -38,13 +38,15 @@ SDL_AppResult deferred_lighting_init(AppState& state) {
     pipelineInfo.vertex_input_state = vertexInputState;
     pipelineInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
 
-    gfx.graphicPipeline[GeometryBufferFillPipeline] = SDL_CreateGPUGraphicsPipeline(device, &pipelineInfo);
+    gfx.graphicPipeline[DeferredLightingPipeline] = SDL_CreateGPUGraphicsPipeline(device, &pipelineInfo);
 
-    if (!gfx.graphicPipeline[GeometryBufferFillPipeline])
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create deferred lighting final pipeline!");
+    if (!gfx.graphicPipeline[DeferredLightingPipeline])
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create DeferredLightingPipeline!");
 
     pipelineInfo.fragment_shader = fsDebug;
-    gfx.graphicPipeline[GeometryBufferLinePipeline] = SDL_CreateGPUGraphicsPipeline(device, &pipelineInfo);
+    gfx.graphicPipeline[DeferredDebugPipeline] = SDL_CreateGPUGraphicsPipeline(device, &pipelineInfo);
+    if (!gfx.graphicPipeline[DeferredDebugPipeline])
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create DeferredDebugPipeline!");
 
     SDL_ReleaseGPUShader(device, vs);
     SDL_ReleaseGPUShader(device, fsFinal);
@@ -66,7 +68,7 @@ void deferred_lighting_render_to_texture(
     }
 
 
-    SDL_GPUGraphicsPipeline* pipeline = (mode == DisplayMode::Final) ? gfx.graphicPipeline[GeometryBufferFillPipeline] : gfx.graphicPipeline[GeometryBufferLinePipeline];
+    SDL_GPUGraphicsPipeline* pipeline = (mode == DisplayMode::Final) ? gfx.graphicPipeline[DeferredLightingPipeline] : gfx.graphicPipeline[DeferredLightingPipeline];
 
     SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
 

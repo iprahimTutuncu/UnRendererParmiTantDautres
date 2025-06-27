@@ -117,7 +117,7 @@ foreach(SHADER ${SHADERS})
 
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
-        COMMAND ${GLSLANG_EXE} -V --target-env vulkan1.3 ${SHADER} -o ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
+        COMMAND ${GLSLANG_EXE} -V --target-env vulkan1.0 ${SHADER} -o ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
         DEPENDS ${SHADER}
         COMMENT "Compiling ${SRC} to SPIR-V"
         VERBATIM

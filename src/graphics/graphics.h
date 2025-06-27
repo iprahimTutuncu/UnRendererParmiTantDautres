@@ -18,6 +18,8 @@ enum GraphicPipelineIndex {
     GeometryBufferLinePipeline,
     GeometryBufferParticleFillPipeline,
     GeometryBufferParticleLinePipeline,
+    DeferredLightingPipeline,
+    DeferredDebugPipeline,
     NumGraphicPipelines // must be last
 };
 

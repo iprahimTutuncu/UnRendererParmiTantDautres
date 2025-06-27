@@ -24,7 +24,7 @@ void imgui_init(AppState& state) {
     ImGui_ImplSDLGPU3_Init(&init_info);
 }
 
-void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* cmdbuf) {
+void imgui_iterate(AppState& state) {
     // Start the Dear ImGui frame
     ImGui_ImplSDLGPU3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
@@ -40,10 +40,6 @@ void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUComman
 
     ImGui::End();
     ImGui::Render();
-
-    ImDrawData* draw_data = ImGui::GetDrawData();
-    Imgui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
-    ImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, renderPass);
 }
 
 void imgui_event(AppState& state, SDL_Event& event) {

@@ -10,6 +10,7 @@
 #include <SDL3/SDL_log.h>
 
 #include <stddef.h>
+#include <imgui_impl_sdlgpu3.h>
 
 SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
@@ -22,7 +23,7 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     if (!SDL_GetWindowSize(state.window, &w, &h))
         return SDL_APP_FAILURE;
 
-    createRenderTarget(state, GeometryPosition, w, h, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    createRenderTarget(state, GeometryPosition, w, h, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
     createRenderTarget(state, GeometryNormal, w, h, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
     createRenderTarget(state, GeometryAlbedo, w, h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
     createRenderTarget(state, GeometryDepth, w, h, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
@@ -93,6 +94,10 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
     deferred_gbuffer_render(state, cmdbuf);
 
+    imgui_iterate(state);
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    Imgui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
+
     SDL_GPUColorTargetInfo colorTarget = {};
     colorTarget.texture = swapchainTexture;
     colorTarget.clear_color = SDL_FColor { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -102,9 +107,10 @@ SDL_AppResult graphics_iterate(AppState& state) {
     SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTarget, 1, nullptr);
 
     deferred_lighting_render_to_texture(state, renderPass, cmdbuf, DisplayMode::Normal);
-    imgui_iterate(state, renderPass, cmdbuf);
+    ImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, renderPass);
 
     SDL_EndGPURenderPass(renderPass);
+
 
     SDL_SubmitGPUCommandBuffer(cmdbuf);
 

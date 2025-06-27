@@ -276,14 +276,10 @@ void deferred_gbuffer_create_particles_pipeline(AppState& state) {
     depthStencilState.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
     depthStencilState.write_mask = 0xFF;
 
-    SDL_GPUTextureFormat swapchainFormat = SDL_GetGPUSwapchainTextureFormat(
-        device,
-        state.window);
-
     SDL_GPUColorTargetDescription colorTargets[3] {};
     colorTargets[0].format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT;
     colorTargets[1].format = SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT;
-    colorTargets[2].format = swapchainFormat; // Albedo
+    colorTargets[2].format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
 
     SDL_GPUGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.target_info.num_color_targets = 3;
