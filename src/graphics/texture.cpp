@@ -101,7 +101,7 @@ SDL_AppResult createRenderTarget(AppState& state, TextureIndex index, int width,
 
     SDL_GPUTexture* texture = SDL_CreateGPUTexture(state.device, &createInfo);
     if (!texture) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create render target:", SDL_GetError());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create render target: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
@@ -109,9 +109,9 @@ SDL_AppResult createRenderTarget(AppState& state, TextureIndex index, int width,
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult createSolidColorTextureRGBA8(AppState& state, TextureIndex index, int width, int height, const float r, const float g, const float b, const float a) {
+SDL_AppResult createSolidColorTextureRGBA8(AppState& state, TextureIndex index, std::uint32_t width, std::uint32_t height, const float r, const float g, const float b, const float a) {
 
-    const size_t pixelCount = width * height;
+    const std::uint32_t pixelCount = width * height;
     std::vector<uint8_t> pixelData(pixelCount * 4); // 4 bytes per pixel (RGBA8)
 
     const uint8_t r8 = static_cast<uint8_t>(r * 255.f);
@@ -145,7 +145,7 @@ SDL_AppResult createSolidColorTextureRGBA8(AppState& state, TextureIndex index, 
     // Create and fill transfer buffer
     SDL_GPUTransferBufferCreateInfo transferInfo = {};
     transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transferInfo.size = (int) pixelData.size();
+    transferInfo.size = static_cast<std::uint32_t>(pixelData.size());
 
     SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(state.device, &transferInfo);
     if (!transferBuffer) {
@@ -163,7 +163,7 @@ SDL_AppResult createSolidColorTextureRGBA8(AppState& state, TextureIndex index, 
         return SDL_APP_FAILURE;
     }
 
-    memcpy(transferData, pixelData.data(), pixelData.size());
+    SDL_memcpy(transferData, pixelData.data(), pixelData.size());
     SDL_UnmapGPUTransferBuffer(state.device, transferBuffer);
 
     // Upload to GPU texture

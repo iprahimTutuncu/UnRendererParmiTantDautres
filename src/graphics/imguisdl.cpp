@@ -1,7 +1,6 @@
 #include "imguisdl.h"
 
 #include "../camera.h"
-#include "graphics.h"
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>

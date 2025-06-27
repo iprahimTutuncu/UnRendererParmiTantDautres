@@ -16,7 +16,7 @@ SDL_GPUShader* loadShader(
     std::uint32_t storageBufferCount,
     std::uint32_t storageTextureCount);
 
-SDL_GPUComputePipeline* CreateComputePipelineFromShader(
+SDL_GPUComputePipeline* createComputePipelineFromShader(
     SDL_GPUDevice* device,
     const char* shaderPath,
     SDL_GPUComputePipelineCreateInfo* createInfo);
