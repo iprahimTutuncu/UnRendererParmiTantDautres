@@ -455,7 +455,7 @@ void deferred_gbuffer_create_box_geometry(AppState& state) {
         12, 13, 14,
         14, 15, 12,
 
-        // Top
+        // Top face
         16, 17, 18,
         18, 19, 16,
 
