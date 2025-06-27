@@ -70,8 +70,8 @@ enum RasterMode {
 };
 
 struct Box {
-    float min[3];
-    float max[3];
+    alignas(16) float min[3];
+    alignas(16) float max[3];
 };
 
 struct Rect {
@@ -82,19 +82,14 @@ struct Rect {
 };
 
 struct Particle {
-    float position[4];
-    float color[4];
+    alignas(16) float position[4];
+    alignas(16) float color[4];
 };
 
 struct Vertex {
-    float position[3];
-    float _pad1;
-
-    float normal[3];
-    float _pad2;
-
-    float texCoord[2];
-    float _pad3[2];
+    alignas(16) float position[3];
+    alignas(16) float normal[3];
+    alignas(16) float texCoord[2];
 };
 
 struct SDL_GPUGraphicsPipeline;
@@ -105,8 +100,7 @@ struct SDL_GPUSampler;
 
 // c'est le uniform buffer pour le compute
 
-struct ParticleUpdateUniform
-{
+struct ParticleUpdateUniform {
     float time;
 };
 
@@ -116,8 +110,7 @@ struct GeometryBufferUniform {
     mat4 proj;
 };
 
-struct GraphicState
-{
+struct GraphicState {
     SDL_GPUGraphicsPipeline* graphicPipeline[NumGraphicPipelines];
     SDL_GPUComputePipeline* computePipeline[NumComputePipelines];
     SDL_GPUBuffer* buffers[NumBuffers];
@@ -125,11 +118,11 @@ struct GraphicState
     SDL_GPUSampler* samplersPreset[NumSamplers];
     DisplayMode displayMode;
     RasterMode rasterMode;
-    int numSphereIndices { 0 };
-    int particleCount { 100 };
+    std::uint32_t numSphereIndices;
+    std::uint32_t numBoxIndices;
 
-    ParticleUpdateUniform particleUniformBuffer {};
-    GeometryBufferUniform geometryBufferUniform {};
+    ParticleUpdateUniform particleUniformBuffer;
+    GeometryBufferUniform geometryBufferUniform;
 
     std::vector<Box> boxes;
     std::vector<Particle> particles;

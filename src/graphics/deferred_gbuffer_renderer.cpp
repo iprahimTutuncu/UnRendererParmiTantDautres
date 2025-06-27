@@ -1,18 +1,20 @@
-﻿#include "deferred_gbuffer_renderer.h"
+#include "deferred_gbuffer_renderer.h"
 
-#include "shaders.h"
-#include "graphics.h"
 #include "../camera.h"
+#include "graphics.h"
+#include "shaders.h"
 #include "texture.h"
 
 #include <SDL3/SDL_log.h>
+
+#include <stddef.h>
 
 SDL_AppResult deferred_gbuffer_init(AppState& state) {
     deferred_gbuffer_create_pipelines(state);
     deferred_gbuffer_create_box_geometry(state);
     deferred_gbuffer_create_sphere_geometry(state);
 
-    if (createSolidColorTextureRGBA8(state, DefaultWhite, 32, 32, 1.f, 1.f, 1.f, 1.f) == SDL_APP_FAILURE){
+    if (createSolidColorTextureRGBA8(state, DefaultWhite, 32, 32, 1.f, 1.f, 1.f, 1.f) == SDL_APP_FAILURE) [[unlikely]] {
         return SDL_APP_FAILURE;
     }
 
@@ -28,26 +30,22 @@ void deferred_gbuffer_update_particles(AppState& state) {
         positions.push_back(p.position);
     }
 
-    state.graphics->particleCount = (int) positions.size();
-
     if (!state.graphics->buffers[ParticlePositionBuffer]) {
         SDL_GPUBufferCreateInfo bufferInfo;
-        bufferInfo.usage = SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE |
-                           SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ |
-                           SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ;
-        bufferInfo.size = state.graphics->particleCount * sizeof(float) * 4;
+        bufferInfo.usage = SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ;
+        bufferInfo.size = static_cast<std::uint32_t>(state.graphics->particles.size() * sizeof(Particle::position));
         state.graphics->buffers[ParticlePositionBuffer] = SDL_CreateGPUBuffer(state.device, &bufferInfo);
     }
 
     // Create transfer buffer
     SDL_GPUTransferBufferCreateInfo transferInfo = {};
     transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transferInfo.size = state.graphics->particleCount * sizeof(float) * 4;
+    transferInfo.size = static_cast<std::uint32_t>(state.graphics->particles.size() * sizeof(Particle::color));
     SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(state.device, &transferInfo);
 
     // Map and fill transfer buffer
-    float* mapped = static_cast<float*>(SDL_MapGPUTransferBuffer(state.device, transferBuffer, false));
-    std::memcpy(mapped, positions.data(), transferInfo.size);
+    void* mapped = SDL_MapGPUTransferBuffer(state.device, transferBuffer, false);
+    SDL_memcpy(mapped, positions.data(), transferInfo.size);
     SDL_UnmapGPUTransferBuffer(state.device, transferBuffer);
 
     // Upload to GPU buffer
@@ -63,33 +61,33 @@ void deferred_gbuffer_update_particles(AppState& state) {
 }
 
 void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
-    GraphicState* graphics = state.graphics;
+    GraphicState& graphics = *state.graphics;
 
-    if (!graphics->textures[GeometryPosition] || !graphics->textures[GeometryNormal] || !graphics->textures[GeometryAlbedo] || !graphics->textures[GeometryDepth]) {
+    if (!graphics.textures[GeometryPosition] || !graphics.textures[GeometryNormal] || !graphics.textures[GeometryAlbedo] || !graphics.textures[GeometryDepth]) [[unlikely]] {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GBuffer textures not set!");
         return;
     }
 
-    state.graphics->particleUniformBuffer.time += 0.01f;
+    graphics.particleUniformBuffer.time += 0.01f;
 
     SDL_GPUStorageBufferReadWriteBinding bufferBindings {};
-    bufferBindings.buffer = state.graphics->buffers[ParticlePositionBuffer];
+    bufferBindings.buffer = graphics.buffers[ParticlePositionBuffer];
 
     SDL_GPUCommandBuffer* cmdBufcomp = SDL_AcquireGPUCommandBuffer(state.device);
 
     // BEGIN
     SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
-    SDL_BindGPUComputePipeline(computePass, state.graphics->computePipeline[ParticleUpdate]);
+    SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleUpdate]);
 
-    SDL_PushGPUComputeUniformData(cmdBufcomp, 0, &state.graphics->particleUniformBuffer, sizeof(ParticleUpdateUniform));
-    Uint32 groupCount = (state.graphics->particleCount + 63) / 64;
+    SDL_PushGPUComputeUniformData(cmdBufcomp, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
+    Uint32 groupCount = static_cast<std::uint32_t>((graphics.particles.size() + 63) / 64);
     SDL_DispatchGPUCompute(computePass, groupCount, 1, 1);
     SDL_EndGPUComputePass(computePass);
     SDL_SubmitGPUCommandBuffer(cmdBufcomp);
     // END
 
-    SDL_GPUDepthStencilTargetInfo depthTarget = {};
-    depthTarget.texture = state.graphics->textures[GeometryDepth];
+    SDL_GPUDepthStencilTargetInfo depthTarget {};
+    depthTarget.texture = graphics.textures[GeometryDepth];
     depthTarget.cycle = true;
     depthTarget.clear_depth = 1;
     depthTarget.clear_stencil = 0;
@@ -100,9 +98,9 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
 
     // Set up render targets
     SDL_GPUColorTargetInfo colorTargets[3] = {};
-    colorTargets[0].texture = state.graphics->textures[GeometryPosition];
-    colorTargets[1].texture = state.graphics->textures[GeometryNormal];
-    colorTargets[2].texture = state.graphics->textures[GeometryAlbedo];
+    colorTargets[0].texture = graphics.textures[GeometryPosition];
+    colorTargets[1].texture = graphics.textures[GeometryNormal];
+    colorTargets[2].texture = graphics.textures[GeometryAlbedo];
 
     for (auto& target : colorTargets) {
         target.load_op = SDL_GPU_LOADOP_CLEAR;
@@ -113,34 +111,33 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     // Begin geometry pass
     SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(cmdBuf, colorTargets, 3, &depthTarget);
 
-    SDL_GPUGraphicsPipeline* boxPipeline = state.graphics->rasterMode == RasterMode_Fill
-        ? state.graphics->graphicPipeline[GeometryBufferFillPipeline]
-        : state.graphics->graphicPipeline[GeometryBufferLinePipeline];
+    SDL_GPUGraphicsPipeline* boxPipeline = graphics.rasterMode == RasterMode_Fill
+        ? graphics.graphicPipeline[GeometryBufferFillPipeline]
+        : graphics.graphicPipeline[GeometryBufferLinePipeline];
 
     SDL_BindGPUGraphicsPipeline(pass, boxPipeline);
 
     // Bind box geometry
     SDL_GPUBufferBinding vertexBinding {};
-    vertexBinding.buffer = state.graphics->buffers[BoxVertexBuffer];
+    vertexBinding.buffer = graphics.buffers[BoxVertexBuffer];
     vertexBinding.offset = 0;
 
     SDL_GPUBufferBinding indexBinding {};
-    indexBinding.buffer = state.graphics->buffers[BoxIndexBuffer];
+    indexBinding.buffer = graphics.buffers[BoxIndexBuffer];
     indexBinding.offset = 0;
-
 
     // Bind default texture
     SDL_GPUTextureSamplerBinding samplerBinding {};
-    samplerBinding.texture = state.graphics->textures[DefaultWhite];
-    samplerBinding.sampler = state.graphics->samplersPreset[LinearClamp];
+    samplerBinding.texture = graphics.textures[DefaultWhite];
+    samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
 
     SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
 
     SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
     SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
-   
+
     // Render each box
-    for (Box& box : state.graphics->boxes) {
+    for (Box& box : graphics.boxes) {
         vec3 min = { box.min[0], box.min[1], box.min[2] };
         vec3 max = { box.max[0], box.max[1], box.max[2] };
 
@@ -159,23 +156,23 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         model[1].y *= size.y * 0.5f;
         model[2].z *= size.z * 0.5f;
 
-        state.graphics->geometryBufferUniform.model = model;
-        state.graphics->geometryBufferUniform.view = state.camera->view_matrix();
-        state.graphics->geometryBufferUniform.proj = state.camera->projection_matrix();
-        SDL_PushGPUVertexUniformData(cmdBuf, 0, &state.graphics->geometryBufferUniform, sizeof(GeometryBufferUniform));
-        SDL_DrawGPUIndexedPrimitives(pass, 36, 1, 0, 0, 0);
+        graphics.geometryBufferUniform.model = model;
+        graphics.geometryBufferUniform.view = state.camera->view_matrix();
+        graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
+        SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(graphics.geometryBufferUniform));
+        SDL_DrawGPUIndexedPrimitives(pass, graphics.numBoxIndices, 1, 0, 0, 0);
     }
 
-    SDL_GPUGraphicsPipeline* particlePipeline = state.graphics->rasterMode == RasterMode_Fill
-        ? state.graphics->graphicPipeline[GeometryBufferParticleFillPipeline]
-        : state.graphics->graphicPipeline[GeometryBufferParticleLinePipeline];
+    SDL_GPUGraphicsPipeline* particlePipeline = graphics.rasterMode == RasterMode_Fill
+        ? graphics.graphicPipeline[GeometryBufferParticleFillPipeline]
+        : graphics.graphicPipeline[GeometryBufferParticleLinePipeline];
 
     SDL_BindGPUGraphicsPipeline(pass, particlePipeline);
 
-    vertexBinding.buffer = state.graphics->buffers[SphereVertexBuffer];
+    vertexBinding.buffer = graphics.buffers[SphereVertexBuffer];
     vertexBinding.offset = 0;
 
-    indexBinding.buffer = state.graphics->buffers[SphereIndexBuffer];
+    indexBinding.buffer = graphics.buffers[SphereIndexBuffer];
     indexBinding.offset = 0;
 
     SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
@@ -183,20 +180,21 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
     SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
-    SDL_BindGPUVertexStorageBuffers(pass, 0, &state.graphics->buffers[ParticlePositionBuffer], 1);
+    SDL_BindGPUVertexStorageBuffers(pass, 0, &graphics.buffers[ParticlePositionBuffer], 1);
 
-    mat4 model = mat4::identity();
-    model[0].x *= 0.25f;
-    model[1].y *= 0.25f;
-    model[2].z *= 0.25f;
+    mat4 model {};
+    model[0].x = 0.25f;
+    model[1].y = 0.25f;
+    model[2].z = 0.25f;
+    model[3].z = 1.f;
 
-    state.graphics->geometryBufferUniform.model = model;
-    state.camera->position = vec3(0.0, 0.0, 15);
+    graphics.geometryBufferUniform.model = model;
+    state.camera->position = vec3 { 0.f, 0.f, 15.f };
 
-    state.graphics->geometryBufferUniform.view = state.camera->view_matrix();
-    state.graphics->geometryBufferUniform.proj = state.camera->projection_matrix();
-    SDL_PushGPUVertexUniformData(cmdBuf, 0, &state.graphics->geometryBufferUniform, sizeof(GeometryBufferUniform));
-    SDL_DrawGPUIndexedPrimitives(pass, state.graphics->numSphereIndices, state.graphics->particleCount, 0, 0, 0);
+    graphics.geometryBufferUniform.view = state.camera->view_matrix();
+    graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
+    SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
+    SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
 
     SDL_EndGPURenderPass(pass);
 }
@@ -219,7 +217,7 @@ void deferred_gbuffer_create_pipelines(AppState& state) {
     pipelineInfo.threadcount_y = 1;
     pipelineInfo.threadcount_z = 1;
 
-    state.graphics->computePipeline[ParticleUpdate] = CreateComputePipelineFromShader(state.device, SHADER_PATH("particleUpdate.comp"), &pipelineInfo);
+    state.graphics->computePipeline[ParticleUpdate] = createComputePipelineFromShader(state.device, SHADER_PATH("particleUpdate.comp"), &pipelineInfo);
 }
 
 void deferred_gbuffer_create_particles_pipeline(AppState& state) {
@@ -247,23 +245,23 @@ void deferred_gbuffer_create_particles_pipeline(AppState& state) {
 
     SDL_GPUVertexAttribute vertexAttributes[3] = {};
 
-    // position:vec3 � la location 0
+    // position:vec3 ? la location 0
     vertexAttributes[0].buffer_slot = 0;
     vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
     vertexAttributes[0].location = 0;
-    vertexAttributes[0].offset = 0;
+    vertexAttributes[0].offset = offsetof(Vertex, position);
 
-    // normal:vec3 � la  location 1
+    // normal:vec3 ? la  location 1
     vertexAttributes[1].buffer_slot = 0;
     vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
     vertexAttributes[1].location = 1;
-    vertexAttributes[1].offset = sizeof(float) * 4; // 16 bytes
+    vertexAttributes[1].offset = offsetof(Vertex, normal);
 
-    // texCoord:vec2 � la  location 2
+    // texCoord:vec2 ? la  location 2
     vertexAttributes[2].buffer_slot = 0;
     vertexAttributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
     vertexAttributes[2].location = 2;
-    vertexAttributes[2].offset = sizeof(float) * 8; // 32 bytes
+    vertexAttributes[2].offset = offsetof(Vertex, texCoord);
 
     SDL_GPUVertexInputState vertexInputState = {};
     vertexInputState.num_vertex_buffers = 1;
@@ -282,11 +280,10 @@ void deferred_gbuffer_create_particles_pipeline(AppState& state) {
         device,
         state.window);
 
-    SDL_GPUColorTargetDescription colorTargets[3] = {
-        { .format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT },
-        { .format = SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT },
-        { .format = swapchainFormat } // Albedo
-    };
+    SDL_GPUColorTargetDescription colorTargets[3] {};
+    colorTargets[0].format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT;
+    colorTargets[1].format = SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT;
+    colorTargets[2].format = swapchainFormat; // Albedo
 
     SDL_GPUGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.target_info.num_color_targets = 3;
@@ -320,7 +317,6 @@ void deferred_gbuffer_create_particles_pipeline(AppState& state) {
     SDL_ReleaseGPUShader(device, fragmentShader);
 }
 
-
 void deferred_gbuffer_create_mesh_pipeline(AppState& state) {
     // Load shaders
     auto vertexShader = loadShader(state.device, SHADER_PATH("deferred_gBuffer.vert"), 0, 1, 0, 0);
@@ -335,19 +331,19 @@ void deferred_gbuffer_create_mesh_pipeline(AppState& state) {
 
     SDL_GPUVertexAttribute vertexAttributes[3] = {};
 
-    // position:vec3 � la location 0
+    // position:vec3 ? la location 0
     vertexAttributes[0].buffer_slot = 0;
     vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
     vertexAttributes[0].location = 0;
     vertexAttributes[0].offset = 0;
 
-    // normal:vec3 � la  location 1
+    // normal:vec3 ? la  location 1
     vertexAttributes[1].buffer_slot = 0;
     vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
     vertexAttributes[1].location = 1;
     vertexAttributes[1].offset = sizeof(float) * 4; // 16 bytes
 
-    // texCoord:vec2 � la  location 2
+    // texCoord:vec2 ? la  location 2
     vertexAttributes[2].buffer_slot = 0;
     vertexAttributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
     vertexAttributes[2].location = 2;
@@ -385,7 +381,6 @@ void deferred_gbuffer_create_mesh_pipeline(AppState& state) {
     pipelineInfo.depth_stencil_state = depthStencilState;
     pipelineInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
 
-
     state.graphics->graphicPipeline[GeometryBufferFillPipeline] = SDL_CreateGPUGraphicsPipeline(state.device, &pipelineInfo);
 
     if (!state.graphics->graphicPipeline[GeometryBufferFillPipeline]) {
@@ -407,40 +402,40 @@ void deferred_gbuffer_create_box_geometry(AppState& state) {
     // Cube vertices (same as original)
     Vertex vertices[] = {
         // Front face (normal: 0,0,1)
-        { { -1, -1, 1 }, 0, { 0, 0, 1 }, 0, { 0, 0 }, { 0, 0 } },
-        { { 1, -1, 1 }, 0, { 0, 0, 1 }, 0, { 1, 0 }, { 0, 0 } },
-        { { 1, 1, 1 }, 0, { 0, 0, 1 }, 0, { 1, 1 }, { 0, 0 } },
-        { { -1, 1, 1 }, 0, { 0, 0, 1 }, 0, { 0, 1 }, { 0, 0 } },
+        { { -1, -1, 1 }, { 0, 0, 1 }, { 0, 0 } },
+        { { 1, -1, 1 }, { 0, 0, 1 }, { 1, 0 } },
+        { { 1, 1, 1 }, { 0, 0, 1 }, { 1, 1 } },
+        { { -1, 1, 1 }, { 0, 0, 1 }, { 0, 1 } },
 
         // Back face (normal: 0,0,-1)
-        { { 1, -1, -1 }, 0, { 0, 0, -1 }, 0, { 0, 0 }, { 0, 0 } },
-        { { -1, -1, -1 }, 0, { 0, 0, -1 }, 0, { 1, 0 }, { 0, 0 } },
-        { { -1, 1, -1 }, 0, { 0, 0, -1 }, 0, { 1, 1 }, { 0, 0 } },
-        { { 1, 1, -1 }, 0, { 0, 0, -1 }, 0, { 0, 1 }, { 0, 0 } },
+        { { 1, -1, -1 }, { 0, 0, -1 }, { 0, 0 } },
+        { { -1, -1, -1 }, { 0, 0, -1 }, { 1, 0 } },
+        { { -1, 1, -1 }, { 0, 0, -1 }, { 1, 1 } },
+        { { 1, 1, -1 }, { 0, 0, -1 }, { 0, 1 } },
 
         // Left face (normal: -1,0,0)
-        { { -1, -1, -1 }, 0, { -1, 0, 0 }, 0, { 0, 0 }, { 0, 0 } },
-        { { -1, -1, 1 }, 0, { -1, 0, 0 }, 0, { 1, 0 }, { 0, 0 } },
-        { { -1, 1, 1 }, 0, { -1, 0, 0 }, 0, { 1, 1 }, { 0, 0 } },
-        { { -1, 1, -1 }, 0, { -1, 0, 0 }, 0, { 0, 1 }, { 0, 0 } },
+        { { -1, -1, -1 }, { -1, 0, 0 }, { 0, 0 } },
+        { { -1, -1, 1 }, { -1, 0, 0 }, { 1, 0 } },
+        { { -1, 1, 1 }, { -1, 0, 0 }, { 1, 1 } },
+        { { -1, 1, -1 }, { -1, 0, 0 }, { 0, 1 } },
 
         // Right face (normal: 1,0,0)
-        { { 1, -1, 1 }, 0, { 1, 0, 0 }, 0, { 0, 0 }, { 0, 0 } },
-        { { 1, -1, -1 }, 0, { 1, 0, 0 }, 0, { 1, 0 }, { 0, 0 } },
-        { { 1, 1, -1 }, 0, { 1, 0, 0 }, 0, { 1, 1 }, { 0, 0 } },
-        { { 1, 1, 1 }, 0, { 1, 0, 0 }, 0, { 0, 1 }, { 0, 0 } },
+        { { 1, -1, 1 }, { 1, 0, 0 }, { 0, 0 } },
+        { { 1, -1, -1 }, { 1, 0, 0 }, { 1, 0 } },
+        { { 1, 1, -1 }, { 1, 0, 0 }, { 1, 1 } },
+        { { 1, 1, 1 }, { 1, 0, 0 }, { 0, 1 } },
 
         // Top face (normal: 0,1,0)
-        { { -1, 1, 1 }, 0, { 0, 1, 0 }, 0, { 0, 0 }, { 0, 0 } },
-        { { 1, 1, 1 }, 0, { 0, 1, 0 }, 0, { 1, 0 }, { 0, 0 } },
-        { { 1, 1, -1 }, 0, { 0, 1, 0 }, 0, { 1, 1 }, { 0, 0 } },
-        { { -1, 1, -1 }, 0, { 0, 1, 0 }, 0, { 0, 1 }, { 0, 0 } },
+        { { -1, 1, 1 }, { 0, 1, 0 }, { 0, 0 } },
+        { { 1, 1, 1 }, { 0, 1, 0 }, { 1, 0 } },
+        { { 1, 1, -1 }, { 0, 1, 0 }, { 1, 1 } },
+        { { -1, 1, -1 }, { 0, 1, 0 }, { 0, 1 } },
 
         // Bottom face (normal: 0,-1,0)
-        { { -1, -1, -1 }, 0, { 0, -1, 0 }, 0, { 0, 0 }, { 0, 0 } },
-        { { 1, -1, -1 }, 0, { 0, -1, 0 }, 0, { 1, 0 }, { 0, 0 } },
-        { { 1, -1, 1 }, 0, { 0, -1, 0 }, 0, { 1, 1 }, { 0, 0 } },
-        { { -1, -1, 1 }, 0, { 0, -1, 0 }, 0, { 0, 1 }, { 0, 0 } },
+        { { -1, -1, -1 }, { 0, -1, 0 }, { 0, 0 } },
+        { { 1, -1, -1 }, { 0, -1, 0 }, { 1, 0 } },
+        { { 1, -1, 1 }, { 0, -1, 0 }, { 1, 1 } },
+        { { -1, -1, 1 }, { 0, -1, 0 }, { 0, 1 } },
     };
 
     uint16_t indices[] = {
@@ -469,29 +464,31 @@ void deferred_gbuffer_create_box_geometry(AppState& state) {
         22, 23, 20
     };
 
+    state.graphics->numBoxIndices = sizeof(indices) / sizeof(indices[0]);
+
     // Create GPU buffers
     SDL_GPUBufferCreateInfo vertexBufferInfo = {};
     vertexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE;
-    vertexBufferInfo.size = sizeof(Vertex) * 24;
+    vertexBufferInfo.size = sizeof(vertices);
     state.graphics->buffers[BoxVertexBuffer] = SDL_CreateGPUBuffer(state.device, &vertexBufferInfo);
 
     SDL_GPUBufferCreateInfo indexBufferInfo = {};
     indexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_INDEX | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE;
-    indexBufferInfo.size = sizeof(uint16_t) * 36;
+    indexBufferInfo.size = sizeof(indices);
     state.graphics->buffers[BoxIndexBuffer] = SDL_CreateGPUBuffer(state.device, &indexBufferInfo);
 
     // Create transfer buffer
     SDL_GPUTransferBufferCreateInfo transferInfo = {};
     transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transferInfo.size = vertexBufferInfo.size + indexBufferInfo.size;
+    transferInfo.size = sizeof(vertices) + sizeof(indices);
     SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(state.device, &transferInfo);
 
     // Map and fill transfer buffer
     Vertex* data = static_cast<Vertex*>(SDL_MapGPUTransferBuffer(state.device, transferBuffer, false));
 
     // Copy data
-    memcpy(data, vertices, sizeof(vertices));
-    memcpy(data + 24, indices, sizeof(indices));
+    SDL_memcpy(data, vertices, sizeof(vertices));
+    SDL_memcpy(data + sizeof(vertices) / sizeof(vertices[0]), indices, sizeof(indices));
     SDL_UnmapGPUTransferBuffer(state.device, transferBuffer);
 
     // Upload to GPU
@@ -512,20 +509,20 @@ void deferred_gbuffer_create_box_geometry(AppState& state) {
 }
 
 void deferred_gbuffer_create_sphere_geometry(AppState& state) {
-    constexpr uint32_t kLatitudeBands = 32;
-    constexpr uint32_t kLongitudeBands = 64;
-    constexpr float pi = 3.141592653f;
+    static constexpr std::size_t kLatitudeBands = 32;
+    static constexpr std::size_t kLongitudeBands = 64;
+    static constexpr float pi = 3.14159265358979323846f;
 
     std::vector<Vertex> vertices;
     std::vector<uint16_t> indices;
 
-    for (uint32_t lat = 0; lat <= kLatitudeBands; ++lat) {
-        float theta = lat * pi / kLatitudeBands;
+    for (std::size_t lat = 0; lat <= kLatitudeBands; ++lat) {
+        float theta = static_cast<float>(lat) * pi / kLatitudeBands;
         float sinTheta = std::sin(theta);
         float cosTheta = std::cos(theta);
 
-        for (uint32_t lon = 0; lon <= kLongitudeBands; ++lon) {
-            float phi = lon * 2.f * pi / kLongitudeBands;
+        for (std::size_t lon = 0; lon <= kLongitudeBands; ++lon) {
+            float phi = static_cast<float>(lon) * (2.f * pi) / kLongitudeBands;
             float sinPhi = std::sin(phi);
             float cosPhi = std::cos(phi);
 
@@ -540,26 +537,22 @@ void deferred_gbuffer_create_sphere_geometry(AppState& state) {
             vertex.position[0] = x;
             vertex.position[1] = y;
             vertex.position[2] = z;
-            vertex._pad1 = 0.0f;
 
             vertex.normal[0] = x;
             vertex.normal[1] = y;
             vertex.normal[2] = z;
-            vertex._pad2 = 0.0f;
 
             vertex.texCoord[0] = u;
             vertex.texCoord[1] = v;
-            vertex._pad3[0] = 0.0f;
-            vertex._pad3[1] = 0.0f;
 
             vertices.push_back(vertex);
         }
     }
 
-    for (uint16_t lat = 0; lat < kLatitudeBands; ++lat) {
-        for (uint16_t lon = 0; lon < kLongitudeBands; ++lon) {
-            uint16_t first = lat * (kLongitudeBands + 1) + lon;
-            uint16_t second = first + kLongitudeBands + 1;
+    for (std::size_t lat = 0; lat < kLatitudeBands; ++lat) {
+        for (std::size_t lon = 0; lon < kLongitudeBands; ++lon) {
+            std::uint16_t first = static_cast<std::uint16_t>(lat * (kLongitudeBands + 1) + lon);
+            std::uint16_t second = static_cast<std::uint16_t>(first + kLongitudeBands + 1);
 
             indices.push_back(first);
             indices.push_back(second);
@@ -571,17 +564,17 @@ void deferred_gbuffer_create_sphere_geometry(AppState& state) {
         }
     }
 
-    state.graphics->numSphereIndices = (int) indices.size();
+    state.graphics->numSphereIndices = static_cast<std::uint32_t>(indices.size());
 
     // Upload to GPU
     SDL_GPUBufferCreateInfo vertexBufferInfo = {};
     vertexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE;
-    vertexBufferInfo.size = sizeof(Vertex) * (int) vertices.size();
+    vertexBufferInfo.size = static_cast<std::uint32_t>(sizeof(decltype(vertices)::value_type) * vertices.size());
     state.graphics->buffers[SphereVertexBuffer] = SDL_CreateGPUBuffer(state.device, &vertexBufferInfo);
 
     SDL_GPUBufferCreateInfo indexBufferInfo = {};
     indexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_INDEX | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE;
-    indexBufferInfo.size = sizeof(uint16_t) * (int) indices.size();
+    indexBufferInfo.size = static_cast<std::uint32_t>(sizeof(decltype(indices)::value_type) * indices.size());
     state.graphics->buffers[SphereIndexBuffer] = SDL_CreateGPUBuffer(state.device, &indexBufferInfo);
 
     // Transfer buffer

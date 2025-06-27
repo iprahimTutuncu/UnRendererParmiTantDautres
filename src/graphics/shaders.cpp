@@ -49,7 +49,7 @@ SDL_GPUShader* loadShader(
     return shader;
 }
 
-SDL_GPUComputePipeline* CreateComputePipelineFromShader(SDL_GPUDevice* device,
+SDL_GPUComputePipeline* createComputePipelineFromShader(SDL_GPUDevice* device,
     const char* shaderPath,
     SDL_GPUComputePipelineCreateInfo* createInfo) {
     SDL_GPUShaderFormat format = SDL_GPU_SHADERFORMAT_SPIRV;
