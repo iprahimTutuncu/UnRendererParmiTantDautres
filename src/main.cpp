@@ -87,16 +87,20 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     static const vec3 position { 30, 30, 30 };
     static const vec3 worldUp { 0.f, 1.f, 0.f };
+    static const vec3 target { 0.f, 0.f, 0.f };
     const vec3 front = normalize(position);
     const vec3 right = normalize(cross(worldUp, front));
     const vec3 up = cross(front, right);
     state.camera = new CameraPerspective {
         .rotation = quat_cast({ .cols { right, up, front } }),
         .position = position,
+        .target = target,
         .aspectRatio = static_cast<float>(width) / static_cast<float>(height),
+        .distanceFromTarget = 100.0f,
         .fov = radians(75.f),
         .near = 20.f,
         .far = 60.0f,
+        .locked = false,
     };
 
     SDL_AppResult result;
