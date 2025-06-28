@@ -100,6 +100,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         .fov = radians(75.f),
         .near = 20.f,
         .far = 60.0f,
+        .locked = false,
     };
 
     SDL_AppResult result;
