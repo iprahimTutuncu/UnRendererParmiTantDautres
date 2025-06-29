@@ -29,32 +29,30 @@ public:
     void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity);
     void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity);
     void create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, int nb_points, unsigned int* seed);
+
     struct {
-        double particle_spacing = 1.0;
+        double particle_spacing;
+        double grid_spacing;
+        vec3 grid_origin;
+        vec3 grid_size;
 
-        double grid_spacing = 0.070;
-        vec3 grid_origin = vec3(-2.5, -1.0, -2.5);
-        vec3 grid_size = vec3(5.0, 11.0, 5.0);
+        double critical_compression;    // theta_c
+        double critical_stretch;        // theta_s
+        double hardening_coefficient;   // xi
+        double initial_density;         // rho_0
+        double initial_youngs_modulus;  // E_0
+        double poisson_ratio;           // nu
+        vec3 gravity;                   // g
 
-        double critical_compression = 2.5E-2;     // theta_c
-        double critical_stretch = 7.5E-3;         // theta_s
-        double hardening_coefficient = 10.0;      // xi
-        double initial_density = 4.0E2;           // rho_0
-        double initial_youngs_modulus = 1.4E5;    // E_0
-        double poisson_ratio = 0.2;               // nu
-        vec3 gravity{0.0, -9.81, 0.0};          // g
+        double world_floor;
+        vec3 v_co;                      // collider velocity
+        vec3 n_co;                      // collider normal
+        double mu_surface;              // Coulomb friction coefficient
 
-        double world_floor = 0.0;
+        int max_iterations;
+        double tolerance;
+        double beta_integration;        // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
 
-        vec3 v_co = vec3::Zero(); // collider velocity
-        vec3 n_co = vec3(0.0, 1.0, 0.0); // collider normal
-        double mu_surface = 0.5; // Coulomb friction coefficient
-
-        int max_iterations = 33;
-        double tolerance = 1E-4;
-
-        // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
-        double beta_integration = 1.0;
     } params;
 
     std::unique_ptr<MpmGrid> grid;
