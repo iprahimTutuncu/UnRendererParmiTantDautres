@@ -34,9 +34,6 @@ void MpmSolver::initialize() {
             params.grid_size.x(), params.grid_size.y(), params.grid_size.z(), 
             params.grid_spacing);
 
-    create_particle_clumpy_sphere(
-            params.ball_origin, params.ball_radius, params.ball_velocity, 250, 0.2, &params.ball_seed);
-//    create_particle_sphere(params.ball_origin, params.ball_radius, params.ball_velocity);
     positions.resize(particles.size());
 
     update_lame_params();
@@ -98,36 +95,6 @@ double get_random(double min, double max, unsigned int* seed) {
     return min + (rand_r(seed) / (double)RAND_MAX) * (max - min);
 }
 
-void MpmSolver::create_particle_clumpy_sphere(
-        vec3& c, double r, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed)
-{
-    for (int i = 0; i < num_clumps; ++i) {
-        vec3 clump_center;
-        do {
-            double offset_x = get_random(-r, r, seed);
-            double offset_y = get_random(-r, r, seed);
-            double offset_z = get_random(-r, r, seed);
-            clump_center = c + vec3(offset_x, offset_y, offset_z);
-        } while ((clump_center - c).squaredNorm() > r * r);
-
-        double r1 = get_random(0.5 * r, r, seed) * clump_radius_factor;
-
-        for (double x = clump_center.x() - r1; x <= clump_center.x() + r1; x += params.particle_spacing) {
-        for (double y = clump_center.y() - r1; y <= clump_center.y() + r1; y += params.particle_spacing) {
-        for (double z = clump_center.z() - r1; z <= clump_center.z() + r1; z += params.particle_spacing) {
-
-            vec3 pos(x, y, z);
-            if ((pos - clump_center).squaredNorm() <= r1 * r1) {
-                MpmParticle p{};
-                p.position = pos;
-                p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
-                p.velocity = initial_velocity;
-                particles.emplace_back(p);
-            }
-        }}}
-    }
-}
-
 void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity) {
     // Iterate over a bounding box that contains the sphere
     for (double x = c.x() - r; x <= c.x() + r; x += params.particle_spacing) {
@@ -144,6 +111,44 @@ void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity
             particles.emplace_back(p);
         }
     }}}
+}
+
+void MpmSolver::create_particle_clumpy_sphere(
+        vec3& c, double r, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed)
+{
+    for (int i = 0; i < num_clumps; ++i) {
+        vec3 clump_center;
+        do {
+            double offset_x = get_random(-r, r, seed);
+            double offset_y = get_random(-r, r, seed);
+            double offset_z = get_random(-r, r, seed);
+            clump_center = c + vec3(offset_x, offset_y, offset_z);
+        } while ((clump_center - c).squaredNorm() > r * r);
+
+        double r1 = get_random(0.5 * r, r, seed) * clump_radius_factor;
+
+        create_particle_sphere(clump_center, r1, initial_velocity);
+    }
+}
+
+
+void MpmSolver::create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, int nb_points, unsigned int* seed) {
+    int i = 0;
+    do {
+        double x = get_random(-r, r, seed);
+        double y = get_random(-r, r, seed);
+        double z = get_random(-r, r, seed);
+        vec3 pos = c + vec3(x, y, z);
+
+        if ((pos - c).squaredNorm() <= r * r) {
+            MpmParticle p{};
+            p.position = pos;
+            p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
+            p.velocity = initial_velocity;
+            particles.emplace_back(p);
+            ++i;
+        }
+    } while (i < nb_points);
 }
 
 // grid basis function to get weights

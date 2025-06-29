@@ -27,11 +27,6 @@ void Application::init() {
     m_mpm_solver.params.grid_origin = vec3(-1.5, -1.50, -1.5);
     m_mpm_solver.params.grid_size = vec3(5.0, 5.0, 5.0);
 
-    m_mpm_solver.params.ball_velocity = vec3(-0.25, -50.0, 0.0);
-    m_mpm_solver.params.ball_origin = vec3(0.0, 1.0, 0.0);
-    m_mpm_solver.params.ball_radius = 0.10;
-    m_mpm_solver.params.ball_seed = 33;
-
     m_mpm_solver.params.critical_compression = 2.5E-2;     
     m_mpm_solver.params.critical_stretch = 7.5E-3;    
     m_mpm_solver.params.hardening_coefficient = 10.0;  
@@ -49,6 +44,7 @@ void Application::init() {
     m_mpm_solver.params.tolerance = 1E-5;
     m_mpm_solver.params.beta_integration = 1.0;
 
+    init_scene();
     m_mpm_solver.initialize();
 
     int nb_particles = m_mpm_solver.particles.size();
@@ -59,6 +55,16 @@ void Application::init() {
         return;
     }
     std::cout << "INFO: Initialized renderer." << std::endl;
+}
+
+void Application::init_scene() {
+    vec3 velocity = vec3(0.0, -10.0, 0.0);
+    vec3 origin = vec3(0.0, 1.0, 0.0);
+    double radius = 0.10;
+    int nb_particles = 500;
+    unsigned int seed = 33;
+
+    m_mpm_solver.create_particle_sphere_seeded(origin, radius, velocity, nb_particles, &seed);
 }
 
 void Application::init_keymap() {

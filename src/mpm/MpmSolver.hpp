@@ -29,13 +29,11 @@ public:
     void iterate(double dt);
     void update_lame_params();
 
+    void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity);
+    void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity);
+    void create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, int nb_points, unsigned int* seed);
     struct {
         double particle_spacing = 1.0;
-
-        vec3 ball_velocity = vec3::Zero();
-        vec3 ball_origin = vec3(0.0, 1.0, 0.0);
-        double ball_radius = 0.10;
-        unsigned int ball_seed = 33;
 
         double grid_spacing = 0.070;
         vec3 grid_origin = vec3(-2.5, -1.0, -2.5);
@@ -77,9 +75,6 @@ private:
     void calculate_Ar(mat3n& residuals, mat3n& Ar, mat3n& df, std::vector<int>& global_to_active_map);
     double N(const double x);
     double d_N(const double x);
-
-    void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity);
-    void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity);
 
     void create_particle_clumpy_sphere(
             vec3& center, double radius,
