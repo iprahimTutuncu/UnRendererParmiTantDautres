@@ -88,7 +88,7 @@ void MpmSolver::create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity
     }}}
 }
 
-double get_random(double min, double max, unsigned int* seed) {
+static inline double get_random(double min, double max, unsigned int* seed) {
     return min + (rand_r(seed) / (double)RAND_MAX) * (max - min);
 }
 
