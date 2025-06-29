@@ -68,7 +68,7 @@ void deferred_lighting_render_to_texture(
     }
 
 
-    SDL_GPUGraphicsPipeline* pipeline = (mode == DisplayMode::Final) ? gfx.graphicPipeline[DeferredLightingPipeline] : gfx.graphicPipeline[DeferredLightingPipeline];
+    SDL_GPUGraphicsPipeline* pipeline = (mode == DisplayMode::Final) ? gfx.graphicPipeline[DeferredLightingPipeline] : gfx.graphicPipeline[DeferredDebugPipeline];
 
     SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
 

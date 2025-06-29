@@ -47,7 +47,9 @@ SDL_AppResult controls_iterate(AppState& state) {
 }
 
 SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
+    
     switch (event.type) {
+
     case SDL_EVENT_KEY_DOWN: {
         SDL_KeyboardEvent& evt = (SDL_KeyboardEvent&)event;
         if (evt.key == SDLK_ESCAPE) [[unlikely]]
@@ -61,7 +63,7 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
         quat q_h = angleAxis(angle_h, vec3 { 0, 1, 0 });
         quat q_v = angleAxis(angle_v, state.camera->right());
 
-        state.camera->rotation = q_h * q_v * state.camera->rotation;
+        //state.camera->rotation = q_h * q_v * state.camera->rotation;
     } break;
     case SDL_EVENT_MOUSE_WHEEL: {
         SDL_MouseWheelEvent const& evt = (SDL_MouseWheelEvent&)event;
@@ -75,11 +77,10 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
             fov = radians(120.f);
         }
     } break;
-
     default:
         break;
     }
-
+    state.camera->position.x = state.camera->position.x;
     return SDL_APP_CONTINUE;
 }
 

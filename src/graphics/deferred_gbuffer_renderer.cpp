@@ -24,10 +24,20 @@ SDL_AppResult deferred_gbuffer_init(AppState& state) {
 }
 
 void deferred_gbuffer_update_particles(AppState& state) {
-    std::vector<float*> positions;
 
-    for (auto& p : state.graphics->particles) {
-        positions.push_back(p.position);
+    std::vector<float> positions;
+
+    positions.resize(state.graphics->particles.size() * 4);
+
+    for (int i = 0; i < state.graphics->particles.size(); i++) {
+        // Access the i-th particle
+        auto& p = state.graphics->particles[i];
+
+        int j = i * 4;
+        positions[j] = p.position[0];
+        positions[j + 1] = p.position[1];
+        positions[j + 2] = p.position[2];
+        positions[j + 3] = p.position[3];
     }
 
     if (!state.graphics->buffers[ParticlePositionBuffer]) {
@@ -136,6 +146,27 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
     SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
+    float mvp[48] = {
+        // proj (16 floats)
+        1.358f, 0.0f, 0.0f, 0.0f,
+        0.0f, 2.41421f, 0.0f, 0.0f,
+        0.0f, 0.0f, -1.002f, -1.0f,
+        0.0f, 0.0f, -0.2002f, 0.0f,
+
+        // view (16 floats)
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, -1.0f, -10.0f, 1.0f,
+
+        // model (16 floats)
+        0.25f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.25f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.25f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+
+
     // Render each box
     for (Box& box : graphics.boxes) {
         vec3 min = { box.min[0], box.min[1], box.min[2] };
@@ -155,11 +186,12 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         model[0].x *= size.x * 0.5f;
         model[1].y *= size.y * 0.5f;
         model[2].z *= size.z * 0.5f;
+        model[3].w = 1.f;
 
         graphics.geometryBufferUniform.model = model;
         graphics.geometryBufferUniform.view = state.camera->view_matrix();
         graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
-        SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(graphics.geometryBufferUniform));
+        SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
         SDL_DrawGPUIndexedPrimitives(pass, graphics.numBoxIndices, 1, 0, 0, 0);
     }
 
@@ -186,13 +218,15 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     model[0].x = 0.25f;
     model[1].y = 0.25f;
     model[2].z = 0.25f;
-    model[3].z = 1.f;
+    model[3].w = 1.f;
 
     graphics.geometryBufferUniform.model = model;
-    state.camera->position = vec3 { 0.f, 0.f, 15.f };
 
     graphics.geometryBufferUniform.view = state.camera->view_matrix();
     graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
+
+
+
     SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
     SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
 

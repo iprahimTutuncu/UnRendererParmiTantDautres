@@ -20,8 +20,8 @@ void main()
     vec3 pos = positions[index].xyz;
 
     // Apply time-based non-uniform scale using sin/cos
-    float s = sin(time);
-    float c = cos(time);
+    float s = sin(time) * 0.01f;
+    float c = cos(time) * 0.01f;
 
      positions[index].xyz = pos + vec3(s,c,0.0);
 }

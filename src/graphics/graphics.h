@@ -107,9 +107,9 @@ struct ParticleUpdateUniform {
 };
 
 struct GeometryBufferUniform {
-    mat4 model;
-    mat4 view;
     mat4 proj;
+    mat4 view;
+    mat4 model;
 };
 
 struct GraphicState {
