@@ -384,12 +384,7 @@ void MpmSolver::step5_grid_based_collisions() {
 }
 
 // see https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-void MpmSolver::calculate_Ar(
-        mat3n& Av_next,
-        mat3n& v_next, 
-        mat3n& df,
-        std::vector<int>& global_to_active_map)
-{
+void MpmSolver::calculate_Ar(mat3n& Av_next, mat3n& v_next, mat3n& df) {
     df.setZero();
     double inv_h = 1.0 / grid->spacing;
 
@@ -502,16 +497,14 @@ void MpmSolver::calculate_Ar(
     }
 }
 
-// We apply the conjugate residual method to solve equation 9 from Stomakhin, solving for v_i{n+1}
-// See https://nccastaff.bournemouth.ac.uk/jmacey/MastersProject/MSc15/05Esther/thesisEMdeJong.pdf
-// Zhuo Lo's implementation re-calculates Ar and Ap every iteration, but Jong does not.
+// Conjugate residual
 void MpmSolver::step6_solve_linear_system_cr() {
     if (params.beta_integration == 0.0 || grid->active_nodes.empty()) {
         return;
     }
 
     int nb_active_nodes = grid->active_nodes.size();
-    std::vector<int> global_to_active_map(grid->nodes.size(), -1);
+    global_to_active_map.assign(grid->nodes.size(), -1);
     for (int i = 0; i < nb_active_nodes; ++i) {
         global_to_active_map[grid->active_nodes[i]->index] = i;
     }
@@ -532,12 +525,12 @@ void MpmSolver::step6_solve_linear_system_cr() {
         velocity_star.col(i) = grid->active_nodes[i]->velocity_star; 
     }
 
-    calculate_Ar(Ax, velocity_next, df, global_to_active_map);
+    calculate_Ar(Ax, velocity_next, df);
 
     residuals = velocity_star - Ax;
     search_dir = residuals;
 
-    calculate_Ar(Ar, residuals, df, global_to_active_map);
+    calculate_Ar(Ar, residuals, df);
 
     Ap = Ar;
 
@@ -564,7 +557,7 @@ void MpmSolver::step6_solve_linear_system_cr() {
             break;
         }
 
-        calculate_Ar(Ar, residuals, df, global_to_active_map);
+        calculate_Ar(Ar, residuals, df);
         double rAr_new = residuals.cwiseProduct(Ar).sum();
 
         if (abs(rAr_old) < EPSILON) {
@@ -584,13 +577,15 @@ void MpmSolver::step6_solve_linear_system_cr() {
     }
 }
 
+// Conjugate gradient
 void MpmSolver::step6_solve_linear_system_cg() {
     if (params.beta_integration == 0.0 || grid->active_nodes.empty()) {
         return;
     }
 
     int nb_active_nodes = grid->active_nodes.size();
-    std::vector<int> global_to_active_map(grid->nodes.size(), -1);
+    global_to_active_map.assign(grid->nodes.size(), -1);
+
     for (int i = 0; i < nb_active_nodes; ++i) {
         global_to_active_map[grid->active_nodes[i]->index] = i;
     }
@@ -609,7 +604,7 @@ void MpmSolver::step6_solve_linear_system_cg() {
         velocity_star.col(i) = grid->active_nodes[i]->velocity_star;
     }
 
-    calculate_Ar(Ax, velocity_next, df, global_to_active_map);
+    calculate_Ar(Ax, velocity_next, df);
     residuals = velocity_star - Ax;
     search_dir = residuals;
 
@@ -625,7 +620,7 @@ void MpmSolver::step6_solve_linear_system_cg() {
             break;
         }
 
-        calculate_Ar(Ap, residuals, df, global_to_active_map);
+        calculate_Ar(Ap, residuals, df);
         double p_Ap = search_dir.cwiseProduct(Ap).sum();
 
         if (abs(p_Ap) < EPSILON) {

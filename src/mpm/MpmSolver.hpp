@@ -56,6 +56,7 @@ public:
     } params;
 
     std::unique_ptr<MpmGrid> grid;
+    std::vector<int> global_to_active_map;
 
     std::vector<MpmParticle> particles;
     std::vector<vec3> positions;
@@ -67,7 +68,8 @@ private:
     double mu_0;
     double lambda_0;
 
-    void calculate_Ar(mat3n& residuals, mat3n& Ar, mat3n& df, std::vector<int>& global_to_active_map);
+    void calculate_Ar(mat3n& residuals, mat3n& Ar, mat3n& df);
+
     double N(const double x);
     double d_N(const double x);
 
