@@ -16,8 +16,6 @@
 // https://studenttheses.uu.nl/bitstream/handle/20.500.12932/25872/ICA-4037324.pdf
 
 #include "MpmSolver.hpp"
-#include <algorithm>
-#include <iostream>
 #include <memory>
 
 // TODO: add variable particle spacing, etc.
@@ -35,7 +33,6 @@ void MpmSolver::initialize() {
             params.grid_spacing);
 
     positions.resize(particles.size());
-
     update_lame_params();
 
     grid->reset_nodes();
@@ -300,8 +297,7 @@ void MpmSolver::step3_compute_grid_forces() {
         Eigen::JacobiSVD<mat3> svd{p.deform_elastic, Eigen::ComputeFullU | Eigen::ComputeFullV};
         mat3 U = svd.matrixU();
         mat3 V = svd.matrixV();
-        mat3 R = U * V.transpose(); // check if proper?
-        // mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
+        mat3 R = U * V.transpose();
         if (R.determinant() < 0.0) {
             U.col(2) *= -1.0;
             R = U * V.transpose();
@@ -466,68 +462,7 @@ void MpmSolver::calculate_Ar(
         mat3 JFinvT = Je * FinvT;
 
         // Frobenius inner product
-//        double JFinvT_dF = (JFinvT.cwiseProduct(dFEp)).sum();
         double JFinvT_dF = (JFinvT.array() * dFEp.array()).sum();
-
-        //mat3& CO = JFinvT;
-
-        // d(JFinvT)
-        //mat3 tmp = mat3::Zero();
-        //mat3 dJFinvT = mat3::Zero();
-
-        //tmp << 
-        //    0, 0, 0,
-        //    0, CO(2,2), -CO(1,2),
-        //    0, -CO(2,1), CO(1,1);
-        //dJFinvT(0,0) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    0, 0, 0,
-        //    -CO(2,2), 0, CO(0,2),
-        //    CO(2,1), 0, -CO(0,1);
-        //dJFinvT(0,1) = (tmp.array() * dFEp.array()).sum();
- 
-        //tmp << 
-        //    0, 0, 0,
-        //    CO(1,2), -CO(0,2), 0,
-        //    -CO(1,1), CO(0,1), 0;         
-        //dJFinvT(0,2) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    0, -CO(2,2), CO(1,2),
-        //    0, 0, 0,
-        //    0, CO(2,0), -CO(1,0);  
-        //dJFinvT(1,0) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    CO(2,2), 0, -CO(0,2),
-        //    0, 0, 0,
-        //    -CO(2,0), 0, CO(0,0);  
-        //dJFinvT(1,1) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    -CO(1,2), CO(0,2), 0,
-        //    0, 0, 0,
-        //    CO(1,0), -CO(0,0), 0; 
-        //dJFinvT(1,2) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    0, CO(2,1), -CO(1,1),
-        //    0, -CO(2,0), CO(1,0),
-        //    0, 0, 0; 
-        //dJFinvT(2,0) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    -CO(2,1), 0, CO(0,1),
-        //    CO(2,0), 0, -CO(0,0),
-        //    0, 0, 0; 
-        //dJFinvT(2,1) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    CO(1,1), -CO(0,1), 0,
-        //    -CO(0,1), CO(0,0), 0,
-        //    0, 0, 0; 
-        //dJFinvT(2,2) = (tmp.array() * dFEp.array()).sum();
 
         // using Jacobi's formula for the derivative of the inverse and determinant
         double tr_Finv_dF = (Finv * dFEp).trace();
@@ -676,24 +611,6 @@ void MpmSolver::step7_update_deformation_gradient() {
         p.deform_plastic = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * F;
         p.deform_elastic = U * sigma.asDiagonal() * V.transpose();
 
-//        vec3 sigma_hat = svd.singularValues();
-//        vec3 sigma = sigma_hat;
-//
-//        for (int i = 0; i < 3; ++i) {
-//            sigma(i) = std::clamp(sigma(i), 1.0 - params.critical_compression , 1.0 + params.critical_stretch);
-//        }
-//
-//        p.deform_elastic = U * sigma.asDiagonal() * V.transpose();
-//
-//        vec3 sigma_hat_inv = vec3(
-//            std::abs(sigma_hat.x()) > EPSILON ? 1.0 / sigma_hat.x() : 0.0,
-//            std::abs(sigma_hat.y()) > EPSILON ? 1.0 / sigma_hat.y() : 0.0,
-//            std::abs(sigma_hat.z()) > EPSILON ? 1.0 / sigma_hat.z() : 0.0
-//        );
-//
-//        vec3 S_ratio = sigma.array() / sigma_hat.array();
-//        mat3 Fp_update = V * S_ratio.asDiagonal() * V.transpose();
-//        p.deform_plastic = Fp_update * p.deform_plastic;
     }
 }
 

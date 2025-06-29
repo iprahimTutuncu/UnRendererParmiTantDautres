@@ -18,9 +18,6 @@ wet and chunky snow. Icy snow has a higher hardening coefficient
 and Young’s modulus, with the opposite producing muddy snow.
 */
 
-
-
-
 class MpmSolver {
 public:
     MpmSolver();
