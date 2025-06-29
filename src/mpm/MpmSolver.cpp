@@ -272,10 +272,9 @@ void MpmSolver::step2_compute_volumes_and_densities() {
             rho_p += w_ip * node->mass * inv_h3;
         }}}
 
-        p.density = rho_p;
         // V_p = m_p / rho_p
-        if (p.density > 0.0) {
-            p.volume_0 = p.mass / p.density;
+        if (rho_p > 0.0) {
+            p.volume_0 = p.mass / rho_p;
         }
     }
 }
