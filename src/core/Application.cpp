@@ -9,7 +9,9 @@ const char* title = "Boreas";
 const int width = 640;
 const int height = 480;
 
-const double simulation_dt = 1.0 / 10000;
+// Explicit:            dt ~= 10e-5
+// Semi-implicit:       dt ~= 0.5e-3
+const double simulation_dt = 0.5e-3;
 
 Application::Application() :
      m_action_man{},
@@ -23,24 +25,24 @@ void Application::init() {
 
     m_mpm_solver.params.particle_spacing = 0.010;
 
-    m_mpm_solver.params.grid_spacing = 0.040;
+    m_mpm_solver.params.grid_spacing = 0.070;
     m_mpm_solver.params.grid_origin = vec3(-1.5, -1.50, -1.5);
     m_mpm_solver.params.grid_size = vec3(5.0, 5.0, 5.0);
 
-    m_mpm_solver.params.critical_compression = 2.5E-2;     
-    m_mpm_solver.params.critical_stretch = 7.5E-3;    
-    m_mpm_solver.params.hardening_coefficient = 10.0;  
-    m_mpm_solver.params.initial_density = 4.0E2;        
-    m_mpm_solver.params.initial_youngs_modulus = 1.4E5;  
+    m_mpm_solver.params.critical_compression = 2.5E-2;
+    m_mpm_solver.params.critical_stretch = 7.5E-3;
+    m_mpm_solver.params.hardening_coefficient = 10.0;
+    m_mpm_solver.params.initial_density = 4.0E2;
+    m_mpm_solver.params.initial_youngs_modulus = 1.4E3;
     m_mpm_solver.params.poisson_ratio = 0.2;
-    m_mpm_solver.params.gravity = vec3(0.0, -9.81, 0.0);
+    m_mpm_solver.params.gravity = vec3(0.0, -20.0, 0.0);
 
     m_mpm_solver.params.world_floor = 0.0;
     m_mpm_solver.params.v_co = vec3::Zero();
     m_mpm_solver.params.n_co = vec3(0.0, 1.0, 0.0);
     m_mpm_solver.params.mu_surface = 0.5;
 
-    m_mpm_solver.params.max_iterations = 50;
+    m_mpm_solver.params.max_iterations = 30;
     m_mpm_solver.params.tolerance = 1E-5;
     m_mpm_solver.params.beta_integration = 1.0;
 
@@ -137,7 +139,7 @@ void Application::iterate_particles() {
         double delta_time = (new_time - old_time) / frequency;
         old_time = new_time;
         m_mpm_solver.iterate(simulation_dt);
-        std::cout << "Iteration " << ++iteration << " done! " << delta_time << "s" << std::endl;
+//        std::cout << "Iteration " << ++iteration << " done! " << delta_time << "s" << std::endl;
     }
 }
 
