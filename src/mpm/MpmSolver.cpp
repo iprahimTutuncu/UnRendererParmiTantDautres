@@ -48,7 +48,7 @@ void MpmSolver::iterate(double dt) {
     step3_compute_grid_forces();
     step4_update_grid_velocities();
     step5_grid_based_collisions();
-    step6_solve_linear_system();
+    step6_solve_linear_system_cr();
     step7_update_deformation_gradient();
     step8_update_particle_velocities();
     step9_particle_based_collisions();
@@ -505,14 +505,13 @@ void MpmSolver::calculate_Ar(
 // We apply the conjugate residual method to solve equation 9 from Stomakhin, solving for v_i{n+1}
 // See https://nccastaff.bournemouth.ac.uk/jmacey/MastersProject/MSc15/05Esther/thesisEMdeJong.pdf
 // Zhuo Lo's implementation re-calculates Ar and Ap every iteration, but Jong does not.
-void MpmSolver::step6_solve_linear_system() {
+void MpmSolver::step6_solve_linear_system_cr() {
     if (params.beta_integration == 0.0 || grid->active_nodes.empty()) {
         return;
     }
 
     int nb_active_nodes = grid->active_nodes.size();
     std::vector<int> global_to_active_map(grid->nodes.size(), -1);
-
     for (int i = 0; i < nb_active_nodes; ++i) {
         global_to_active_map[grid->active_nodes[i]->index] = i;
     }
@@ -542,37 +541,112 @@ void MpmSolver::step6_solve_linear_system() {
 
     Ap = Ar;
 
-    double rAr = residuals.cwiseProduct(Ar).sum();
+    double rAr_old = residuals.cwiseProduct(Ar).sum();
+    double b_norm = velocity_star.norm();
 
     for (int k = 0; k < params.max_iterations; ++k) {
         if ((residuals.norm() / velocity_next.norm()) < params.tolerance) {
             break;
         }
 
-        double rAr_k = rAr;
-        double alpha = rAr_k / Ap.cwiseProduct(Ap).sum();
-        
-        if (abs(alpha) < EPSILON) {
+        double Ap_Ap = Ap.squaredNorm();
+
+        if (abs(Ap_Ap) < EPSILON) {
             break;
         }
 
-        velocity_next = velocity_next + alpha * search_dir;
-        residuals = residuals - alpha * Ap;
+        double alpha = rAr_old / Ap_Ap;
+
+        velocity_next += alpha * search_dir;
+        residuals -= alpha * Ap;
+
+        if (residuals.norm() / b_norm < params.tolerance) {
+            break;
+        }
+
         calculate_Ar(Ar, residuals, df, global_to_active_map);
+        double rAr_new = residuals.cwiseProduct(Ar).sum();
 
-        rAr = residuals.cwiseProduct(Ar).sum();
-        double beta = rAr / rAr_k;
-
-        if (abs(beta) < EPSILON) {
+        if (abs(rAr_old) < EPSILON) {
             break;
         }
+
+        double beta = rAr_new / rAr_old;
 
         search_dir = residuals + beta * search_dir;
         Ap = Ar + beta * Ap;
+
+        rAr_old = rAr_new;
     }
 
     for (int i = 0; i < nb_active_nodes; ++i) {
         grid->active_nodes[i]->velocity_star = velocity_next.col(i);
+    }
+}
+
+void MpmSolver::step6_solve_linear_system_cg() {
+    if (params.beta_integration == 0.0 || grid->active_nodes.empty()) {
+        return;
+    }
+
+    int nb_active_nodes = grid->active_nodes.size();
+    std::vector<int> global_to_active_map(grid->nodes.size(), -1);
+    for (int i = 0; i < nb_active_nodes; ++i) {
+        global_to_active_map[grid->active_nodes[i]->index] = i;
+    }
+
+    mat3n velocity_star(3, nb_active_nodes);
+    mat3n velocity_next(3, nb_active_nodes);
+
+    mat3n Ax(3, nb_active_nodes);
+    mat3n Ap(3, nb_active_nodes);
+    mat3n df(3, nb_active_nodes);
+    mat3n residuals(3, nb_active_nodes);
+    mat3n search_dir(3, nb_active_nodes);
+
+    for (int i = 0; i < nb_active_nodes; ++i) {
+        velocity_next.col(i) = grid->active_nodes[i]->velocity_star;
+        velocity_star.col(i) = grid->active_nodes[i]->velocity_star;
+    }
+
+    calculate_Ar(Ax, velocity_next, df, global_to_active_map);
+    residuals = velocity_star - Ax;
+    search_dir = residuals;
+
+    double rs_old = residuals.squaredNorm();
+    double b_norm = velocity_star.norm();
+
+    if (b_norm < EPSILON) {
+        b_norm = 1.0;
+    }
+
+    for (int k = 0; k < params.max_iterations; ++k) {
+        if (std::sqrt(rs_old) / b_norm < params.tolerance) {
+            break;
+        }
+
+        calculate_Ar(Ap, residuals, df, global_to_active_map);
+        double p_Ap = search_dir.cwiseProduct(Ap).sum();
+
+        if (abs(p_Ap) < EPSILON) {
+            break;
+        }
+
+        double alpha = rs_old / p_Ap;
+
+        velocity_next += alpha * search_dir;
+        residuals -= alpha * Ap;
+
+        double rs_new = residuals.squaredNorm();
+
+        if (abs(rs_old) < EPSILON) {
+            break;
+        }
+
+        double beta = rs_new / rs_old;
+
+        search_dir = residuals + beta * search_dir;
+        rs_old = rs_new;
     }
 }
 
