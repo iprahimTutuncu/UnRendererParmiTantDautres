@@ -77,7 +77,6 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
         Uint32 mouse_buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
         // Check if left mouse button is held
         if (mouse_buttons & SDL_BUTTON_LMASK) {
-
             vec3 right = state.camera->right();
             vec3 up = { 0, 1, 0 };
 
