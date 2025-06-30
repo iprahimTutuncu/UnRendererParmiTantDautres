@@ -68,7 +68,7 @@ private:
     double mu_0;
     double lambda_0;
 
-    void calculate_Ar(mat3n& residuals, mat3n& Ar, mat3n& df);
+    void calculate_Ar(mat3n& residuals, const mat3n& Ar, mat3n& df) const;
 
     double N(const double x);
     double d_N(const double x);

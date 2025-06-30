@@ -384,12 +384,12 @@ void MpmSolver::step5_grid_based_collisions() {
 }
 
 // see https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-void MpmSolver::calculate_Ar(mat3n& Av_next, mat3n& v_next, mat3n& df) {
+void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) const {
     df.setZero();
     double inv_h = 1.0 / grid->spacing;
 
     // calculate Ar
-    for (MpmParticle& p : particles) {
+    for (const MpmParticle& p : particles) {
 
         // 3.23 - velocity gradient
         mat3 velocities_grad = mat3::Zero();
@@ -447,9 +447,9 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, mat3n& v_next, mat3n& df) {
         mat3 dR = R * RTdR;
 
         // JFinvT 
-        mat3& Fe = p.deform_elastic;
+        const mat3& Fe = p.deform_elastic;
         double Je = Fe.determinant();
-        mat3& Fp = p.deform_plastic;
+        const mat3& Fp = p.deform_plastic;
         double Jp = Fp.determinant();
 
         mat3 Finv = Fe.inverse();
