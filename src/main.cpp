@@ -98,9 +98,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         .aspectRatio = static_cast<float>(width) / static_cast<float>(height),
         .distanceFromTarget = 100.0f,
         .fov = radians(75.f),
-        .near = 0.1f,
-        .far = 100.0f,
-        .locked = false
+        .near = 20.f,
+        .far = 60.0f,
+        .locked = true
     };
 
     SDL_AppResult result;

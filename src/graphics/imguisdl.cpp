@@ -33,11 +33,6 @@ void imgui_iterate(AppState& state) {
     ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
 
     if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_None)) {
-        if (ImGui::BeginTabItem("MainControl")) {
-            ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
-
-            ImGui::EndTabItem();
-        }
         if (ImGui::BeginTabItem("Camera Control")) {
             ImGui::SliderFloat3("Camera", &state.camera->position.x, -100.0f, 100.0f);
 
