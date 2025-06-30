@@ -84,8 +84,9 @@ private:
     void step3_compute_grid_forces();
     void step4_update_grid_velocities();
     void step5_grid_based_collisions();
-    void step6_solve_linear_system_cr();
-    void step6_solve_linear_system_cg();
+
+    template<class Solver>
+    void step6_solve_linear_system();
     void step7_update_deformation_gradient();
     void step8_update_particle_velocities();
     void step9_particle_based_collisions();
