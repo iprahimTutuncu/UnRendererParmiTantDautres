@@ -6,10 +6,10 @@
 SDL_GPUShader* loadShader(
     SDL_GPUDevice* device,
     const char* shaderPath,
-    Uint32 samplerCount,
-    Uint32 uniformBufferCount,
-    Uint32 storageBufferCount,
-    Uint32 storageTextureCount) {
+    std::uint32_t samplerCount,
+    std::uint32_t uniformBufferCount,
+    std::uint32_t storageBufferCount,
+    std::uint32_t storageTextureCount) {
     // Auto-detect the shader stage from the file name for convenience
     SDL_GPUShaderStage stage;
     if (SDL_strstr(shaderPath, ".vert")) {
@@ -47,4 +47,38 @@ SDL_GPUShader* loadShader(
 
     SDL_free(code);
     return shader;
+}
+
+SDL_GPUComputePipeline* createComputePipelineFromShader(SDL_GPUDevice* device,
+    const char* shaderPath,
+    SDL_GPUComputePipelineCreateInfo* createInfo) {
+    SDL_GPUShaderFormat format = SDL_GPU_SHADERFORMAT_SPIRV;
+    const char* entrypoint = "main";
+
+    size_t codeSize = 0;
+    void* code = SDL_LoadFile(shaderPath, &codeSize);
+    if (code == nullptr) {
+        SDL_Log("Failed to load compute shader %s from disk: %s", shaderPath, SDL_GetError());
+        return nullptr;
+    }
+
+    SDL_GPUComputePipelineCreateInfo newCreateInfo = *createInfo;
+    newCreateInfo.code = static_cast<const Uint8*>(code);
+    newCreateInfo.code_size = codeSize;
+    newCreateInfo.entrypoint = entrypoint;
+    newCreateInfo.format = format;
+
+    SDL_Log("Creating compute pipeline with shader: %s (format: %d, entrypoint: %s)",
+        shaderPath, format, entrypoint);
+
+    SDL_GPUComputePipeline* pipeline = SDL_CreateGPUComputePipeline(device, &newCreateInfo);
+    if (pipeline == nullptr) {
+        SDL_Log("Pipeline creation failed for shader: %s, format: %d, size: %zu",
+            shaderPath, format, codeSize);
+        SDL_free(code);
+        return nullptr;
+    }
+
+    SDL_free(code);
+    return pipeline;
 }

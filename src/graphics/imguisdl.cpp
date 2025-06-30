@@ -1,14 +1,13 @@
 #include "imguisdl.h"
 
 #include "../camera.h"
-#include "graphics.h"
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlgpu3.h>
 
 void imgui_init(AppState& state) {
-     // Setup Dear ImGui context
+    // Setup Dear ImGui context
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
@@ -25,7 +24,7 @@ void imgui_init(AppState& state) {
     ImGui_ImplSDLGPU3_Init(&init_info);
 }
 
-void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUCommandBuffer* cmdbuf) {
+void imgui_iterate(AppState& state) {
     // Start the Dear ImGui frame
     ImGui_ImplSDLGPU3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
@@ -34,12 +33,8 @@ void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUComman
     ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
 
     if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_None)) {
-        if (ImGui::BeginTabItem("MainControl")) {
-            ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
-
-            ImGui::EndTabItem();
-        }
         if (ImGui::BeginTabItem("Camera Control")) {
+            ImGui::SliderFloat3("Camera", &state.camera->position.x, -100.0f, 100.0f);
 
             // Camera options table
             if (ImGui::BeginTable("CameraTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
@@ -96,10 +91,6 @@ void imgui_iterate(AppState& state, SDL_GPURenderPass* renderPass, SDL_GPUComman
 
     ImGui::End();
     ImGui::Render();
-
-    ImDrawData* draw_data = ImGui::GetDrawData();
-    Imgui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
-    ImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, renderPass);
 }
 
 void imgui_event(AppState& state, SDL_Event& event) {

@@ -94,7 +94,19 @@ if (WIN32 OR MSVC)
 endif()
 
 set(SHADERS
+    ${SHADER_DIR}/deferred_debug.frag
+    ${SHADER_DIR}/deferred_gBuffer.frag
+    ${SHADER_DIR}/deferred_gBuffer_particles.vert
+    ${SHADER_DIR}/deferred_gBuffer.vert
+    ${SHADER_DIR}/deferred_render.frag
+    ${SHADER_DIR}/FillTexture.comp
+    ${SHADER_DIR}/floorShader.frag
+    ${SHADER_DIR}/floorShader.vert
+    ${SHADER_DIR}/particleShader.frag
+    ${SHADER_DIR}/particleShader.vert
+    ${SHADER_DIR}/particleUpdate.comp
     ${SHADER_DIR}/PositionColor.vert
+    ${SHADER_DIR}/quad.vert
     ${SHADER_DIR}/SolidColor.frag
 )
 set(SPIRV_FILES)
@@ -105,7 +117,7 @@ foreach(SHADER ${SHADERS})
 
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
-        COMMAND ${GLSLANG_EXE} -V --target-env vulkan1.3 ${SHADER} -o ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
+        COMMAND ${GLSLANG_EXE} -V --target-env vulkan1.0 ${SHADER} -o ${CMAKE_CURRENT_BINARY_DIR}/raw_${SRC}.spv
         DEPENDS ${SHADER}
         COMMENT "Compiling ${SRC} to SPIR-V"
         VERBATIM
@@ -145,7 +157,10 @@ add_executable(app
     src/graphics/imguisdl.cpp
     src/graphics/shaders.cpp
     src/physics/physics.cpp
-)
+    src/graphics/texture.cpp
+    src/graphics/deferred_lighting_renderer.cpp
+    src/graphics/deferred_gbuffer_renderer.cpp)
+
 add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
     SDL3::SDL3
