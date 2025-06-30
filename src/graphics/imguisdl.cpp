@@ -7,7 +7,7 @@
 #include <imgui_impl_sdlgpu3.h>
 
 void imgui_init(AppState& state) {
-     // Setup Dear ImGui context
+    // Setup Dear ImGui context
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
@@ -32,11 +32,67 @@ void imgui_iterate(AppState& state) {
 
     ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
 
-    ImGui::BeginGroup();
+    if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_None)) {
+        if (ImGui::BeginTabItem("MainControl")) {
+            ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
 
-    ImGui::SliderFloat3("Camera", &state.camera->position.x, -100.0f, 100.0f);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Camera Control")) {
+            ImGui::SliderFloat3("Camera", &state.camera->position.x, -100.0f, 100.0f);
 
-    ImGui::EndGroup();
+            // Camera options table
+            if (ImGui::BeginTable("CameraTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+                // Lock state row
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Camera Lock");
+                ImGui::TableSetColumnIndex(1);
+                if (state.camera->locked) {
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "Locked");
+                } else {
+                    ImGui::TextColored(ImVec4(0, 1, 0, 1), "Unlocked");
+                }
+
+                // Camera position row (read-only)
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Position");
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("(%.2f, %.2f, %.2f)", state.camera->position.x, state.camera->position.y, state.camera->position.z);
+
+                // Camera target row
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Target");
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("(%.2f, %.2f, %.2f)", state.camera->target.x, state.camera->target.y, state.camera->target.z);
+
+                // Camera FOV (optional, for perspective zoom)
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("FOV");
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%.2f deg", state.camera->fov * (180.0f / 3.14159265f));
+
+                // Reset button row
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("Reset");
+                ImGui::TableSetColumnIndex(1);
+                if (ImGui::Button("Reset Camera")) {
+                    state.camera->position = { 0.0f, 0.0f, state.camera->distanceFromTarget };
+                    state.camera->target = { 0.0f, 0.0f, 0.0f };
+                    state.camera->rotation = { 1.0f, 0.0f, 0.0f, 0.0f };
+                    state.camera->locked = false;
+                }
+
+                ImGui::EndTable();
+            }
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
 
     ImGui::End();
     ImGui::Render();

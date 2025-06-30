@@ -4,6 +4,13 @@
 #include "../vmath.h"
 
 #include <SDL3/SDL_keyboard.h>
+inline vec3 rotate_vec3_by_quat(const vec3& v, const quat& q) {
+    // q * v * q^-1
+    quat vq { 0, v.x, v.y, v.z };
+    quat q_inv { q.w, -q.x, -q.y, -q.z };
+    quat result = q * vq * q_inv;
+    return { result.x, result.y, result.z };
+}
 
 SDL_AppResult controls_init(AppState& state, int argc, char** argv) {
     (void)argc;
@@ -47,7 +54,7 @@ SDL_AppResult controls_iterate(AppState& state) {
 }
 
 SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
-    
+
     switch (event.type) {
 
     case SDL_EVENT_KEY_DOWN: {
@@ -55,15 +62,50 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
         if (evt.key == SDLK_ESCAPE) [[unlikely]]
             return SDL_APP_SUCCESS;
     } break;
+    // Handle Right Mouse Button Click to toggle camera lock
+    case SDL_EVENT_MOUSE_BUTTON_DOWN: {
+        SDL_MouseButtonEvent const& evt = (SDL_MouseButtonEvent&)event;
+        if (evt.button == SDL_BUTTON_RIGHT) {
+            state.camera->locked = !state.camera->locked;
+        }
+    } break;
     case SDL_EVENT_MOUSE_MOTION: {
+        if (state.camera->locked) break; // Ignore camera movement if locked
+
         SDL_MouseMotionEvent const& evt = (SDL_MouseMotionEvent&)event;
+        float mouse_x, mouse_y;
+        Uint32 mouse_buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
+        // Check if left mouse button is held
+        if (mouse_buttons & SDL_BUTTON_LMASK) {
 
-        float angle_h = -radians(evt.xrel);
-        float angle_v = -radians(evt.yrel);
-        quat q_h = angleAxis(angle_h, vec3 { 0, 1, 0 });
-        quat q_v = angleAxis(angle_v, state.camera->right());
+            vec3 right = state.camera->right();
+            vec3 up = { 0, 1, 0 };
 
-        //state.camera->rotation = q_h * q_v * state.camera->rotation;
+            state.camera->target -= right * evt.xrel ;
+            state.camera->target += up * evt.yrel;
+
+            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.camera->distanceFromTarget }, state.camera->rotation);
+            state.camera->position = vec3 {
+                state.camera->target.x + offset.x,
+                state.camera->target.y + offset.y,
+                state.camera->target.z + offset.z
+            };
+        } else {
+            // Orbit as before
+            float angle_h = -radians(evt.xrel);
+            float angle_v = -radians(evt.yrel);
+            quat q_h = angleAxis(angle_h, vec3 { 0, 1, 0 });
+            quat q_v = angleAxis(angle_v, state.camera->right());
+
+            state.camera->rotation = q_h * q_v * state.camera->rotation;
+
+            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.camera->distanceFromTarget }, state.camera->rotation);
+            state.camera->position = vec3 {
+                state.camera->target.x + offset.x,
+                state.camera->target.y + offset.y,
+                state.camera->target.z + offset.z
+            };
+        }
     } break;
     case SDL_EVENT_MOUSE_WHEEL: {
         SDL_MouseWheelEvent const& evt = (SDL_MouseWheelEvent&)event;
