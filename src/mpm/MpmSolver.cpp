@@ -431,17 +431,17 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         vec3 b = vec3(RTdF(1,0), RTdF(2,0), RTdF(2,1));
 
         mat3 A;
-        A << S(0,0)+S(1,1),      S(2,1),         -S(2,0),
-             S(1,2),             S(0,0)+S(2,2),  S(0,1),
-             -S(2,0),            S(1,0),         S(1,1)+S(2,2);
+        A << S(0,0)+S(1,1),      S(1,2),         -S(2,0),
+             S(2,1),             S(0,0)+S(2,2),  S(1,0),
+             -S(2,0),            S(0,1),         S(1,1)+S(2,2);
 
         // vec3 xyz = A.inverse() * b;
         vec3 xyz = A.fullPivLu().solve(b);
 
         mat3 RTdR;
-        RTdR << 0.0,       -xyz.x(),        -xyz.y(),
-                xyz.x(),   0.0,           -xyz.z(),
-                xyz.y(),   xyz.z(),       0.0;
+        RTdR << 0.0,       xyz.x(),        xyz.y(),
+                -xyz.x(),   0.0,           xyz.z(),
+                -xyz.y(),   -xyz.z(),       0.0;
 
         // 3.31 - dR
         mat3 dR = R * RTdR;
