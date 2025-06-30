@@ -1,6 +1,7 @@
 #include "imguisdl.h"
 
 #include "../camera.h"
+#include "../controls/controls.h"
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -32,9 +33,9 @@ void imgui_iterate(AppState& state) {
 
     ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
 
+    ImGui::SliderFloat3("Camera", &state.camera->position.x, -100.0f, 100.0f);
     if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Camera Control")) {
-            ImGui::SliderFloat3("Camera", &state.camera->position.x, -100.0f, 100.0f);
 
             // Camera options table
             if (ImGui::BeginTable("CameraTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
@@ -43,7 +44,7 @@ void imgui_iterate(AppState& state) {
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("Camera Lock");
                 ImGui::TableSetColumnIndex(1);
-                if (state.camera->locked) {
+                if (state.controls->mouse.locked) {
                     ImGui::TextColored(ImVec4(1, 0, 0, 1), "Locked");
                 } else {
                     ImGui::TextColored(ImVec4(0, 1, 0, 1), "Unlocked");
@@ -61,7 +62,7 @@ void imgui_iterate(AppState& state) {
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("Target");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("(%.2f, %.2f, %.2f)", state.camera->target.x, state.camera->target.y, state.camera->target.z);
+                ImGui::Text("(%.2f, %.2f, %.2f)", state.controls->mouse.target.x, state.controls->mouse.target.y, state.controls->mouse.target.z);
 
                 // Camera FOV (optional, for perspective zoom)
                 ImGui::TableNextRow();
@@ -76,10 +77,9 @@ void imgui_iterate(AppState& state) {
                 ImGui::Text("Reset");
                 ImGui::TableSetColumnIndex(1);
                 if (ImGui::Button("Reset Camera")) {
-                    state.camera->position = { 0.0f, 0.0f, state.camera->distanceFromTarget };
-                    state.camera->target = { 0.0f, 0.0f, 0.0f };
-                    state.camera->rotation = { 1.0f, 0.0f, 0.0f, 0.0f };
-                    state.camera->locked = false;
+                    state.controls->mouse.target = { 0.f, 0.f, 0.f };
+                    state.camera->position = { 0.f, 0.f, 100.f };
+                    state.camera->rotation = { 1.f, 0.f, 0.f, 0.f };
                 }
 
                 ImGui::EndTable();

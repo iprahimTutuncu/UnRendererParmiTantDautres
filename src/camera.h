@@ -3,15 +3,12 @@
 #include "vmath.h"
 
 struct CameraPerspective {
-    quat rotation; // quaternion
-    vec3 position; // vec3
-    vec3 target; // Center where camera is looking at
+    quat rotation;
+    vec3 position;
     float aspectRatio;
-    float distanceFromTarget; // Distance from camera to target
     float fov;
     float near;
     float far;
-    bool locked; // Lock camera movement when true
 
     inline constexpr vec3 right() const {
         return vec3 {
