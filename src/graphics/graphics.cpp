@@ -31,33 +31,35 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     imgui_init(state);
     init_sampler_presets(state);
 
-    int gridSize = 10;
-    int totalParticles = gridSize * gridSize * gridSize;
-    graphics.particles.resize(totalParticles);
+    static constexpr std::size_t gridSizeX = 10;
+    static constexpr std::size_t gridSizeY = 10;
+    static constexpr std::size_t gridSizeZ = 10;
+    static constexpr float spacing = 1.0f; // distance between particles
 
-    float spacing = 0.5f; // distance between particles, adjust as needed
-    float offset = (gridSize - 1) * spacing * 0.5f; // to center the grid around origin
+    // Offset to center the grid at origin
+    static constexpr float offsetX = static_cast<float>(gridSizeX - 1) * spacing * 0.5f;
+    static constexpr float offsetY = static_cast<float>(gridSizeY - 1) * spacing * 0.5f;
+    static constexpr float offsetZ = static_cast<float>(gridSizeZ - 1) * spacing * 0.5f;
 
-    int index = 0;
-    for (int x = 0; x < gridSize; ++x) {
-        for (int y = 0; y < gridSize; ++y) {
-            for (int z = 0; z < gridSize; ++z) {
-                graphics.particles[index].position[0] = x * spacing - offset; // x pos
-                graphics.particles[index].position[1] = y * spacing - offset; // y pos
-                graphics.particles[index].position[2] = z * spacing - offset; // z pos
-                graphics.particles[index].position[3] = 1.0f; // w
+    graphics.particles.resize(gridSizeX * gridSizeY * gridSizeZ);
+    Particle* p = graphics.particles.data();
+    for (std::size_t z = 0; z < gridSizeZ; ++z) {
+        for (std::size_t y = 0; y < gridSizeY; ++y) {
+            for (std::size_t x = 0; x < gridSizeX; ++x) {
+                p->position[0] = static_cast<float>(x) * spacing - offsetX;
+                p->position[1] = static_cast<float>(y) * spacing - offsetY;
+                p->position[2] = static_cast<float>(z) * spacing - offsetZ;
+                p->position[3] = 1.0f;
 
-                ++index;
+                // Set all colors to white
+                p->color[0] = 1.0f;
+                p->color[1] = 1.0f;
+                p->color[2] = 1.0f;
+                p->color[3] = 1.0f;
+
+                p += 1;
             }
         }
-    }
-
-    // Set all colors to white
-    for (int i = 0; i < totalParticles; ++i) {
-        graphics.particles[i].color[0] = 1.0f;
-        graphics.particles[i].color[1] = 1.0f;
-        graphics.particles[i].color[2] = 1.0f;
-        graphics.particles[i].color[3] = 1.0f;
     }
 
     graphics.boxes.resize(1);
