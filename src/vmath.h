@@ -65,6 +65,17 @@ struct alignas(16) vec3 {
         this->z -= v.z;
         return *this;
     }
+
+    inline float length() const {
+#ifndef __SSE4_1__
+        return std::sqrt(x * x + y * y + z * z);
+#else
+        __m128 r0 = _mm_load_ps(&x);
+        r0 = _mm_dp_ps(r0, r0, 0x71);
+        r0 = _mm_sqrt_ss(r0);
+        return _mm_cvtss_f32(r0);
+#endif
+    }
 };
 
 constexpr vec3 operator*(float f, vec3 const& v) {
@@ -191,7 +202,7 @@ struct mat4 {
 
     static inline mat4 identity() {
         mat4 m = {};
-        for (size_t i = 0; i < 4; i++) {
+        for (std::size_t i = 0; i < 4; i++) {
             m.v4[i][i] = 1.f;
         }
         return m;
