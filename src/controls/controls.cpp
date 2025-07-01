@@ -19,9 +19,11 @@ SDL_AppResult controls_init(AppState& state, int argc, char** argv) {
 
     state.controls = new ControlState {};
     ControlState& controls = *state.controls;
-    controls.mouse.distanceFromTarget = 100.f;
+    controls.mouse.target = { 0.f, 0.f, 0.f };
     controls.mouse.movement_speed = 2.5f;
     controls.mouse.mouse_sensitivity = 1.f;
+    controls.mouse.distanceFromTarget = state.camera->position.length();
+    controls.mouse.locked = true;
 
     return SDL_APP_CONTINUE;
 }
