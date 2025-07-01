@@ -12,18 +12,10 @@ SDL_AppResult controls_iterate(AppState& state);
 SDL_AppResult controls_event(AppState& state, SDL_Event const& event);
 void controls_quit(AppState& state);
 
-struct MouseCtrl {
-    vec3 target; // Center where camera is looking at
+struct ControlState {
+    vec3 cameraTarget;
     float movement_speed;
     float mouse_sensitivity;
-    float distanceFromTarget; // Distance from camera to targe
-    bool locked; // Lock camera movement when true
-};
-
-struct KeyboardCtrl {
-};
-
-struct ControlState {
-    MouseCtrl mouse;
-    KeyboardCtrl kbCtrl;
+    float distanceFromTarget;
+    bool isCameraLocked;
 };

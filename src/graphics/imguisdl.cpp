@@ -44,7 +44,7 @@ void imgui_iterate(AppState& state) {
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("Camera Lock");
                 ImGui::TableSetColumnIndex(1);
-                if (state.controls->mouse.locked) {
+                if (state.controls->isCameraLocked) {
                     ImGui::TextColored(ImVec4(1, 0, 0, 1), "Locked");
                 } else {
                     ImGui::TextColored(ImVec4(0, 1, 0, 1), "Unlocked");
@@ -62,7 +62,7 @@ void imgui_iterate(AppState& state) {
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("Target");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("(%.2f, %.2f, %.2f)", state.controls->mouse.target.x, state.controls->mouse.target.y, state.controls->mouse.target.z);
+                ImGui::Text("(%.2f, %.2f, %.2f)", state.controls->cameraTarget.x, state.controls->cameraTarget.y, state.controls->cameraTarget.z);
 
                 // Camera FOV (optional, for perspective zoom)
                 ImGui::TableNextRow();
@@ -77,7 +77,7 @@ void imgui_iterate(AppState& state) {
                 ImGui::Text("Reset");
                 ImGui::TableSetColumnIndex(1);
                 if (ImGui::Button("Reset Camera")) {
-                    state.controls->mouse.target = { 0.f, 0.f, 0.f };
+                    state.controls->cameraTarget = { 0.f, 0.f, 0.f };
                     state.camera->position = { 0.f, 0.f, 100.f };
                     state.camera->rotation = { 1.f, 0.f, 0.f, 0.f };
                 }

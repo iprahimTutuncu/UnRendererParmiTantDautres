@@ -19,17 +19,17 @@ SDL_AppResult controls_init(AppState& state, int argc, char** argv) {
 
     state.controls = new ControlState {};
     ControlState& controls = *state.controls;
-    controls.mouse.target = { 0.f, 0.f, 0.f };
-    controls.mouse.movement_speed = 2.5f;
-    controls.mouse.mouse_sensitivity = 1.f;
-    controls.mouse.distanceFromTarget = state.camera->position.length();
-    controls.mouse.locked = true;
+    controls.cameraTarget = { 0.f, 0.f, 0.f };
+    controls.movement_speed = 2.5f;
+    controls.mouse_sensitivity = 1.f;
+    controls.distanceFromTarget = state.camera->position.length();
+    controls.isCameraLocked = true;
 
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult controls_iterate(AppState& state) {
-    float velocity = state.controls->mouse.movement_speed * state.deltaTime;
+    float velocity = state.controls->movement_speed * state.deltaTime;
     bool const* keystate = SDL_GetKeyboardState(nullptr);
 
     if (keystate[SDL_SCANCODE_LCTRL]) {
@@ -70,11 +70,11 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
     case SDL_EVENT_MOUSE_BUTTON_DOWN: {
         SDL_MouseButtonEvent const& evt = (SDL_MouseButtonEvent&)event;
         if (evt.button == SDL_BUTTON_RIGHT) {
-            state.controls->mouse.locked = !state.controls->mouse.locked;
+            state.controls->isCameraLocked = !state.controls->isCameraLocked;
         }
     } break;
     case SDL_EVENT_MOUSE_MOTION: {
-        if (state.controls->mouse.locked) break; // Ignore camera movement if locked
+        if (state.controls->isCameraLocked) break; // Ignore camera movement if locked
 
         SDL_MouseMotionEvent const& evt = (SDL_MouseMotionEvent&)event;
         float mouse_x, mouse_y;
@@ -85,14 +85,14 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
             vec3 right = state.camera->right();
             vec3 up = { 0, 1, 0 };
 
-            state.controls->mouse.target -= right * evt.xrel;
-            state.controls->mouse.target += up * evt.yrel;
+            state.controls->cameraTarget -= right * evt.xrel;
+            state.controls->cameraTarget += up * evt.yrel;
 
-            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.controls->mouse.distanceFromTarget }, state.camera->rotation);
+            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.controls->distanceFromTarget }, state.camera->rotation);
             state.camera->position = vec3 {
-                state.controls->mouse.target.x + offset.x,
-                state.controls->mouse.target.y + offset.y,
-                state.controls->mouse.target.z + offset.z
+                state.controls->cameraTarget.x + offset.x,
+                state.controls->cameraTarget.y + offset.y,
+                state.controls->cameraTarget.z + offset.z
             };
         } else {
             // Orbit as before
@@ -103,11 +103,11 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
 
             state.camera->rotation = q_h * q_v * state.camera->rotation;
 
-            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.controls->mouse.distanceFromTarget }, state.camera->rotation);
+            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.controls->distanceFromTarget }, state.camera->rotation);
             state.camera->position = vec3 {
-                state.controls->mouse.target.x + offset.x,
-                state.controls->mouse.target.y + offset.y,
-                state.controls->mouse.target.z + offset.z
+                state.controls->cameraTarget.x + offset.x,
+                state.controls->cameraTarget.y + offset.y,
+                state.controls->cameraTarget.z + offset.z
             };
         }
     } break;
