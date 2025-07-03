@@ -26,11 +26,13 @@ public:
     void iterate(double dt);
     void update_lame_params();
 
-    void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity);
-    void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity);
+    void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity, double particle_spacing);
+    void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity, double particle_spacing);
+    void create_particle_clumpy_sphere(vec3& center, double radius, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed, double particle_spacing);
     void create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, int nb_points, unsigned int* seed);
 
     struct {
+        unsigned int particles_per_cell;
         double particle_spacing;
         double grid_spacing;
         vec3 grid_origin;
@@ -72,12 +74,6 @@ private:
 
     double N(const double x);
     double d_N(const double x);
-
-    void create_particle_clumpy_sphere(
-            vec3& center, double radius,
-            vec3& initial_velocity,
-            int num_clumps, double clump_radius_factor, 
-            unsigned int* seed);
 
     void step1_rasterize_particles_to_grid();
     void step2_compute_volumes_and_densities();

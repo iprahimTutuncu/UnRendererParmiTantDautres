@@ -73,19 +73,19 @@ void MpmSolver::update_lame_params() {
         / ((1.0 + params.poisson_ratio) * (1.0 - 2.0 * params.poisson_ratio));
 }
 
-void MpmSolver::create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity) {
+void MpmSolver::create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity, double particle_spacing) {
     // initialize test particles
 
     vec3 half_size = size / 2.0;
     vec3 min_c = c - half_size;
     vec3 max_c = c + half_size;
 
-    for (double x = min_c.x(); x <= max_c.x(); x += params.particle_spacing) {
-    for (double y = min_c.y(); y <= max_c.y(); y += params.particle_spacing) {
-    for (double z = min_c.z(); z <= max_c.z(); z += params.particle_spacing) {
+    for (double x = min_c.x(); x <= max_c.x(); x += particle_spacing) {
+    for (double y = min_c.y(); y <= max_c.y(); y += particle_spacing) {
+    for (double z = min_c.z(); z <= max_c.z(); z += particle_spacing) {
         MpmParticle p{};
         p.position = vec3(x, y, z);
-        p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
+        p.mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
         p.velocity = initial_velocity;
         particles.emplace_back(p);
     }}}
@@ -95,18 +95,18 @@ static inline double get_random(double min, double max, unsigned int* seed) {
     return min + (rand_r(seed) / (double)RAND_MAX) * (max - min);
 }
 
-void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity) {
+void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity, double particle_spacing) {
     // Iterate over a bounding box that contains the sphere
-    for (double x = c.x() - r; x <= c.x() + r; x += params.particle_spacing) {
-    for (double y = c.y() - r; y <= c.y() + r; y += params.particle_spacing) {
-    for (double z = c.z() - r; z <= c.z() + r; z += params.particle_spacing) {
+    for (double x = c.x() - r; x <= c.x() + r; x += particle_spacing) {
+    for (double y = c.y() - r; y <= c.y() + r; y += particle_spacing) {
+    for (double z = c.z() - r; z <= c.z() + r; z += particle_spacing) {
         
         vec3 pos(x, y, z);
         
         if ((pos - c).squaredNorm() <= r * r) {
             MpmParticle p{};
             p.position = pos;
-            p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
+            p.mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
             p.velocity = initial_velocity;
             particles.emplace_back(p);
         }
@@ -114,7 +114,7 @@ void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity
 }
 
 void MpmSolver::create_particle_clumpy_sphere(
-        vec3& c, double r, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed)
+        vec3& c, double r, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed, double particle_spacing)
 {
     for (int i = 0; i < num_clumps; ++i) {
         vec3 clump_center;
@@ -127,7 +127,7 @@ void MpmSolver::create_particle_clumpy_sphere(
 
         double r1 = get_random(0.5 * r, r, seed) * clump_radius_factor;
 
-        create_particle_sphere(clump_center, r1, initial_velocity);
+        create_particle_sphere(clump_center, r1, initial_velocity, particle_spacing);
     }
 }
 
@@ -143,7 +143,7 @@ void MpmSolver::create_particle_sphere_seeded(vec3& c, double r, vec3& initial_v
         if ((pos - c).squaredNorm() <= r * r) {
             MpmParticle p{};
             p.position = pos;
-            p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
+            p.mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
             p.velocity = initial_velocity;
             particles.emplace_back(p);
             ++i;

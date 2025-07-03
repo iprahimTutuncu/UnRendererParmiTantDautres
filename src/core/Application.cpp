@@ -23,11 +23,10 @@ Application::Application() :
 void Application::init() {
     init_keymap();
 
-    m_mpm_solver.params.particle_spacing = 0.010;
-
-    m_mpm_solver.params.grid_spacing = 0.070;
+    m_mpm_solver.params.particles_per_cell = 2;
+    m_mpm_solver.params.grid_spacing = 0.040;
     m_mpm_solver.params.grid_origin = vec3(-1.5, -1.50, -1.5);
-    m_mpm_solver.params.grid_size = vec3(5.0, 5.0, 5.0);
+    m_mpm_solver.params.grid_size = vec3(2.0, 5.0, 2.0);
 
     m_mpm_solver.params.critical_compression = 2.5E-2;
     m_mpm_solver.params.critical_stretch = 7.5E-3;
