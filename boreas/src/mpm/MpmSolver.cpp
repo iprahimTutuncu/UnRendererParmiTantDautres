@@ -16,9 +16,10 @@
 // https://studenttheses.uu.nl/bitstream/handle/20.500.12932/25872/ICA-4037324.pdf
 
 #include "MpmSolver.hpp"
-#include <algorithm>
-#include <iostream>
 #include <memory>
+
+struct SolverCR;
+struct SolverCG;
 
 // TODO: add variable particle spacing, etc.
 MpmSolver::MpmSolver() :
@@ -34,11 +35,7 @@ void MpmSolver::initialize() {
             params.grid_size.x(), params.grid_size.y(), params.grid_size.z(), 
             params.grid_spacing);
 
-    create_particle_clumpy_sphere(
-            params.ball_origin, params.ball_radius, params.ball_velocity, 250, 0.2, &params.ball_seed);
-//    create_particle_sphere(params.ball_origin, params.ball_radius, params.ball_velocity);
     positions.resize(particles.size());
-
     update_lame_params();
 
     grid->reset_nodes();
@@ -54,7 +51,7 @@ void MpmSolver::iterate(double dt) {
     step3_compute_grid_forces();
     step4_update_grid_velocities();
     step5_grid_based_collisions();
-    step6_solve_linear_system();
+    step6_solve_linear_system<SolverCR>();
     step7_update_deformation_gradient();
     step8_update_particle_velocities();
     step9_particle_based_collisions();
@@ -76,30 +73,48 @@ void MpmSolver::update_lame_params() {
         / ((1.0 + params.poisson_ratio) * (1.0 - 2.0 * params.poisson_ratio));
 }
 
-void MpmSolver::create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity) {
+void MpmSolver::create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity, double particle_spacing) {
     // initialize test particles
 
     vec3 half_size = size / 2.0;
     vec3 min_c = c - half_size;
     vec3 max_c = c + half_size;
 
-    for (double x = min_c.x(); x <= max_c.x(); x += params.particle_spacing) {
-    for (double y = min_c.y(); y <= max_c.y(); y += params.particle_spacing) {
-    for (double z = min_c.z(); z <= max_c.z(); z += params.particle_spacing) {
+    for (double x = min_c.x(); x <= max_c.x(); x += particle_spacing) {
+    for (double y = min_c.y(); y <= max_c.y(); y += particle_spacing) {
+    for (double z = min_c.z(); z <= max_c.z(); z += particle_spacing) {
         MpmParticle p{};
         p.position = vec3(x, y, z);
-        p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
+        p.mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
         p.velocity = initial_velocity;
         particles.emplace_back(p);
     }}}
 }
 
-double get_random(double min, double max, unsigned int* seed) {
+static inline double get_random(double min, double max, unsigned int* seed) {
     return min + (rand_r(seed) / (double)RAND_MAX) * (max - min);
 }
 
+void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity, double particle_spacing) {
+    // Iterate over a bounding box that contains the sphere
+    for (double x = c.x() - r; x <= c.x() + r; x += particle_spacing) {
+    for (double y = c.y() - r; y <= c.y() + r; y += particle_spacing) {
+    for (double z = c.z() - r; z <= c.z() + r; z += particle_spacing) {
+        
+        vec3 pos(x, y, z);
+        
+        if ((pos - c).squaredNorm() <= r * r) {
+            MpmParticle p{};
+            p.position = pos;
+            p.mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
+            p.velocity = initial_velocity;
+            particles.emplace_back(p);
+        }
+    }}}
+}
+
 void MpmSolver::create_particle_clumpy_sphere(
-        vec3& c, double r, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed)
+        vec3& c, double r, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed, double particle_spacing)
 {
     for (int i = 0; i < num_clumps; ++i) {
         vec3 clump_center;
@@ -112,38 +127,28 @@ void MpmSolver::create_particle_clumpy_sphere(
 
         double r1 = get_random(0.5 * r, r, seed) * clump_radius_factor;
 
-        for (double x = clump_center.x() - r1; x <= clump_center.x() + r1; x += params.particle_spacing) {
-        for (double y = clump_center.y() - r1; y <= clump_center.y() + r1; y += params.particle_spacing) {
-        for (double z = clump_center.z() - r1; z <= clump_center.z() + r1; z += params.particle_spacing) {
-
-            vec3 pos(x, y, z);
-            if ((pos - clump_center).squaredNorm() <= r1 * r1) {
-                MpmParticle p{};
-                p.position = pos;
-                p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
-                p.velocity = initial_velocity;
-                particles.emplace_back(p);
-            }
-        }}}
+        create_particle_sphere(clump_center, r1, initial_velocity, particle_spacing);
     }
 }
 
-void MpmSolver::create_particle_sphere(vec3& c, double r, vec3& initial_velocity) {
-    // Iterate over a bounding box that contains the sphere
-    for (double x = c.x() - r; x <= c.x() + r; x += params.particle_spacing) {
-    for (double y = c.y() - r; y <= c.y() + r; y += params.particle_spacing) {
-    for (double z = c.z() - r; z <= c.z() + r; z += params.particle_spacing) {
-        
-        vec3 pos(x, y, z);
-        
+
+void MpmSolver::create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, int nb_points, unsigned int* seed) {
+    int i = 0;
+    do {
+        double x = get_random(-r, r, seed);
+        double y = get_random(-r, r, seed);
+        double z = get_random(-r, r, seed);
+        vec3 pos = c + vec3(x, y, z);
+
         if ((pos - c).squaredNorm() <= r * r) {
             MpmParticle p{};
             p.position = pos;
-            p.mass = params.initial_density * params.particle_spacing * params.particle_spacing * params.particle_spacing;
+            p.mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
             p.velocity = initial_velocity;
             particles.emplace_back(p);
+            ++i;
         }
-    }}}
+    } while (i < nb_points);
 }
 
 // grid basis function to get weights
@@ -267,10 +272,9 @@ void MpmSolver::step2_compute_volumes_and_densities() {
             rho_p += w_ip * node->mass * inv_h3;
         }}}
 
-        p.density = rho_p;
         // V_p = m_p / rho_p
-        if (p.density > 0.0) {
-            p.volume_0 = p.mass / p.density;
+        if (rho_p > 0.0) {
+            p.volume_0 = p.mass / rho_p;
         }
     }
 }
@@ -296,8 +300,7 @@ void MpmSolver::step3_compute_grid_forces() {
         Eigen::JacobiSVD<mat3> svd{p.deform_elastic, Eigen::ComputeFullU | Eigen::ComputeFullV};
         mat3 U = svd.matrixU();
         mat3 V = svd.matrixV();
-        mat3 R = U * V.transpose(); // check if proper?
-        // mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
+        mat3 R = U * V.transpose();
         if (R.determinant() < 0.0) {
             U.col(2) *= -1.0;
             R = U * V.transpose();
@@ -358,7 +361,7 @@ void MpmSolver::step5_grid_based_collisions() {
     for (MpmGridNode* node : grid->active_nodes) {
         vec3 node_position_world = grid->get_node_world_coords(node->local_pos);
 
-        if (!node || (node_position_world.y() - params.world_floor + grid->spacing) > EPSILON) {
+        if (!node || node_position_world.y() > params.world_floor) {
             continue;
         }
 
@@ -384,17 +387,12 @@ void MpmSolver::step5_grid_based_collisions() {
 }
 
 // see https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-void MpmSolver::calculate_Ar(
-        mat3n& Av_next,
-        mat3n& v_next, 
-        mat3n& df,
-        std::vector<int>& global_to_active_map)
-{
+void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) const {
     df.setZero();
     double inv_h = 1.0 / grid->spacing;
 
     // calculate Ar
-    for (MpmParticle& p : particles) {
+    for (const MpmParticle& p : particles) {
 
         // 3.23 - velocity gradient
         mat3 velocities_grad = mat3::Zero();
@@ -436,25 +434,25 @@ void MpmSolver::calculate_Ar(
         vec3 b = vec3(RTdF(1,0), RTdF(2,0), RTdF(2,1));
 
         mat3 A;
-        A << S(0,0)+S(1,1),      S(2,1),         -S(2,0),
-             S(1,2),             S(0,0)+S(2,2),  S(0,1),
-             -S(2,0),            S(1,0),         S(1,1)+S(2,2);
+        A << S(0,0)+S(1,1),      S(1,2),         -S(2,0),
+             S(2,1),             S(0,0)+S(2,2),  S(1,0),
+             -S(2,0),            S(0,1),         S(1,1)+S(2,2);
 
         // vec3 xyz = A.inverse() * b;
         vec3 xyz = A.fullPivLu().solve(b);
 
         mat3 RTdR;
-        RTdR << 0.0,       -xyz.x(),        -xyz.y(),
-                xyz.x(),   0.0,           -xyz.z(),
-                xyz.y(),   xyz.z(),       0.0;
+        RTdR << 0.0,       xyz.x(),        xyz.y(),
+                -xyz.x(),   0.0,           xyz.z(),
+                -xyz.y(),   -xyz.z(),       0.0;
 
         // 3.31 - dR
         mat3 dR = R * RTdR;
 
         // JFinvT 
-        mat3& Fe = p.deform_elastic;
+        const mat3& Fe = p.deform_elastic;
         double Je = Fe.determinant();
-        mat3& Fp = p.deform_plastic;
+        const mat3& Fp = p.deform_plastic;
         double Jp = Fp.determinant();
 
         mat3 Finv = Fe.inverse();
@@ -462,68 +460,7 @@ void MpmSolver::calculate_Ar(
         mat3 JFinvT = Je * FinvT;
 
         // Frobenius inner product
-//        double JFinvT_dF = (JFinvT.cwiseProduct(dFEp)).sum();
         double JFinvT_dF = (JFinvT.array() * dFEp.array()).sum();
-
-        //mat3& CO = JFinvT;
-
-        // d(JFinvT)
-        //mat3 tmp = mat3::Zero();
-        //mat3 dJFinvT = mat3::Zero();
-
-        //tmp << 
-        //    0, 0, 0,
-        //    0, CO(2,2), -CO(1,2),
-        //    0, -CO(2,1), CO(1,1);
-        //dJFinvT(0,0) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    0, 0, 0,
-        //    -CO(2,2), 0, CO(0,2),
-        //    CO(2,1), 0, -CO(0,1);
-        //dJFinvT(0,1) = (tmp.array() * dFEp.array()).sum();
- 
-        //tmp << 
-        //    0, 0, 0,
-        //    CO(1,2), -CO(0,2), 0,
-        //    -CO(1,1), CO(0,1), 0;         
-        //dJFinvT(0,2) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    0, -CO(2,2), CO(1,2),
-        //    0, 0, 0,
-        //    0, CO(2,0), -CO(1,0);  
-        //dJFinvT(1,0) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    CO(2,2), 0, -CO(0,2),
-        //    0, 0, 0,
-        //    -CO(2,0), 0, CO(0,0);  
-        //dJFinvT(1,1) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    -CO(1,2), CO(0,2), 0,
-        //    0, 0, 0,
-        //    CO(1,0), -CO(0,0), 0; 
-        //dJFinvT(1,2) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    0, CO(2,1), -CO(1,1),
-        //    0, -CO(2,0), CO(1,0),
-        //    0, 0, 0; 
-        //dJFinvT(2,0) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    -CO(2,1), 0, CO(0,1),
-        //    CO(2,0), 0, -CO(0,0),
-        //    0, 0, 0; 
-        //dJFinvT(2,1) = (tmp.array() * dFEp.array()).sum();
-
-        //tmp << 
-        //    CO(1,1), -CO(0,1), 0,
-        //    -CO(0,1), CO(0,0), 0,
-        //    0, 0, 0; 
-        //dJFinvT(2,2) = (tmp.array() * dFEp.array()).sum();
 
         // using Jacobi's formula for the derivative of the inverse and determinant
         double tr_Finv_dF = (Finv * dFEp).trace();
@@ -563,77 +500,109 @@ void MpmSolver::calculate_Ar(
     }
 }
 
-// We apply the conjugate residual method to solve equation 9 from Stomakhin, solving for v_i{n+1}
-// See https://nccastaff.bournemouth.ac.uk/jmacey/MastersProject/MSc15/05Esther/thesisEMdeJong.pdf
-// Zhuo Lo's implementation re-calculates Ar and Ap every iteration, but Jong does not.
+struct SolverCG {
+    template<class Vec, class CalculateA>
+    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
+        Vec r = b - A(x);
+        Vec p = r;
+
+        double rs_old = r.squaredNorm();
+        const double b_norm = b.norm();
+        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
+        const double t_sq = tolerance * tolerance;
+
+        for (int k = 0; k < max_iterations; ++k) {
+            if (rs_old / b_sn < t_sq) {
+                break;
+            }
+
+            Vec Ap = A(p);
+            double alpha = rs_old / p.cwiseProduct(Ap).sum();
+
+            x += alpha * p;
+            r -= alpha * Ap;
+
+            double rs_new = r.squaredNorm();
+
+            if (rs_new / b_sn < t_sq) {
+                break;
+            }
+
+            double beta = rs_new / rs_old;
+            p = r + beta * p;
+            rs_old = rs_new;
+
+        }
+    }
+};
+
+struct SolverCR {
+    template<class Vec, class CalculateA>
+    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
+        Vec r = b - A(x);
+        Vec p = r;
+        Vec Ap = A(p);
+
+        double rAr_old = r.cwiseProduct(Ap).sum();
+        const double b_norm = b.norm();
+        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
+        const double t_sq = tolerance * tolerance;
+
+        for (int k = 0; k < max_iterations ; ++k) {
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            double alpha = rAr_old / Ap.squaredNorm();
+
+            x += alpha * p;
+            r -= alpha * Ap;
+
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            Vec Ar = A(r);
+            double rAr_new = (r.cwiseProduct(Ar)).sum();
+            double beta = rAr_new / rAr_old;
+
+            p  = r  + beta * p;
+            Ap = Ar + beta * Ap;
+            rAr_old = rAr_new;
+        }
+    }
+};
+
+template<class Solver>
 void MpmSolver::step6_solve_linear_system() {
     if (params.beta_integration == 0.0 || grid->active_nodes.empty()) {
         return;
     }
 
     int nb_active_nodes = grid->active_nodes.size();
-    std::vector<int> global_to_active_map(grid->nodes.size(), -1);
-
+    global_to_active_map.assign(grid->nodes.size(), -1);
     for (int i = 0; i < nb_active_nodes; ++i) {
         global_to_active_map[grid->active_nodes[i]->index] = i;
     }
 
-    mat3n velocity_star(3, nb_active_nodes);
-    mat3n velocity_next(3, nb_active_nodes);
+    mat3n b(3, nb_active_nodes);
+    for (int i = 0; i < nb_active_nodes; ++i) {
+        b.col(i) = grid->active_nodes[i]->velocity_star; 
+    }
 
-    mat3n Ax(3, nb_active_nodes);
-    mat3n Ar(3, nb_active_nodes);
-    mat3n Ap(3, nb_active_nodes);
-    mat3n residuals(3, nb_active_nodes);
+    mat3n x = b;
 
     mat3n df(3, nb_active_nodes);
-    mat3n search_dir(3, nb_active_nodes);
+    auto A = [&](const mat3n& v){
+        mat3n Av(3, v.cols());
+        calculate_Ar(Av, v, df);
+        return Av;
+    };
+
+    Solver::solve(A, x, b, params.max_iterations, params.tolerance);
 
     for (int i = 0; i < nb_active_nodes; ++i) {
-        velocity_next.col(i) = grid->active_nodes[i]->velocity_star; 
-        velocity_star.col(i) = grid->active_nodes[i]->velocity_star; 
-    }
-
-    calculate_Ar(Ax, velocity_next, df, global_to_active_map);
-
-    residuals = velocity_star - Ax;
-    search_dir = residuals;
-
-    calculate_Ar(Ar, residuals, df, global_to_active_map);
-
-    Ap = Ar;
-
-    double rAr = residuals.cwiseProduct(Ar).sum();
-
-    for (int k = 0; k < params.max_iterations; ++k) {
-        if ((residuals.norm() / velocity_next.norm()) < params.tolerance) {
-            break;
-        }
-
-        double rAr_k = rAr;
-        double alpha = rAr_k / Ap.cwiseProduct(Ap).sum();
-        
-        if (abs(alpha) < EPSILON) {
-            break;
-        }
-
-        velocity_next = velocity_next + alpha * search_dir;
-        residuals = residuals - alpha * Ap;
-        calculate_Ar(Ar, residuals, df, global_to_active_map);
-
-        rAr = residuals.cwiseProduct(Ar).sum();
-        double beta = rAr / rAr_k;
-
-        if (abs(beta) < EPSILON) {
-            break;
-        }
-
-        search_dir = residuals + beta * search_dir;
-        Ap = Ar + beta * Ap;
-    }
-
-    for (int i = 0; i < nb_active_nodes; ++i) {
-        grid->active_nodes[i]->velocity_star = velocity_next.col(i);
+        grid->active_nodes[i]->velocity_star = x.col(i);
     }
 }
 
@@ -672,24 +641,6 @@ void MpmSolver::step7_update_deformation_gradient() {
         p.deform_plastic = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * F;
         p.deform_elastic = U * sigma.asDiagonal() * V.transpose();
 
-//        vec3 sigma_hat = svd.singularValues();
-//        vec3 sigma = sigma_hat;
-//
-//        for (int i = 0; i < 3; ++i) {
-//            sigma(i) = std::clamp(sigma(i), 1.0 - params.critical_compression , 1.0 + params.critical_stretch);
-//        }
-//
-//        p.deform_elastic = U * sigma.asDiagonal() * V.transpose();
-//
-//        vec3 sigma_hat_inv = vec3(
-//            std::abs(sigma_hat.x()) > EPSILON ? 1.0 / sigma_hat.x() : 0.0,
-//            std::abs(sigma_hat.y()) > EPSILON ? 1.0 / sigma_hat.y() : 0.0,
-//            std::abs(sigma_hat.z()) > EPSILON ? 1.0 / sigma_hat.z() : 0.0
-//        );
-//
-//        vec3 S_ratio = sigma.array() / sigma_hat.array();
-//        mat3 Fp_update = V * S_ratio.asDiagonal() * V.transpose();
-//        p.deform_plastic = Fp_update * p.deform_plastic;
     }
 }
 
@@ -724,7 +675,7 @@ void MpmSolver::step8_update_particle_velocities() {
 
 void MpmSolver::step9_particle_based_collisions() {
     for (MpmParticle& p : particles) {
-        if ((p.position.y() - params.world_floor) > EPSILON) {
+        if (p.position.y() > params.world_floor) {
             continue;
         }
 
