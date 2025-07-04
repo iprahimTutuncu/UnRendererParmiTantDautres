@@ -66,6 +66,11 @@ enum DisplayMode {
     Depth
 };
 
+enum class ViewType {
+    Particles,
+    Mesh
+};
+
 enum RasterMode {
     RasterMode_Fill,
     RasterMode_Line
@@ -84,8 +89,8 @@ struct Rect {
 };
 
 struct Particle {
-    alignas(16) float position[4];
-    alignas(16) float color[4];
+    alignas(16) vec4 position;
+    alignas(16) vec4 color;
 };
 
 struct Vertex {
@@ -119,6 +124,7 @@ struct GraphicState {
     SDL_GPUTexture* textures[NumTextures];
     SDL_GPUSampler* samplersPreset[NumSamplers];
     DisplayMode displayMode;
+    ViewType viewType;
     RasterMode rasterMode;
     std::uint32_t numSphereIndices;
     std::uint32_t numBoxIndices;

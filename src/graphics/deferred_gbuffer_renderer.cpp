@@ -29,14 +29,15 @@ void deferred_gbuffer_update_particles(AppState& state) {
 
     positions.resize(state.graphics->particles.size() * 4);
 
-    for (std::size_t i = 0; i < state.graphics->particles.size(); i++) {
+    for (int i = 0; i < state.graphics->particles.size(); i++) {
         // Access the i-th particle
         auto& p = state.graphics->particles[i];
 
-        positions[i * 4 + 0] = p.position[0];
-        positions[i * 4 + 1] = p.position[1];
-        positions[i * 4 + 2] = p.position[2];
-        positions[i * 4 + 3] = p.position[3];
+        int j = i * 4;
+        positions[j] = p.position[0];
+        positions[j + 1] = p.position[1];
+        positions[j + 2] = p.position[2];
+        positions[j + 3] = p.position[3];
     }
 
     if (!state.graphics->buffers[ParticlePositionBuffer]) {
@@ -72,6 +73,7 @@ void deferred_gbuffer_update_particles(AppState& state) {
 void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     GraphicState& graphics = *state.graphics;
 
+    graphics.particles[0].position.x;
     if (!graphics.textures[GeometryPosition] || !graphics.textures[GeometryNormal] || !graphics.textures[GeometryAlbedo] || !graphics.textures[GeometryDepth]) [[unlikely]] {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GBuffer textures not set!");
         return;
@@ -145,7 +147,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
     SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
-    [[maybe_unused]] float mvp[48] = {
+    float mvp[48] = {
         // proj (16 floats)
         1.358f, 0.0f, 0.0f, 0.0f,
         0.0f, 2.41421f, 0.0f, 0.0f,
@@ -164,6 +166,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         0.0f, 0.0f, 0.25f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f
     };
+
 
     // Render each box
     for (Box& box : graphics.boxes) {
@@ -222,6 +225,8 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
 
     graphics.geometryBufferUniform.view = state.camera->view_matrix();
     graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
+
+
 
     SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
     SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);

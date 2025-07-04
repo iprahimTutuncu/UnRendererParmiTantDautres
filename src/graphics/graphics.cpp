@@ -11,6 +11,7 @@
 
 #include <stddef.h>
 #include <imgui_impl_sdlgpu3.h>
+#include <ctime>
 
 SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
@@ -31,12 +32,13 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     imgui_init(state);
     init_sampler_presets(state);
 
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+
     static constexpr std::size_t gridSizeX = 10;
     static constexpr std::size_t gridSizeY = 10;
     static constexpr std::size_t gridSizeZ = 10;
-    static constexpr float spacing = 1.0f; // distance between particles
+    static constexpr float spacing = 1.0f;
 
-    // Offset to center the grid at origin
     static constexpr float offsetX = static_cast<float>(gridSizeX - 1) * spacing * 0.5f;
     static constexpr float offsetY = static_cast<float>(gridSizeY - 1) * spacing * 0.5f;
     static constexpr float offsetZ = static_cast<float>(gridSizeZ - 1) * spacing * 0.5f;
@@ -46,21 +48,23 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     for (std::size_t z = 0; z < gridSizeZ; ++z) {
         for (std::size_t y = 0; y < gridSizeY; ++y) {
             for (std::size_t x = 0; x < gridSizeX; ++x) {
-                p->position[0] = static_cast<float>(x) * spacing - offsetX;
-                p->position[1] = static_cast<float>(y) * spacing - offsetY;
-                p->position[2] = static_cast<float>(z) * spacing - offsetZ;
+                // Position with random jitter
+                p->position[0] = static_cast<float>(x) * spacing - offsetX + ((std::rand() % 100) / 100.0f - 0.5f) * 0.2f;
+                p->position[1] = static_cast<float>(y) * spacing - offsetY + ((std::rand() % 100) / 100.0f - 0.5f) * 0.2f;
+                p->position[2] = static_cast<float>(z) * spacing - offsetZ + ((std::rand() % 100) / 100.0f - 0.5f) * 0.2f;
                 p->position[3] = 1.0f;
 
-                // Set all colors to white
-                p->color[0] = 1.0f;
-                p->color[1] = 1.0f;
-                p->color[2] = 1.0f;
+                // Color: random RGB, full alpha
+                p->color[0] = (std::rand() % 256) / 255.0f;
+                p->color[1] = (std::rand() % 256) / 255.0f;
+                p->color[2] = (std::rand() % 256) / 255.0f;
                 p->color[3] = 1.0f;
 
-                p += 1;
+                ++p;
             }
         }
     }
+
 
     graphics.boxes.resize(1);
 
@@ -117,7 +121,7 @@ SDL_AppResult graphics_iterate(AppState& state) {
     colorTarget.store_op = SDL_GPU_STOREOP_STORE;
 
     SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTarget, 1, nullptr);
-    state.graphics->displayMode = DisplayMode::Final;
+    state.graphics->displayMode = DisplayMode::Normal;
     deferred_lighting_render_to_texture(state, renderPass, cmdbuf, state.graphics->displayMode);
     ImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, renderPass);
 
