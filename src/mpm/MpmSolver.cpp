@@ -18,8 +18,78 @@
 #include "MpmSolver.hpp"
 #include <memory>
 
-struct SolverCR;
-struct SolverCG;
+
+struct SolverCG {
+    template<class Vec, class CalculateA>
+    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
+        Vec r = b - A(x);
+        Vec p = r;
+
+        double rs_old = r.squaredNorm();
+        const double b_norm = b.norm();
+        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
+        const double t_sq = tolerance * tolerance;
+
+        for (int k = 0; k < max_iterations; ++k) {
+            if (rs_old / b_sn < t_sq) {
+                break;
+            }
+
+            Vec Ap = A(p);
+            double alpha = rs_old / p.cwiseProduct(Ap).sum();
+
+            x += alpha * p;
+            r -= alpha * Ap;
+
+            double rs_new = r.squaredNorm();
+
+            if (rs_new / b_sn < t_sq) {
+                break;
+            }
+
+            double beta = rs_new / rs_old;
+            p = r + beta * p;
+            rs_old = rs_new;
+        }
+    }
+};
+
+struct SolverCR {
+    template<class Vec, class CalculateA>
+    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
+        Vec r = b - A(x);
+        Vec p = r;
+        Vec Ap = A(p);
+
+        double rAr_old = r.cwiseProduct(Ap).sum();
+        const double b_norm = b.norm();
+        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
+        const double t_sq = tolerance * tolerance;
+
+        for (int k = 0; k < max_iterations ; ++k) {
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            double alpha = rAr_old / Ap.squaredNorm();
+
+            x += alpha * p;
+            r -= alpha * Ap;
+
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            Vec Ar = A(r);
+            double rAr_new = (r.cwiseProduct(Ar)).sum();
+            double beta = rAr_new / rAr_old;
+
+            p  = r  + beta * p;
+            Ap = Ar + beta * Ap;
+            rAr_old = rAr_new;
+        }
+    }
+};
 
 // TODO: add variable particle spacing, etc.
 MpmSolver::MpmSolver() :
@@ -499,79 +569,6 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         }
     }
 }
-
-struct SolverCG {
-    template<class Vec, class CalculateA>
-    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
-        Vec r = b - A(x);
-        Vec p = r;
-
-        double rs_old = r.squaredNorm();
-        const double b_norm = b.norm();
-        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
-        const double t_sq = tolerance * tolerance;
-
-        for (int k = 0; k < max_iterations; ++k) {
-            if (rs_old / b_sn < t_sq) {
-                break;
-            }
-
-            Vec Ap = A(p);
-            double alpha = rs_old / p.cwiseProduct(Ap).sum();
-
-            x += alpha * p;
-            r -= alpha * Ap;
-
-            double rs_new = r.squaredNorm();
-
-            if (rs_new / b_sn < t_sq) {
-                break;
-            }
-
-            double beta = rs_new / rs_old;
-            p = r + beta * p;
-            rs_old = rs_new;
-
-        }
-    }
-};
-
-struct SolverCR {
-    template<class Vec, class CalculateA>
-    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
-        Vec r = b - A(x);
-        Vec p = r;
-        Vec Ap = A(p);
-
-        double rAr_old = r.cwiseProduct(Ap).sum();
-        const double b_norm = b.norm();
-        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
-        const double t_sq = tolerance * tolerance;
-
-        for (int k = 0; k < max_iterations ; ++k) {
-            if (r.squaredNorm() / b_sn < t_sq) {
-                break;
-            }
-
-            double alpha = rAr_old / Ap.squaredNorm();
-
-            x += alpha * p;
-            r -= alpha * Ap;
-
-            if (r.squaredNorm() / b_sn < t_sq) {
-                break;
-            }
-
-            Vec Ar = A(r);
-            double rAr_new = (r.cwiseProduct(Ar)).sum();
-            double beta = rAr_new / rAr_old;
-
-            p  = r  + beta * p;
-            Ap = Ar + beta * Ap;
-            rAr_old = rAr_new;
-        }
-    }
-};
 
 template<class Solver>
 void MpmSolver::step6_solve_linear_system() {
