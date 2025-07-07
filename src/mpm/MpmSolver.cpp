@@ -183,8 +183,8 @@ void MpmSolver::iterate(double dt) {
     step3_compute_grid_forces();
     step4_update_grid_velocities();
     step5_grid_based_collisions();
-//    step6_solve_linear_system<SolverCR>();
-    step6_solve_linear_system_preconditioned<SolverPCR>();
+    step6_solve_linear_system<SolverCR>();
+//    step6_solve_linear_system_preconditioned<SolverPCR>();
     step7_update_deformation_gradient();
     step8_update_particle_velocities();
     step9_particle_based_collisions();
