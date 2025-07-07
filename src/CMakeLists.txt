@@ -52,4 +52,5 @@ target_link_libraries(${PROJECT_NAME}
     Eigen3::Eigen
     GLEW::glew
     glm::glm
+    OpenMP::OpenMP_CXX
 )

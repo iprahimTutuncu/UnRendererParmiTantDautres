@@ -12,5 +12,6 @@ find_package(OpenGL 4.6 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(glm REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(OpenMP)
 
 add_subdirectory(src)
