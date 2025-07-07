@@ -48,7 +48,7 @@ void Application::init() {
     init_scene();
     m_mpm_solver.initialize();
 
-    int nb_particles = m_mpm_solver.particles.size();
+    int nb_particles = m_mpm_solver.p_current_state->p_position.size();
     std::cout << "INFO: Initialized simulation with " << nb_particles << " particles." << std::endl;
 
     if (!m_renderer.init(m_main_window.get_width(), m_main_window.get_height(), nb_particles)) {
@@ -113,10 +113,8 @@ void Application::run() {
 
         SDL_GL_SwapWindow(m_main_window.get_handle());
 
-        if (m_mpm_solver.is_ready) {
-            m_renderer.update_particles(m_mpm_solver.positions);
-            m_mpm_solver.is_ready = false;
-        }
+        std::vector<vec3> positions = m_mpm_solver.get_positions();
+        m_renderer.update_particles(positions);
     }
 
    simulation.join();
@@ -138,6 +136,7 @@ void Application::iterate_particles() {
         double delta_time = (new_time - old_time) / frequency;
         old_time = new_time;
         m_mpm_solver.iterate(simulation_dt);
+        m_mpm_solver.swap_buffers();
 //        std::cout << "Iteration " << ++iteration << " done! " << delta_time << "s" << std::endl;
     }
 }

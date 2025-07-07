@@ -3,14 +3,38 @@
 #include "libs/eigen.hpp"
 
 
-struct MpmParticle {
-    vec3 position = vec3::Zero();               // p
-    vec3 velocity = vec3::Zero();               // v
-    double mass{0};                             // m
-    double volume_0{0};                           // V
-    mat3 deform_elastic = mat3::Identity();     // F_E
-    mat3 deform_plastic = mat3::Identity();     // F_P
+struct MpmParticlesState {
+    std::vector<vec3> p_position;               // p
+    std::vector<vec3> p_velocity;               // v
+    std::vector<double> p_mass;                 // m
+    std::vector<double> p_volume_0;             // V
+    std::vector<mat3> p_deform_elastic;         // F_E
+    std::vector<mat3> p_deform_plastic;         // F_P
 
-    std::array<double, 64> weights;
-    std::array<vec3, 64> weights_gradient;
+    void resize(size_t size) {
+        p_position.resize(size);
+        p_velocity.resize(size);
+        p_mass.resize(size);
+        p_volume_0.resize(size);
+        p_deform_elastic.resize(size);
+        p_deform_plastic.resize(size);
+    }
+
+    void clear() {
+        p_position.clear();
+        p_velocity.clear();
+        p_mass.clear();
+        p_volume_0.clear();
+        p_deform_elastic.clear();
+        p_deform_plastic.clear();
+    }
+
+    void create_particle(const vec3& position, const vec3& initial_velocity, const double& mass) {
+        p_position.emplace_back(position);
+        p_velocity.emplace_back(initial_velocity);
+        p_mass.push_back(mass);
+        p_volume_0.push_back(0.0);
+        p_deform_elastic.emplace_back(mat3::Identity());
+        p_deform_plastic.emplace_back(mat3::Identity());
+    }
 };

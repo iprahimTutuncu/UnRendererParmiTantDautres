@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 /*
@@ -29,6 +30,9 @@ public:
     void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity, double particle_spacing);
     void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity, double particle_spacing);
     void create_particle_clumpy_sphere(vec3& center, double radius, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed, double particle_spacing);
+    void swap_buffers();
+    std::vector<vec3> get_positions();
+
     void create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, int nb_points, unsigned int* seed);
 
     struct {
@@ -60,10 +64,14 @@ public:
     std::unique_ptr<MpmGrid> grid;
     std::vector<int> global_to_active_map;
 
-    std::vector<MpmParticle> particles;
-    std::vector<vec3> positions;
+    // Particles
+    MpmParticlesState p_states[2];
+    MpmParticlesState* p_current_state;
+    MpmParticlesState* p_next_state;
+    std::mutex p_state_mutex;
 
-    std::atomic<bool> is_ready;
+    std::vector<std::array<double, 64>> p_weights;
+    std::vector<std::array<vec3, 64>> p_weights_gradient;
 
 private:
     double dt;
