@@ -25,6 +25,7 @@ enum GraphicPipelineIndex {
 
 enum ComputePipelineIndex {
     ParticleUpdate,
+    MarchingCubeScalarFieldGen,
     NumComputePipelines // must be last
 };
 
@@ -45,6 +46,7 @@ enum TextureIndex {
     GeometryAlbedo,
     GeometryDepth,
     DefaultWhite,
+    MarchingCubeScalarField3D,
     NumTextures // must be last
 };
 
@@ -117,6 +119,16 @@ struct GeometryBufferUniform {
     mat4 model;
 };
 
+struct MarchingCubeBufferUniform {
+    uint32_t size[3]; // grid size: (x, y, z)
+    int p0;
+
+    float cellSize;
+    float radius;
+
+    int p1, p2;
+};
+
 struct GraphicState {
     SDL_GPUGraphicsPipeline* graphicPipeline[NumGraphicPipelines];
     SDL_GPUComputePipeline* computePipeline[NumComputePipelines];
@@ -131,6 +143,7 @@ struct GraphicState {
 
     ParticleUpdateUniform particleUniformBuffer;
     GeometryBufferUniform geometryBufferUniform;
+    MarchingCubeBufferUniform marchingCubeBufferUniform;
 
     std::vector<Box> boxes;
     std::vector<Particle> particles;

@@ -18,6 +18,28 @@ SDL_AppResult deferred_gbuffer_init(AppState& state) {
         return SDL_APP_FAILURE;
     }
 
+    state.graphics->marchingCubeBufferUniform.size[0] = 10;
+    state.graphics->marchingCubeBufferUniform.size[1] = 10;
+    state.graphics->marchingCubeBufferUniform.size[2] = 10;
+
+    state.graphics->marchingCubeBufferUniform.radius = 1.f;
+    state.graphics->marchingCubeBufferUniform.cellSize = 0.5f;
+
+    SDL_GPUTextureCreateInfo info {};
+    info.type = SDL_GPU_TEXTURETYPE_3D;
+    info.format = SDL_GPU_TEXTUREFORMAT_R32_FLOAT;
+    info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_TEXTUREUSAGE_GRAPHICS_STORAGE_READ;
+    info.width = state.graphics->marchingCubeBufferUniform.size[0];
+    info.height = state.graphics->marchingCubeBufferUniform.size[1];
+    info.layer_count_or_depth = state.graphics->marchingCubeBufferUniform.size[2];
+    info.num_levels = 1;
+    state.graphics->textures[MarchingCubeScalarField3D] = SDL_CreateGPUTexture(state.device, &info);
+
+    if (!state.graphics->textures[MarchingCubeScalarField3D]) {
+        SDL_Log("Failed to create texture: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
     deferred_gbuffer_update_particles(state);
 
     return SDL_APP_CONTINUE;
@@ -79,23 +101,44 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         return;
     }
 
+
+    // ParticleUpdate
     graphics.particleUniformBuffer.time += 0.01f;
 
     SDL_GPUStorageBufferReadWriteBinding bufferBindings {};
     bufferBindings.buffer = graphics.buffers[ParticlePositionBuffer];
 
-    SDL_GPUCommandBuffer* cmdBufcomp = SDL_AcquireGPUCommandBuffer(state.device);
+    SDL_GPUCommandBuffer* cmdBufParticle = SDL_AcquireGPUCommandBuffer(state.device);
+    SDL_GPUComputePass* computePassParticle = SDL_BeginGPUComputePass(cmdBufParticle, nullptr, 0, &bufferBindings, 1);
 
-    // BEGIN
-    SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
-    SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleUpdate]);
+    SDL_BindGPUComputePipeline(computePassParticle, graphics.computePipeline[ParticleUpdate]);
 
-    SDL_PushGPUComputeUniformData(cmdBufcomp, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
-    Uint32 groupCount = static_cast<std::uint32_t>((graphics.particles.size() + 63) / 64);
-    SDL_DispatchGPUCompute(computePass, groupCount, 1, 1);
-    SDL_EndGPUComputePass(computePass);
-    SDL_SubmitGPUCommandBuffer(cmdBufcomp);
-    // END
+    SDL_PushGPUComputeUniformData(cmdBufParticle, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
+
+    Uint32 particleGroupCount = static_cast<Uint32>((graphics.particles.size() + 63) / 64);
+    SDL_DispatchGPUCompute(computePassParticle, particleGroupCount, 1, 1);
+    SDL_EndGPUComputePass(computePassParticle);
+    SDL_SubmitGPUCommandBuffer(cmdBufParticle);
+
+    // MarchingCubeScalarFieldGen
+    SDL_GPUStorageTextureReadWriteBinding textureBindings[1] {};
+    textureBindings[0].texture = state.graphics->textures[MarchingCubeScalarField3D];
+
+    SDL_GPUCommandBuffer* cmdBufMarching = SDL_AcquireGPUCommandBuffer(state.device);
+    SDL_GPUComputePass* computePassMarching = SDL_BeginGPUComputePass(cmdBufMarching, textureBindings, 1, nullptr, 0);
+
+    SDL_BindGPUComputePipeline(computePassMarching, graphics.computePipeline[MarchingCubeScalarFieldGen]);
+
+    SDL_GPUBuffer* readOnlyBuffers[] = { graphics.buffers[ParticlePositionBuffer] };
+    SDL_BindGPUComputeStorageBuffers(computePassMarching, 0, readOnlyBuffers, 1);
+
+    SDL_PushGPUComputeUniformData(cmdBufMarching, 0, &graphics.marchingCubeBufferUniform, sizeof(MarchingCubeBufferUniform));
+
+    Uint32 marchingGroupCount = static_cast<Uint32>((graphics.particles.size() + 63) / 64);
+    SDL_DispatchGPUCompute(computePassMarching, marchingGroupCount, 1, 1);
+    SDL_EndGPUComputePass(computePassMarching);
+    SDL_SubmitGPUCommandBuffer(cmdBufMarching);
+
 
     SDL_GPUDepthStencilTargetInfo depthTarget {};
     depthTarget.texture = graphics.textures[GeometryDepth];
@@ -146,27 +189,6 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
 
     SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
     SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
-
-    float mvp[48] = {
-        // proj (16 floats)
-        1.358f, 0.0f, 0.0f, 0.0f,
-        0.0f, 2.41421f, 0.0f, 0.0f,
-        0.0f, 0.0f, -1.002f, -1.0f,
-        0.0f, 0.0f, -0.2002f, 0.0f,
-
-        // view (16 floats)
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, -1.0f, -10.0f, 1.0f,
-
-        // model (16 floats)
-        0.25f, 0.0f, 0.0f, 0.0f,
-        0.0f, 0.25f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.25f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
-
 
     // Render each box
     for (Box& box : graphics.boxes) {
@@ -226,8 +248,6 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     graphics.geometryBufferUniform.view = state.camera->view_matrix();
     graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
 
-
-
     SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
     SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
 
@@ -252,7 +272,19 @@ void deferred_gbuffer_create_pipelines(AppState& state) {
     pipelineInfo.threadcount_y = 1;
     pipelineInfo.threadcount_z = 1;
 
-    state.graphics->computePipeline[ParticleUpdate] = createComputePipelineFromShader(state.device, SHADER_PATH("particleUpdate.comp"), &pipelineInfo);
+    state.graphics->computePipeline[ParticleUpdate] = createComputePipelineFromShader(state.device, SHADER_PATH("particle_update.comp"), &pipelineInfo);
+
+    pipelineInfo.num_readwrite_storage_textures = 1;
+    pipelineInfo.num_readonly_storage_buffers = 1;
+    pipelineInfo.num_readwrite_storage_buffers = 0;
+    pipelineInfo.num_readonly_storage_textures = 0;
+    pipelineInfo.num_uniform_buffers = 1;
+    pipelineInfo.num_samplers = 0;
+    pipelineInfo.threadcount_x = 64;
+    pipelineInfo.threadcount_y = 1;
+    pipelineInfo.threadcount_z = 1;
+
+    state.graphics->computePipeline[MarchingCubeScalarFieldGen] = createComputePipelineFromShader(state.device, SHADER_PATH("mc_scalar_field_gen.comp"), &pipelineInfo);
 }
 
 void deferred_gbuffer_create_particles_pipeline(AppState& state) {

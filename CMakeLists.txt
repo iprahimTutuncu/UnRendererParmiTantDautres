@@ -102,9 +102,10 @@ set(SHADERS
     ${SHADER_DIR}/FillTexture.comp
     ${SHADER_DIR}/floorShader.frag
     ${SHADER_DIR}/floorShader.vert
+    ${SHADER_DIR}/mc_scalar_field_gen.comp
     ${SHADER_DIR}/particleShader.frag
     ${SHADER_DIR}/particleShader.vert
-    ${SHADER_DIR}/particleUpdate.comp
+    ${SHADER_DIR}/particle_update.comp
     ${SHADER_DIR}/PositionColor.vert
     ${SHADER_DIR}/quad.vert
     ${SHADER_DIR}/SolidColor.frag

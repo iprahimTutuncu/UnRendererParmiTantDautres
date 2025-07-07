@@ -32,39 +32,37 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     imgui_init(state);
     init_sampler_presets(state);
 
+    // Initialize random seed
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 
-    static constexpr std::size_t gridSizeX = 10;
-    static constexpr std::size_t gridSizeY = 10;
-    static constexpr std::size_t gridSizeZ = 10;
-    static constexpr float spacing = 1.0f;
+    static constexpr std::size_t numParticles = 100; // Total number of random particles
+    static constexpr float sizeX = 10.0f;
+    static constexpr float sizeY = 10.0f;
+    static constexpr float sizeZ = 10.0f;
 
-    static constexpr float offsetX = static_cast<float>(gridSizeX - 1) * spacing * 0.5f;
-    static constexpr float offsetY = static_cast<float>(gridSizeY - 1) * spacing * 0.5f;
-    static constexpr float offsetZ = static_cast<float>(gridSizeZ - 1) * spacing * 0.5f;
+    // Half-extents to center the cloud at origin
+    static constexpr float offsetX = sizeX * 0.5f;
+    static constexpr float offsetY = sizeY * 0.5f;
+    static constexpr float offsetZ = sizeZ * 0.5f;
 
-    graphics.particles.resize(gridSizeX * gridSizeY * gridSizeZ);
+    graphics.particles.resize(numParticles);
     Particle* p = graphics.particles.data();
-    for (std::size_t z = 0; z < gridSizeZ; ++z) {
-        for (std::size_t y = 0; y < gridSizeY; ++y) {
-            for (std::size_t x = 0; x < gridSizeX; ++x) {
-                // Position with random jitter
-                p->position[0] = static_cast<float>(x) * spacing - offsetX + ((std::rand() % 100) / 100.0f - 0.5f) * 0.2f;
-                p->position[1] = static_cast<float>(y) * spacing - offsetY + ((std::rand() % 100) / 100.0f - 0.5f) * 0.2f;
-                p->position[2] = static_cast<float>(z) * spacing - offsetZ + ((std::rand() % 100) / 100.0f - 0.5f) * 0.2f;
-                p->position[3] = 1.0f;
 
-                // Color: random RGB, full alpha
-                p->color[0] = (std::rand() % 256) / 255.0f;
-                p->color[1] = (std::rand() % 256) / 255.0f;
-                p->color[2] = (std::rand() % 256) / 255.0f;
-                p->color[3] = 1.0f;
+    for (std::size_t i = 0; i < numParticles; ++i) {
+        // Random position within a centered cube
+        p->position[0] = ((std::rand() % 1000) / 1000.0f) * sizeX - offsetX;
+        p->position[1] = ((std::rand() % 1000) / 1000.0f) * sizeY - offsetY;
+        p->position[2] = ((std::rand() % 1000) / 1000.0f) * sizeZ - offsetZ;
+        p->position[3] = 1.0f;
 
-                ++p;
-            }
-        }
+        // Random color
+        p->color[0] = (std::rand() % 256) / 255.0f;
+        p->color[1] = (std::rand() % 256) / 255.0f;
+        p->color[2] = (std::rand() % 256) / 255.0f;
+        p->color[3] = 1.0f;
+
+        ++p;
     }
-
 
     graphics.boxes.resize(1);
 
