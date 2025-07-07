@@ -426,7 +426,7 @@ void MpmSolver::step3_compute_grid_forces() {
             if (!node) continue;
 
             vec3 w_ip_grad = p_weights_gradient[i][x + y*4 + z*4*4];
-            double volume = Jp * p_current_state->p_volume_0[i];
+            double volume = J * p_current_state->p_volume_0[i];
 
             vec3 force = volume * sigma * w_ip_grad;
 #pragma omp atomic
