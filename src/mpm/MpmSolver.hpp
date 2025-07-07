@@ -62,6 +62,7 @@ public:
         double line_search_shrink;      // alpha shrink
 
         double beta_integration;        // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
+        double alpha_blend;             // PIC/FLIP blend
     } params;
 
     std::unique_ptr<MpmGrid> grid;

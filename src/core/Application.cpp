@@ -50,6 +50,7 @@ void Application::init() {
     m_mpm_solver.params.line_search_constant = 1E-4;    // armijo constant
     m_mpm_solver.params.line_search_shrink = 0.5;      // alpha shrink
     m_mpm_solver.params.beta_integration = 1.0;
+    m_mpm_solver.params.alpha_blend = 0.95;
 
     init_scene();
     m_mpm_solver.initialize();

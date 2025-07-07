@@ -256,6 +256,7 @@ double MpmSolver::d_N(const double x) {
 // Transfer velocity using normalized weights 
 void MpmSolver::step1_rasterize_particles_to_grid() {
     double inv_h = 1.0 / grid->spacing;
+    const double D_inv = 3.0 * inv_h * inv_h; 
 
 #pragma omp parallel
 #pragma omp for
@@ -304,8 +305,9 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
 #pragma omp atomic
             node->mass += m_i;
 
-            // p = sum( v_p * m_p * w_ip )
-            vec3 momentum = p_current_state->p_velocity[i] * m_i;
+            vec3 node_pos = grid->get_node_world_coords(node->local_pos) - p_current_state->p_position[i];
+            vec3 apic = (p_current_state->p_velocity[i] + p_current_state->p_deform_affine[i] * D_inv * node_pos);
+            vec3 momentum = m_i * apic;
 #pragma omp atomic
             node->momentum.x() += momentum.x();
 #pragma omp atomic
@@ -781,9 +783,11 @@ void MpmSolver::step8_update_particle_velocities() {
         vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
-        // 3.23 - velolity gradient
         vec3 v_pic = vec3::Zero();
         vec3 v_flip = vec3::Zero();
+
+        // APIC
+        p_next_state->p_deform_affine[i] = mat3::Zero();
 
         for (int x = 0; x < 4; ++x) {
         for (int y = 0; y < 4; ++y) {
@@ -792,15 +796,16 @@ void MpmSolver::step8_update_particle_velocities() {
             MpmGridNode* node = grid->get_node_from_local(node_position_local);
             if (!node) continue;
 
+            vec3 node_pos = grid->get_node_world_coords(node->local_pos) - p_current_state->p_position[i];
             double w_ip = p_weights[i][x + y*4 + z*4*4];
             v_pic += node->velocity_star * w_ip;
             v_flip += (node->velocity_star - node->velocity) * w_ip;
+
+            p_next_state->p_deform_affine[i] += w_ip * node->velocity_star * node_pos.transpose();
         }}}
 
         v_flip += p_current_state->p_velocity[i];
-
-        double alpha = 0.95;
-        p_next_state->p_velocity[i] = (1.0 - alpha) * v_pic + alpha * v_flip;
+        p_next_state->p_velocity[i] = (1.0 - params.alpha_blend) * v_pic + params.alpha_blend * v_flip;
     }
 }
 
