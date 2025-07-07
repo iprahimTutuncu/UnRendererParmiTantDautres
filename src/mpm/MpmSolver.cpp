@@ -317,7 +317,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         }}}
     }
 
-#pragma omp for
+#pragma omp single
     for (int i = 0; i < grid->nodes.size(); ++i) {
         // v_i = sum( v_p * m_p * w_ip / m_i )
         // p = mv -> v = p/m
