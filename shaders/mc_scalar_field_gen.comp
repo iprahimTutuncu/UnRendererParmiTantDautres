@@ -1,16 +1,13 @@
 #version 450
 
-// Particle positions
 layout(set = 0, binding = 0) readonly buffer PBuffer {
-    vec4 pos[]; // particle positions
+    vec4 pos[];
 };
 
-// 3D scalar field stored as float image
 layout(set = 1, binding = 0, r32f) uniform writeonly image3D field;
 
-// Uniforms for grid and field settings
 layout(set = 2, binding = 0) uniform UBO {
-    uvec3 size;   // grid size: (x, y, z)
+    uvec3 size; 
     int p0;
 
     float cellSize;
@@ -30,11 +27,11 @@ void main() {
     float r = radius;
     float cs = cellSize;
 
-    // Compute affected voxel range in grid
+    // range affecté
     ivec3 minV = ivec3(floor((p - r) / cs));
     ivec3 maxV = ivec3(ceil((p + r) / cs));
 
-    // Clamp bounds to grid size
+    // Clamp à grille
     minV = clamp(minV, ivec3(0), ivec3(size - 1u));
     maxV = clamp(maxV, ivec3(0), ivec3(size - 1u));
 
@@ -43,7 +40,7 @@ void main() {
         for (int y = minV.y; y <= maxV.y; ++y) {
             for (int x = minV.x; x <= maxV.x; ++x) {
 
-                vec3 vc = (vec3(x, y, z) + 0.5) * cs; // voxel center
+                vec3 vc = (vec3(x, y, z) + 0.5) * cs; // ok so le centre
                 float d = distance(p, vc);
                 if (d > r) continue;
 

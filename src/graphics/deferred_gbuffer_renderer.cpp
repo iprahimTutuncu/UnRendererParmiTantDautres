@@ -18,12 +18,12 @@ SDL_AppResult deferred_gbuffer_init(AppState& state) {
         return SDL_APP_FAILURE;
     }
 
-    state.graphics->marchingCubeBufferUniform.size[0] = 10;
-    state.graphics->marchingCubeBufferUniform.size[1] = 10;
-    state.graphics->marchingCubeBufferUniform.size[2] = 10;
+    state.graphics->marchingCubeBufferUniform.size[0] = 100;
+    state.graphics->marchingCubeBufferUniform.size[1] = 100;
+    state.graphics->marchingCubeBufferUniform.size[2] = 100;
 
     state.graphics->marchingCubeBufferUniform.radius = 1.f;
-    state.graphics->marchingCubeBufferUniform.cellSize = 0.5f;
+    state.graphics->marchingCubeBufferUniform.cellSize = 0.125f;
 
     SDL_GPUTextureCreateInfo info {};
     info.type = SDL_GPU_TEXTURETYPE_3D;
