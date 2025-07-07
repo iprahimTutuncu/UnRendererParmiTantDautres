@@ -27,6 +27,7 @@ set(HEADER_FILES
     libs/sdl.hpp
     mpm/MpmGrid.hpp
     mpm/MpmGridNode.hpp
+    mpm/MpmMath.hpp
     mpm/MpmParticle.hpp
     mpm/MpmSolver.hpp
     mpm/MpmSolver.hpp

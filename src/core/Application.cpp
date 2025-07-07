@@ -13,6 +13,13 @@ const int height = 480;
 // Semi-implicit:       dt ~= 0.5e-3
 const double simulation_dt = 0.5e-3;
 
+const double DEFAULT_COMPRESSION = 2.5e-2;
+const double DEFAULT_STRETCH = 7.5e-3;
+const double DEFAULT_HARDENING = 10.0;
+const double DEFAULT_DENSITY = 4.0e2;
+const double DEFAULT_YOUNGS_MODULUS = 1.4e5;
+const double DEFAULT_POISSON_RATIO = 0.2;
+
 Application::Application() :
      m_action_man{},
      m_main_window{title, width, height}, 
@@ -24,16 +31,16 @@ void Application::init() {
     init_keymap();
 
     m_mpm_solver.params.particles_per_cell = 2;
-    m_mpm_solver.params.grid_spacing = 0.080;
+    m_mpm_solver.params.grid_spacing = 0.040;
     m_mpm_solver.params.grid_origin = vec3(-1.5, -1.50, -1.5);
-    m_mpm_solver.params.grid_size = vec3(2.0, 5.0, 2.0);
+    m_mpm_solver.params.grid_size = vec3(2.0, 3.0, 2.0);
 
-    m_mpm_solver.params.critical_compression = 2.5E-2;
-    m_mpm_solver.params.critical_stretch = 7.5E-3;
-    m_mpm_solver.params.hardening_coefficient = 10.0;
-    m_mpm_solver.params.initial_density = 4.0E2;
-    m_mpm_solver.params.initial_youngs_modulus = 1.4E5;
-    m_mpm_solver.params.poisson_ratio = 0.2;
+    m_mpm_solver.params.critical_compression = DEFAULT_COMPRESSION;
+    m_mpm_solver.params.critical_stretch = DEFAULT_STRETCH;
+    m_mpm_solver.params.hardening_coefficient = DEFAULT_HARDENING;
+    m_mpm_solver.params.initial_density = DEFAULT_DENSITY;
+    m_mpm_solver.params.initial_youngs_modulus = DEFAULT_YOUNGS_MODULUS * 0.09;
+    m_mpm_solver.params.poisson_ratio = DEFAULT_POISSON_RATIO * 1.5;
     m_mpm_solver.params.gravity = vec3(0.0, -20.0, 0.0);
 
     m_mpm_solver.params.world_floor = 0.0;
@@ -49,6 +56,7 @@ void Application::init() {
     m_mpm_solver.params.tolerance_newton = 1E-4;
     m_mpm_solver.params.line_search_constant = 1E-4;    // armijo constant
     m_mpm_solver.params.line_search_shrink = 0.5;      // alpha shrink
+
     m_mpm_solver.params.beta_integration = 1.0;
     m_mpm_solver.params.alpha_blend = 0.95;
 
@@ -69,7 +77,7 @@ void Application::init_scene() {
     vec3 velocity = vec3(0.0, -10.0, 0.0);
     vec3 origin = vec3(0.0, 1.0, 0.0);
     double radius = 0.10;
-    int nb_particles = 500;
+    int nb_particles = 1000;
     unsigned int seed = 33;
 
     m_mpm_solver.create_particle_sphere_seeded(origin, radius, velocity, nb_particles, &seed);

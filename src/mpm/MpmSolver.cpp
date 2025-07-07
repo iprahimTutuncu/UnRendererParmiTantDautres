@@ -16,121 +16,11 @@
 // https://studenttheses.uu.nl/bitstream/handle/20.500.12932/25872/ICA-4037324.pdf
 
 #include "MpmSolver.hpp"
+#include "MpmMath.hpp"
 #include <memory>
 #include <mutex>
 
-#define USE_APIC 0
-
-
-struct SolverCG {
-    template<class Vec, class CalculateA>
-    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
-        Vec r = b - A(x);
-        Vec p = r;
-
-        double rs_old = r.squaredNorm();
-        const double b_norm = b.norm();
-        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
-        const double t_sq = tolerance * tolerance;
-
-        for (int k = 0; k < max_iterations; ++k) {
-            if (rs_old / b_sn < t_sq) {
-                break;
-            }
-
-            Vec Ap = A(p);
-            double alpha = rs_old / p.cwiseProduct(Ap).sum();
-
-            x += alpha * p;
-            r -= alpha * Ap;
-
-            double rs_new = r.squaredNorm();
-
-            if (rs_new / b_sn < t_sq) {
-                break;
-            }
-
-            double beta = rs_new / rs_old;
-            p = r + beta * p;
-            rs_old = rs_new;
-        }
-    }
-};
-
-struct SolverCR {
-    template<class Vec, class CalculateA>
-    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
-        Vec r = b - A(x);
-        Vec p = r;
-        Vec Ap = A(p);
-
-        double rAr_old = r.cwiseProduct(Ap).sum();
-        const double b_norm = b.norm();
-        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
-        const double t_sq = tolerance * tolerance;
-
-        for (int k = 0; k < max_iterations ; ++k) {
-            if (r.squaredNorm() / b_sn < t_sq) {
-                break;
-            }
-
-            double alpha = rAr_old / Ap.squaredNorm();
-
-            x += alpha * p;
-            r -= alpha * Ap;
-
-            if (r.squaredNorm() / b_sn < t_sq) {
-                break;
-            }
-
-            Vec Ar = A(r);
-            double rAr_new = (r.cwiseProduct(Ar)).sum();
-            double beta = rAr_new / rAr_old;
-
-            p  = r  + beta * p;
-            Ap = Ar + beta * Ap;
-            rAr_old = rAr_new;
-        }
-    }
-};
-
-struct SolverPCR {
-    template<class Vec, class CalculateA>
-    static void solve(CalculateA A, Vec& x, const Vec& b, const Vec& M_inv, int max_iterations, double tolerance) {
-        Vec r = b - A(x);
-        Vec z = r.cwiseProduct(M_inv);
-        Vec p = z;
-
-        double rz_old = r.cwiseProduct(z).sum();
-        const double b_norm = b.norm();
-        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
-        const double t_sq = tolerance * tolerance;
-
-        for (int k = 0; k < max_iterations ; ++k) {
-            if (r.squaredNorm() / b_sn < t_sq) {
-                break;
-            }
-
-            Vec Ap = A(p);
-            double alpha = rz_old / Ap.squaredNorm();
-
-            x += alpha * p;
-            r -= alpha * Ap;
-
-            if (r.squaredNorm() / b_sn < t_sq) {
-                break;
-            }
-
-            z = r.cwiseProduct(M_inv);
-
-            double rz_new = (r.cwiseProduct(z)).sum();
-            double beta = rz_new / rz_old;
-
-            p = z + beta * p;
-            rz_old = rz_new;
-        }
-    }
-};
+#define USE_APIC 1
 
 MpmSolver::MpmSolver() :
     params{}
@@ -198,10 +88,6 @@ void MpmSolver::update_lame_params() {
         / (2.0 * (1.0 + params.poisson_ratio));
     lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) 
         / ((1.0 + params.poisson_ratio) * (1.0 - 2.0 * params.poisson_ratio));
-}
-
-static inline double get_random(double min, double max, unsigned int* seed) {
-    return min + (rand_r(seed) / (double)RAND_MAX) * (max - min);
 }
 
 void MpmSolver::create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, int nb_points, unsigned int* seed) {
@@ -385,22 +271,10 @@ void MpmSolver::step3_compute_grid_forces() {
         vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
-        // Polar decomposition
-        // SVD -> A = W S V*
-        // Polar -> A = U P
-        //      P = V S V*
-        //      U = W V*
-        Eigen::JacobiSVD<mat3> svd{p_current_state->p_deform_elastic[i], Eigen::ComputeFullU | Eigen::ComputeFullV};
-        mat3 U = svd.matrixU();
-        mat3 V = svd.matrixV();
-        mat3 R = U * V.transpose();
-        if (R.determinant() < 0.0) {
-            U.col(2) *= -1.0;
-            R = U * V.transpose();
-        }
-
         mat3 Fe = p_current_state->p_deform_elastic[i];
         mat3& Fp = p_current_state->p_deform_plastic[i];
+
+        mat3 R = fast_polar_decompose_R(Fe, 2);
 
         double Jp = p_current_state->p_deform_plastic[i].determinant();
         double Je = p_current_state->p_deform_elastic[i].determinant();
@@ -522,6 +396,11 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         // 3.24 - dFEp
         mat3 dFEp = dt * velocities_grad * p_current_state->p_deform_elastic[i];
 
+        const mat3& Fe = p_current_state->p_deform_elastic[i];
+        double Je = Fe.determinant();
+        const mat3& Fp = p_current_state->p_deform_plastic[i];
+        double Jp = Fp.determinant();
+
         // 3.30 - RTdR
         Eigen::JacobiSVD<mat3> svd{p_current_state->p_deform_elastic[i], Eigen::ComputeFullU | Eigen::ComputeFullV};
         mat3 U = svd.matrixU();
@@ -531,20 +410,32 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
             U.col(2) *= -1.0;
             R = U * V.transpose();
         }
-
         mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
 
         mat3 RTdF = R.transpose() * dFEp - dFEp.transpose() * R;
 
         vec3 b = vec3(RTdF(1,0), RTdF(2,0), RTdF(2,1));
 
-        mat3 A;
-        A << S(0,0)+S(1,1),      S(1,2),         -S(2,0),
-             S(2,1),             S(0,0)+S(2,2),  S(1,0),
-             -S(2,0),            S(0,1),         S(1,1)+S(2,2);
+        const double a00 = S(0,0)+S(1,1);
+        const double a11 = S(0,0)+S(2,2);
+        const double a22 = S(1,1)+S(2,2);
+        const double a01 = S(1,2);
+        const double a02 = -S(2,0);
+        const double a12 = S(1,0);
+
+        const double det = 1.0 / (a00*a11*a22 + 2.0*a01*a02*a12 - a00*a12*a12 - a11*a02*a02 - a22*a01*a01);
+        const double c00 =  a11*a22 - a12*a12;
+        const double c01 =  a02*a12 - a01*a22;
+        const double c02 =  a01*a12 - a02*a11;
+        const double c11 =  a00*a22 - a02*a02;
+        const double c12 =  a01*a02 - a00*a12;
+        const double c22 =  a00*a11 - a01*a01;
 
         // vec3 xyz = A.inverse() * b;
-        vec3 xyz = A.fullPivLu().solve(b);
+        vec3 xyz;
+        xyz.x() = ( c00*b.x() + c01*b.y() + c02*b.z() ) * det;
+        xyz.y() = ( c01*b.x() + c11*b.y() + c12*b.z() ) * det;
+        xyz.z() = ( c02*b.x() + c12*b.y() + c22*b.z() ) * det;
 
         mat3 RTdR;
         RTdR << 0.0,       xyz.x(),        xyz.y(),
@@ -555,11 +446,6 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         mat3 dR = R * RTdR;
 
         // JFinvT 
-        const mat3& Fe = p_current_state->p_deform_elastic[i];
-        double Je = Fe.determinant();
-        const mat3& Fp = p_current_state->p_deform_plastic[i];
-        double Jp = Fp.determinant();
-
         mat3 Finv = Fe.inverse();
         mat3 FinvT = Finv.transpose();
         mat3 JFinvT = Je * FinvT;
