@@ -136,7 +136,6 @@ void Application::iterate_particles() {
         double delta_time = (new_time - old_time) / frequency;
         old_time = new_time;
         m_mpm_solver.iterate(simulation_dt);
-        m_mpm_solver.swap_buffers();
 //        std::cout << "Iteration " << ++iteration << " done! " << delta_time << "s" << std::endl;
     }
 }

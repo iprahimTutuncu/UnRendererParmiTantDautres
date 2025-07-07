@@ -148,6 +148,8 @@ void MpmSolver::iterate(double dt) {
     step8_update_particle_velocities();
     step9_particle_based_collisions();
     step10_update_particle_positions();
+
+    swap_buffers();
 }
 
 void MpmSolver::update_lame_params() {
@@ -302,6 +304,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
 
         // V_p = m_p / rho_p
         if (rho_p > 0.0) {
+            p_current_state->p_volume_0[i] = p_current_state->p_mass[i] / rho_p;
             p_next_state->p_volume_0[i] = p_current_state->p_mass[i] / rho_p;
         }
     }
@@ -629,7 +632,7 @@ void MpmSolver::step8_update_particle_velocities() {
 
 void MpmSolver::step9_particle_based_collisions() {
     for (int i = 0; i < p_current_state->p_position.size(); ++i) {
-        if (p_current_state->p_position[i].y() > params.world_floor) {
+        if (p_current_state->p_position[i].y() + dt * p_next_state->p_velocity[i].y() > params.world_floor) {
             continue;
         }
 
@@ -656,6 +659,6 @@ void MpmSolver::step9_particle_based_collisions() {
 
 void MpmSolver::step10_update_particle_positions() {
     for (int i = 0; i < p_current_state->p_position.size(); ++i) {
-        p_next_state->p_position[i] += dt * p_next_state->p_velocity[i];
+        p_next_state->p_position[i] = p_current_state->p_position[i] + dt * p_next_state->p_velocity[i];
     }
 }
