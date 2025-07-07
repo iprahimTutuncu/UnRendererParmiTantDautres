@@ -24,7 +24,7 @@ void Application::init() {
     init_keymap();
 
     m_mpm_solver.params.particles_per_cell = 2;
-    m_mpm_solver.params.grid_spacing = 0.040;
+    m_mpm_solver.params.grid_spacing = 0.080;
     m_mpm_solver.params.grid_origin = vec3(-1.5, -1.50, -1.5);
     m_mpm_solver.params.grid_size = vec3(2.0, 5.0, 2.0);
 
@@ -32,7 +32,7 @@ void Application::init() {
     m_mpm_solver.params.critical_stretch = 7.5E-3;
     m_mpm_solver.params.hardening_coefficient = 10.0;
     m_mpm_solver.params.initial_density = 4.0E2;
-    m_mpm_solver.params.initial_youngs_modulus = 1.4E3;
+    m_mpm_solver.params.initial_youngs_modulus = 1.4E5;
     m_mpm_solver.params.poisson_ratio = 0.2;
     m_mpm_solver.params.gravity = vec3(0.0, -20.0, 0.0);
 
