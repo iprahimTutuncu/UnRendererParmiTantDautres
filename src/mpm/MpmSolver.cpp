@@ -19,6 +19,8 @@
 #include <memory>
 #include <mutex>
 
+#define USE_APIC 0
+
 
 struct SolverCG {
     template<class Vec, class CalculateA>
@@ -305,9 +307,13 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
 #pragma omp atomic
             node->mass += m_i;
 
+#if USE_APIC
             vec3 node_pos = grid->get_node_world_coords(node->local_pos) - p_current_state->p_position[i];
             vec3 apic = (p_current_state->p_velocity[i] + p_current_state->p_deform_affine[i] * D_inv * node_pos);
             vec3 momentum = m_i * apic;
+#else
+            vec3 momentum = m_i * p_current_state->p_velocity[i];
+#endif
 #pragma omp atomic
             node->momentum.x() += momentum.x();
 #pragma omp atomic
@@ -786,8 +792,10 @@ void MpmSolver::step8_update_particle_velocities() {
         vec3 v_pic = vec3::Zero();
         vec3 v_flip = vec3::Zero();
 
+#if USE_APIC
         // APIC
         p_next_state->p_deform_affine[i] = mat3::Zero();
+#endif
 
         for (int x = 0; x < 4; ++x) {
         for (int y = 0; y < 4; ++y) {
@@ -801,7 +809,9 @@ void MpmSolver::step8_update_particle_velocities() {
             v_pic += node->velocity_star * w_ip;
             v_flip += (node->velocity_star - node->velocity) * w_ip;
 
+#if USE_APIC
             p_next_state->p_deform_affine[i] += w_ip * node->velocity_star * node_pos.transpose();
+#endif
         }}}
 
         v_flip += p_current_state->p_velocity[i];
