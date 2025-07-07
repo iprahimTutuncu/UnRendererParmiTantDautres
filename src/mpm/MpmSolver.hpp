@@ -52,10 +52,16 @@ public:
         vec3 n_co;                      // collider normal
         double mu_surface;              // Coulomb friction coefficient
 
-        int max_iterations;
-        double tolerance;
-        double beta_integration;        // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
+        int max_iterations_solver;
+        double tolerance_solver;
 
+        int max_iterations_newton;
+        int max_iterations_line_search;
+        double tolerance_newton;
+        double line_search_constant;    // armijo constant
+        double line_search_shrink;      // alpha shrink
+
+        double beta_integration;        // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
     } params;
 
     std::unique_ptr<MpmGrid> grid;

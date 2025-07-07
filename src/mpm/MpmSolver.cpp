@@ -598,7 +598,7 @@ void MpmSolver::step6_solve_linear_system() {
         return Av;
     };
 
-    Solver::solve(A, x, b, params.max_iterations, params.tolerance);
+    Solver::solve(A, x, b, params.max_iterations_solver, params.tolerance_solver);
 
     for (int i = 0; i < nb_active_nodes; ++i) {
         grid->active_nodes[i]->velocity_star = x.col(i);

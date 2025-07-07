@@ -41,8 +41,14 @@ void Application::init() {
     m_mpm_solver.params.n_co = vec3(0.0, 1.0, 0.0);
     m_mpm_solver.params.mu_surface = 0.5;
 
-    m_mpm_solver.params.max_iterations = 30;
-    m_mpm_solver.params.tolerance = 1E-5;
+    m_mpm_solver.params.max_iterations_solver = 30;
+    m_mpm_solver.params.tolerance_solver = 1E-5;
+
+    m_mpm_solver.params.max_iterations_newton = 20;
+    m_mpm_solver.params.max_iterations_line_search = 8;
+    m_mpm_solver.params.tolerance_newton = 1E-4;
+    m_mpm_solver.params.line_search_constant = 1E-4;    // armijo constant
+    m_mpm_solver.params.line_search_shrink = 0.5;      // alpha shrink
     m_mpm_solver.params.beta_integration = 1.0;
 
     init_scene();
