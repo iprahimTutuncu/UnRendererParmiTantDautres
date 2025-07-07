@@ -27,9 +27,6 @@ public:
     void iterate(double dt);
     void update_lame_params();
 
-    void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity, double particle_spacing);
-    void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity, double particle_spacing);
-    void create_particle_clumpy_sphere(vec3& center, double radius, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed, double particle_spacing);
     void swap_buffers();
     std::vector<vec3> get_positions();
 
