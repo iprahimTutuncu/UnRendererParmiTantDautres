@@ -127,17 +127,28 @@ void Application::process_events() {
 }
 
 void Application::iterate_particles() {
-    unsigned int iteration = 0;
+    double old_time, new_time, delta_time;
+
+    unsigned int iteration_count = 0;
+    double total_time = 0.0;
 
     const double frequency = static_cast<double>(SDL_GetPerformanceFrequency());
-    double old_time = SDL_GetPerformanceCounter();
+
     while (m_main_window.is_active()) {
-        double new_time = SDL_GetPerformanceCounter();
-        double delta_time = (new_time - old_time) / frequency;
-        old_time = new_time;
+        old_time = SDL_GetPerformanceCounter();
         m_mpm_solver.iterate(simulation_dt);
-//        std::cout << "Iteration " << ++iteration << " done! " << delta_time << "s" << std::endl;
+        new_time = SDL_GetPerformanceCounter();
+
+        delta_time = (new_time - old_time) / frequency;
+        old_time = new_time;
+        total_time += delta_time;
+
+//        std::cout << "Ieration " << iteration_count << " time: " << delta_time * 1000.0 << "ms" << std::endl;
+        ++iteration_count;
     }
+
+    double average_time = (total_time / iteration_count) * 1000.0;
+    std::cout << "Average time: " <<  average_time << "ms" << std::endl;
 }
 
 void Application::resize(int width, int height) {
