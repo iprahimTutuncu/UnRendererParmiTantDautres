@@ -92,6 +92,44 @@ struct SolverCR {
     }
 };
 
+struct SolverPCR {
+    template<class Vec, class CalculateA>
+    static void solve(CalculateA A, Vec& x, const Vec& b, const Vec& M_inv, int max_iterations, double tolerance) {
+        Vec r = b - A(x);
+        Vec z = r.cwiseProduct(M_inv);
+        Vec p = z;
+
+        double rz_old = r.cwiseProduct(z).sum();
+        const double b_norm = b.norm();
+        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
+        const double t_sq = tolerance * tolerance;
+
+        for (int k = 0; k < max_iterations ; ++k) {
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            Vec Ap = A(p);
+            double alpha = rz_old / Ap.squaredNorm();
+
+            x += alpha * p;
+            r -= alpha * Ap;
+
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            z = r.cwiseProduct(M_inv);
+
+            double rz_new = (r.cwiseProduct(z)).sum();
+            double beta = rz_new / rz_old;
+
+            p = z + beta * p;
+            rz_old = rz_new;
+        }
+    }
+};
+
 MpmSolver::MpmSolver() :
     params{}
 {
@@ -143,7 +181,8 @@ void MpmSolver::iterate(double dt) {
     step3_compute_grid_forces();
     step4_update_grid_velocities();
     step5_grid_based_collisions();
-    step6_solve_linear_system<SolverCR>();
+//    step6_solve_linear_system<SolverCR>();
+    step6_solve_linear_system_preconditioned<SolverPCR>();
     step7_update_deformation_gradient();
     step8_update_particle_velocities();
     step9_particle_based_collisions();
@@ -605,6 +644,96 @@ void MpmSolver::step6_solve_linear_system() {
     }
 }
 
+template<class Solver>
+void MpmSolver::step6_solve_linear_system_preconditioned() {
+    if (params.beta_integration == 0.0 || grid->active_nodes.empty()) {
+        return;
+    }
+
+    int nb_active_nodes = grid->active_nodes.size();
+    global_to_active_map.assign(grid->nodes.size(), -1);
+    for (int i = 0; i < nb_active_nodes; ++i) {
+        global_to_active_map[grid->active_nodes[i]->index] = i;
+    }
+
+    mat3n M_inv;
+    compute_preconditioner(M_inv);
+
+    mat3n b(3, nb_active_nodes);
+    for (int i = 0; i < nb_active_nodes; ++i) {
+        b.col(i) = grid->active_nodes[i]->velocity_star; 
+    }
+
+    mat3n x = b;
+
+    mat3n df(3, nb_active_nodes);
+    auto A = [&](const mat3n& v){
+        mat3n Av(3, v.cols());
+        calculate_Ar(Av, v, df);
+        return Av;
+    };
+
+    Solver::solve(A, x, b, M_inv, params.max_iterations_solver, params.tolerance_solver);
+
+    for (int i = 0; i < nb_active_nodes; ++i) {
+        grid->active_nodes[i]->velocity_star = x.col(i);
+    }
+}
+
+void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
+    int nb_active_nodes = grid->active_nodes.size();
+    M_inv.resize(3, nb_active_nodes);
+
+    mat3n P(3, nb_active_nodes);
+    P.setZero();
+
+    const double h = grid->spacing;
+
+#pragma omp parallel for
+    for (int i = 0; i < p_current_state->p_position.size(); ++i) {
+        vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) / h;
+        vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
+
+        double Jp = p_current_state->p_deform_plastic[i].determinant();
+        double mu = mu_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
+        double lambda = lambda_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
+
+        double particle_stiffness = p_current_state->p_volume_0[i] * (2.0 * mu + lambda);
+
+        for (int x = 0; x < 4; ++x) {
+        for (int y = 0; y < 4; ++y) {
+        for (int z = 0; z < 4; ++z) {
+            vec3i node_position_local = base_position + vec3i(x, y, z);
+            MpmGridNode* node = grid->get_node_from_local(node_position_local);
+            if (!node || !node->is_active) continue;
+
+            int active_id = global_to_active_map[node->index];
+            if (active_id < 0) continue;
+
+            const vec3& w_ip_grad = p_weights_gradient[i][x + y*4 + z*4*4];
+            double diag_contrib = particle_stiffness * w_ip_grad.squaredNorm();
+
+#pragma omp atomic
+            P(0, active_id) += diag_contrib;
+#pragma omp atomic
+            P(1, active_id) += diag_contrib;
+#pragma omp atomic
+            P(2, active_id) += diag_contrib;
+        }}}
+    }
+
+    double factor = params.beta_integration * dt * dt;
+    for (int i = 0; i < nb_active_nodes; ++i) {
+        double node_mass = grid->active_nodes[i]->mass;
+        if (node_mass > EPSILON) {
+            vec3 A_diag = vec3::Ones() + (factor / node_mass) * P.col(i);
+            M_inv.col(i) = A_diag.cwiseInverse();
+        } else {
+            M_inv.col(i).setOnes();
+        }
+    }
+}
+
 void MpmSolver::step7_update_deformation_gradient() {
     double inv_h = 1.0 / grid->spacing;
 
@@ -667,7 +796,7 @@ void MpmSolver::step8_update_particle_velocities() {
             v_pic += node->velocity_star * w_ip;
             v_flip += (node->velocity_star - node->velocity) * w_ip;
         }}}
-        
+
         v_flip += p_current_state->p_velocity[i];
 
         double alpha = 0.95;

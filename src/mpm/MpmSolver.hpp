@@ -83,6 +83,8 @@ private:
 
     void calculate_Ar(mat3n& residuals, const mat3n& Ar, mat3n& df) const;
 
+    void compute_preconditioner(mat3n& M_inv) const;
+
     double N(const double x);
     double d_N(const double x);
 
@@ -94,6 +96,9 @@ private:
 
     template<class Solver>
     void step6_solve_linear_system();
+
+    template<class Solver>
+    void step6_solve_linear_system_preconditioned();
     void step7_update_deformation_gradient();
     void step8_update_particle_velocities();
     void step9_particle_based_collisions();
