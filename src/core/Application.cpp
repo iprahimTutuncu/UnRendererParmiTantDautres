@@ -30,17 +30,17 @@ Application::Application() :
 void Application::init() {
     init_keymap();
 
-    m_mpm_solver.params.particles_per_cell = 2;
-    m_mpm_solver.params.grid_spacing = 0.040;
-    m_mpm_solver.params.grid_origin = vec3(-1.5, -1.50, -1.5);
-    m_mpm_solver.params.grid_size = vec3(2.0, 3.0, 2.0);
+    m_mpm_solver.params.particles_per_cell = 32;
+    m_mpm_solver.params.grid_spacing = 0.080;
+    m_mpm_solver.params.grid_origin = vec3(-2.5, 0.0, -2.5);
+    m_mpm_solver.params.grid_size = vec3(5.0, 3.0, 5.0);
 
     m_mpm_solver.params.critical_compression = DEFAULT_COMPRESSION;
     m_mpm_solver.params.critical_stretch = DEFAULT_STRETCH;
-    m_mpm_solver.params.hardening_coefficient = DEFAULT_HARDENING;
+    m_mpm_solver.params.hardening_coefficient = DEFAULT_HARDENING * 1.0;
     m_mpm_solver.params.initial_density = DEFAULT_DENSITY;
-    m_mpm_solver.params.initial_youngs_modulus = DEFAULT_YOUNGS_MODULUS * 0.09;
-    m_mpm_solver.params.poisson_ratio = DEFAULT_POISSON_RATIO * 1.5;
+    m_mpm_solver.params.initial_youngs_modulus = DEFAULT_YOUNGS_MODULUS * 1.0;
+    m_mpm_solver.params.poisson_ratio = DEFAULT_POISSON_RATIO * 1.0;
     m_mpm_solver.params.gravity = vec3(0.0, -20.0, 0.0);
 
     m_mpm_solver.params.world_floor = 0.0;
@@ -48,7 +48,7 @@ void Application::init() {
     m_mpm_solver.params.n_co = vec3(0.0, 1.0, 0.0);
     m_mpm_solver.params.mu_surface = 0.5;
 
-    m_mpm_solver.params.max_iterations_solver = 30;
+    m_mpm_solver.params.max_iterations_solver = 20;
     m_mpm_solver.params.tolerance_solver = 1E-5;
 
     m_mpm_solver.params.max_iterations_newton = 20;
@@ -74,10 +74,10 @@ void Application::init() {
 }
 
 void Application::init_scene() {
-    vec3 velocity = vec3(0.0, -10.0, 0.0);
+    vec3 velocity = vec3(0.0, -5.0, 0.0);
     vec3 origin = vec3(0.0, 1.0, 0.0);
-    double radius = 0.10;
-    int nb_particles = 1000;
+    double radius = 0.5;
+    int nb_particles = 2000;
     unsigned int seed = 33;
 
     m_mpm_solver.create_particle_sphere_seeded(origin, radius, velocity, nb_particles, &seed);
