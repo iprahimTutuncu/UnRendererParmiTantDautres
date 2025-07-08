@@ -100,7 +100,7 @@ SDL_AppResult graphics_create_render_targets(AppState& state) {
         SDL_ReleaseGPUTexture(state.device, state.graphics->textures[GeometryDepth]);
     result |= createRenderTarget(state, GeometryDepth, w, h, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
 
-    return (SDL_AppResult)result;
+    return static_cast<SDL_AppResult>(result);
 }
 
 SDL_AppResult graphics_iterate(AppState& state) {
