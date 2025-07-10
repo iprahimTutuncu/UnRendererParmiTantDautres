@@ -289,7 +289,8 @@ void MpmSolver::step3_compute_grid_forces() {
         mat3 Fp_invT = Fp.inverse().transpose();
 
         mat3 dPsi = 2.0 * mu * (Fe - R) + lambda * (Je - 1.0) * Je * Fe_invT;
-        mat3 sigma = (1 / J) * dPsi * Fe_T;
+        mat3 sigma = dPsi * Fe_T;
+        mat3 stress_force = p_current_state->p_volume_0[i] * sigma;
 
         // add force to nodes
         for (int x = 0; x < 4; ++x) {
@@ -300,9 +301,8 @@ void MpmSolver::step3_compute_grid_forces() {
             if (!node) continue;
 
             vec3 w_ip_grad = p_weights_gradient[i][x + y*4 + z*4*4];
-            double volume = J * p_current_state->p_volume_0[i];
 
-            vec3 force = volume * sigma * w_ip_grad;
+            vec3 force = stress_force * w_ip_grad;
 #pragma omp atomic
             node->force.x() -= force.x();
 #pragma omp atomic
