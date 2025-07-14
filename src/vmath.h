@@ -166,15 +166,15 @@ struct alignas(16) vec4 {
         }
     }
 
-    inline vec4 operator*(float f) {
+    inline vec4 operator*(float f) const {
         return { { x * f }, { y * f }, { z * f }, { w * f } };
     }
 
-    inline vec4 operator+(float f) {
+    inline vec4 operator+(float f) const {
         return { { x + f }, { y + f }, { z + f }, { w + f } };
     }
 
-    inline vec4 operator+(vec4 const& v) {
+    inline vec4 operator+(vec4 const& v) const {
         return { { x + v.x }, { y + v.y }, { z + v.z }, { w + v.w } };
     }
 };

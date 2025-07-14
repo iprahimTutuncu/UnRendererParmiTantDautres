@@ -44,8 +44,13 @@ enum TextureIndex {
     GeometryNormal,
     GeometryAlbedo,
     GeometryDepth,
-    DefaultWhite,
     NumTextures // must be last
+};
+
+// Texture that dont change during the lifetime of the application
+enum StaticTexture {
+    DefaultWhite,
+    NumStaticTextures // must be last
 };
 
 enum SamplerPreset {
@@ -117,6 +122,7 @@ struct GraphicState {
     SDL_GPUComputePipeline* computePipeline[NumComputePipelines];
     SDL_GPUBuffer* buffers[NumBuffers];
     SDL_GPUTexture* textures[NumTextures];
+    SDL_GPUTexture* staticTextures[NumStaticTextures];
     SDL_GPUSampler* samplersPreset[NumSamplers];
     DisplayMode displayMode;
     RasterMode rasterMode;

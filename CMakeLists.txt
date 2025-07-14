@@ -153,13 +153,13 @@ add_executable(app
     src/main.cpp
     src/camera.cpp
     src/controls/controls.cpp
+    src/graphics/deferred_gbuffer_renderer.cpp
+    src/graphics/deferred_lighting_renderer.cpp
     src/graphics/graphics.cpp
     src/graphics/imguisdl.cpp
     src/graphics/shaders.cpp
     src/physics/physics.cpp
-    src/graphics/texture.cpp
-    src/graphics/deferred_lighting_renderer.cpp
-    src/graphics/deferred_gbuffer_renderer.cpp)
+)
 
 add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
