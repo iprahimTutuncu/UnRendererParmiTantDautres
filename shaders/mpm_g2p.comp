@@ -1,0 +1,372 @@
+#version 450
+#extension GL_EXT_shader_atomic_float : enable
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+struct Particle
+{
+    float mass;
+    vec3 position;
+    float volume_0;
+    vec3 velocity;
+    mat3 deform_elastic;
+    mat3 deform_plastic;
+    mat3 deform_affine;
+}
+
+struct GridNode {
+    float mass;
+    vec3 force;
+    vec3 momentum;
+    vec3 velocity_star;
+    vec3 velocity;
+}
+
+layout(set = 1, binding = 0) buffer ParticlesBuffer
+{
+    Particle particles[];
+};
+
+layout(set = 2, binding = 0) buffer ParticlesBuffer
+{
+    GridNode grid[];
+};
+
+layout(set = 3, binding = 0) uniform UBO 
+{
+    ivec3 u_grid_origin;
+    vec3 u_grid_dimension;
+    float u_grid_spacing; // h
+    float u_mu_0;
+    float u_lambda_0;
+    float u_hardening_coefficient;
+    float u_critical_compression;
+    float u_critical_stretch;
+    float u_poisson_ratio;
+    float u_alpha_blend;
+
+    vec3 u_gravity;
+    vec3 u_co_normal;
+    float u_co_floor_y;
+    float u_co_mu;
+
+    vec4 u_D_inv; // 3.0 / h * h
+};
+
+uniform float u_dt;
+
+
+float N(float x) {
+    x = abs(x);
+    float n1 = 0.5 * x * x * x - x * x + 2.0 / 3.0;
+    float n2 =(-1.0 / 6.0) * x * x * x + x * x - 2.0 * x + (4.0 / 3.0);
+    float result = mix(n1, n2, step(1.0, x));
+    result *= (1.0 - step(2.0, x));
+    return result;
+}
+
+float d_N(float x) {
+    float x_abs = abs(x);
+    float sign_x = sign(x);
+    float dn1 = sign * (1.5 * x_abs * x_abs - 2.0 * x_abs);
+    float dn2 = -sign * (0.5 * x_abs * x_abs - 2.0 * x_abs + 2.0);
+    float result = mix(dn1, dn2, step(1.0, x_abs));
+    return result * (1.0 - step(2.0, x_abs));
+}
+
+mat3 polar_decompose(mat3 M, int nb_iterations) {
+    mat3 R = M;
+    for (int i = 0; i < nb_iterations; ++i) {
+        mat3 R_invT = inverse(transpose(R));
+        R = 0.5 * (R + R_invT);
+    }
+    return R;
+}
+
+// 
+// This is a GLSL implementation of
+// "Computing the Singular Value Decomposition of 3 x 3 matrices with
+// minimal branching and elementary floating point operations"
+// by Aleka McAdams et.al., implemented by Alexander Scheid-Rehder
+// http://pages.cs.wisc.edu/~sifakis/papers/SVD_TR1690.pdf
+// https://gist.github.com/alexsr/5065f0189a7af13b2f3bc43d22aff62f
+
+// This should also work on the CPU using glm
+// Then you probably should use glm::quat instead of vec4
+// and mat3_cast to convert to mat3.
+
+// GAMMA = 3 + sqrt(8)
+// C_STAR = cos(pi/8)
+// S_STAR = sin(pi/8)
+
+#define GAMMA 5.8284271247
+#define C_STAR 0.9238795325
+#define S_STAR 0.3826834323
+#define SVD_EPS 0.0000001
+
+vec2 approx_givens_quat(float s_pp, float s_pq, float s_qq) {
+    float c_h = 2 * (s_pp - s_qq);
+    float s_h2 = s_pq * s_pq;
+    float c_h2 = c_h * c_h;
+    if (GAMMA * s_h2 < c_h2) {
+        float omega = 1.0f / sqrt(s_h2 + c_h2);
+        return vec2(omega * c_h, omega * s_pq);
+    }
+    return vec2(C_STAR, S_STAR);
+}
+
+// the quaternion is stored in vec4 like so:
+// (c, s * vec3) meaning that .x = c
+mat3 quat_to_mat3(vec4 quat) {
+    float qx2 = quat.y * quat.y;
+    float qy2 = quat.z * quat.z;
+    float qz2 = quat.w * quat.w;
+    float qwqx = quat.x * quat.y;
+    float qwqy = quat.x * quat.z;
+    float qwqz = quat.x * quat.w;
+    float qxqy = quat.y * quat.z;
+    float qxqz = quat.y * quat.w;
+    float qyqz = quat.z * quat.w;
+
+    return mat3(1.0f - 2.0f * (qy2 + qz2), 2.0f * (qxqy + qwqz), 2.0f * (qxqz - qwqy),
+        2.0f * (qxqy - qwqz), 1.0f - 2.0f * (qx2 + qz2), 2.0f * (qyqz + qwqx),
+        2.0f * (qxqz + qwqy), 2.0f * (qyqz - qwqx), 1.0f - 2.0f * (qx2 + qy2));
+}
+
+mat3 symmetric_eigenanalysis(mat3 A) {
+    mat3 S = transpose(A) * A;
+    // jacobi iteration
+    mat3 q = mat3(1.0f);
+    for (int i = 0; i < 5; i++) {
+        vec2 ch_sh = approx_givens_quat(S[0].x, S[0].y, S[1].y);
+        vec4 ch_sh_quat = vec4(ch_sh.x, 0, 0, ch_sh.y);
+        mat3 q_mat = quat_to_mat3(ch_sh_quat);
+        S = transpose(q_mat) * S * q_mat;
+        q = q * q_mat;
+
+        ch_sh = approx_givens_quat(S[0].x, S[0].z, S[2].z);
+        ch_sh_quat = vec4(ch_sh.x, 0, -ch_sh.y, 0);
+        q_mat = quat_to_mat3(ch_sh_quat);
+        S = transpose(q_mat) * S * q_mat;
+        q = q * q_mat;
+
+        ch_sh = approx_givens_quat(S[1].y, S[1].z, S[2].z);
+        ch_sh_quat = vec4(ch_sh.x, ch_sh.y, 0, 0);
+        q_mat = quat_to_mat3(ch_sh_quat);
+        S = transpose(q_mat) * S * q_mat;
+        q = q * q_mat;
+
+    }
+    return q;
+}
+
+vec2 approx_qr_givens_quat(float a0, float a1) {
+    float rho = sqrt(a0 * a0 + a1 * a1);
+    float s_h = a1;
+    float max_rho_eps = rho;
+    if (rho <= SVD_EPS) {
+        s_h = 0;
+        max_rho_eps = SVD_EPS;
+    }
+    float c_h = max_rho_eps + a0;
+    if (a0 < 0) {
+        float temp = c_h - 2 * a0;
+        c_h = s_h;
+        s_h = temp;
+    }
+    float omega = 1.0f / sqrt(c_h * c_h + s_h * s_h);
+    return vec2(omega * c_h, omega * s_h);
+}
+
+struct QR_mats {
+    mat3 Q;
+    mat3 R;
+};
+
+QR_mats qr_decomp(mat3 B) {
+    QR_mats qr_decomp_result;
+    mat3 R;
+    // 1 0
+    // (ch, 0, 0, sh)
+    vec2 ch_sh10 = approx_qr_givens_quat(B[0].x, B[0].y);
+    mat3 Q10 = quat_to_mat3(vec4(ch_sh10.x, 0, 0, ch_sh10.y));
+    R = transpose(Q10) * B;
+
+    // 2 0
+    // (ch, 0, -sh, 0)
+    vec2 ch_sh20 = approx_qr_givens_quat(R[0].x, R[0].z);
+    mat3 Q20 = quat_to_mat3(vec4(ch_sh20.x, 0, -ch_sh20.y, 0));
+    R = transpose(Q20) * R;
+
+    // 2 1
+    // (ch, sh, 0, 0)
+    vec2 ch_sh21 = approx_qr_givens_quat(R[1].y, R[1].z);
+    mat3 Q21 = quat_to_mat3(vec4(ch_sh21.x, ch_sh21.y, 0, 0));
+    R = transpose(Q21) * R;
+
+    qr_decomp_result.R = R;
+
+    qr_decomp_result.Q = Q10 * Q20 * Q21;
+    return qr_decomp_result;
+}
+
+struct SVD_mats {
+    mat3 U;
+    mat3 Sigma;
+    mat3 V;
+};
+
+SVD_mats svd(mat3 A) {
+    SVD_mats svd_result;
+    svd_result.V = symmetric_eigenanalysis(A);
+
+    mat3 B = A * svd_result.V;
+
+    // sort singular values
+    float rho0 = dot(B[0], B[0]);
+    float rho1 = dot(B[1], B[1]);
+    float rho2 = dot(B[2], B[2]);
+    if (rho0 < rho1) {
+        vec3 temp = B[1];
+        B[1] = -B[0];
+        B[0] = temp;
+        temp = svd_result.V[1];
+        svd_result.V[1] = -svd_result.V[0];
+        svd_result.V[0] = temp;
+        float temp_rho = rho0;
+        rho0 = rho1;
+        rho1 = temp_rho;
+    }
+    if (rho0 < rho2) {
+        vec3 temp = B[2];
+        B[2] = -B[0];
+        B[0] = temp;
+        temp = svd_result.V[2];
+        svd_result.V[2] = -svd_result.V[0];
+        svd_result.V[0] = temp;
+        rho2 = rho0;
+    }
+    if (rho1 < rho2) {
+        vec3 temp = B[2];
+        B[2] = -B[1];
+        B[1] = temp;
+        temp = svd_result.V[2];
+        svd_result.V[2] = -svd_result.V[1];
+        svd_result.V[1] = temp;
+    }
+
+    QR_mats QR = qr_decomp(B);
+    svd_result.U = QR.Q;
+    svd_result.Sigma = QR.R;
+    return svd_result;
+}
+
+struct UP_mats {
+    mat3 U;
+    mat3 P;
+};
+
+UP_mats SVD_to_polar(SVD_mats B) {
+    UP_mats polar;
+    polar.P = B.V * B.Sigma * transpose(B.V);
+    polar.U = B.U * transpose(B.V);
+    return polar;
+}
+
+UP_mats polar_decomp(mat3 A) {
+    SVD_mats B = svd(A);
+    UP_mats polar;
+    polar.P = B.V * B.Sigma * transpose(B.V);
+    polar.U = B.U * transpose(B.V);
+    return polar;
+}
+
+int main() {
+    uint particle_id = gl_GlobalInvocationID.x;
+    if (particle_id >= particles.length()) {
+        return;
+    }
+    Particle p = particles[particle_id];
+
+    float inv_h = 1.0 / u_grid_spacing;
+    vec3 p_pos_rel = (p.position.xyz - u_grid_origin) * inv_h;
+    ivec3 base_pos = ivec3(floor(p_pos_rel - 1.0));
+
+    mat3 velocity_grad = mat3(0.0);
+    vec3 v_pic = vec3(0.0);
+    vec3 v_flip = vec3(0.0);
+    mat3 affine_term = mat3(0.0);
+
+    for (int x = 0; x < 4; ++x) {
+    for (int y = 0; y < 4; ++y) {
+    for (int z = 0; z < 4; ++z) {
+        vec3i node_pos_local = base_pos + ivec3(x, y, z);
+        if (any(lessThan(node_pos_local, ivec3(0))) || any(greaterThanEqual(node_pos_local, u_grid_dim))) {
+            continue;
+        }
+
+        uint node_id = 
+            uint(node_pos_local.x 
+            + node_pos_local.y * u_grid_dimension.x
+            + node_pos_local.z * u_grid_dimension.y * u_grid_dimension.z);
+
+        vec3 node_pos_world = u_grid_origin + vec3(node_pos_local) * u_grid_spacing;
+        vec3 p_offset = p_pos_rel - vec3(node_pos_local);
+        GridNode node = grid[node_id];
+
+        // weights
+        float w_ip_x = N(p_offset.x);
+        float w_ip_y = N(p_offset.y);
+        float w_ip_z = N(p_offset.z);
+        float w_ip = w_ip_x * w_ip_y + w_ip_z;
+
+        float w_ip_grad = inv_h * vec3(
+            d_N(p_offset.x) * w_ip_y * w_ip_z,
+            w_ip_x * d_N(p_offset.y) * w_ip_z,
+            w_ip_x * w_ip_y * d_N(p_offset.z)
+        );
+
+        velocity_grad += outerProduct();
+        v_pic += node.velocity_grad * w_ip;
+        v_flip += (node.velocity_star - node.velocity) * w_ip;
+        affine_term += w_ip * outerProduct(node.velocity_star, node_pos_world - p.position);
+    }}}
+
+    v_flip += p.velocity;
+
+    mat3 tmp_FE = (mat3(1.0) + dt * velocities_grad) * p.deform_elastic;
+    mat3 tmp_FP = p_current_state->p_deform_plastic[i];
+    mat3 F = tmp_FE * tmp_FP;
+
+    SVD_mats svd_result = svd(temp_FE);
+    mat3 sigma = svd.Sigma;
+    vec3 sigma_clamped = clamp(sigma, 1.0 - u_critical_compression, 1.0 + u_critical_stretch);
+
+    p.deform_plastic = V * inverse(sigma_clamped) * transpose(U) * F;
+    p.deform_elastic = U * sigma_clamped * transpose(V);
+    p.velocity = (1.0 - u_alpha_blend) * v_pic + u_alpha_blend * v_flip;
+    p.deform_affine = affine_term;
+
+    vec3 node_pos_world = u_grid_origin + vec3(node_pos_local) * u_grid_spacing;
+    if (node_pos_world.y < u_co_floor_y) {
+        vec3 v_rel = p.velocity;
+        double v_n = dot(v_rel, u_co_normal) ;
+
+        if (v_n < 0.0) {
+            vec3 v_t = v_rel - (v_n * u_co_normal);
+            double v_t_norm = length(v_t);
+
+            if (v_t_norm <= -u_co_mu * v_n) {
+                v_rel = vec3(0.0);
+            }
+            else {
+                v_rel = v_t + u_co_mu * v_n * (v_t / v_t_norm);
+            }
+
+            p.velocity = v_rel;
+        }
+    }
+
+    p.position += u_dt * p.velocity;
+    particles[particle_id] = p;
+}
