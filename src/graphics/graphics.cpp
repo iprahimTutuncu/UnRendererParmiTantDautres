@@ -1,6 +1,5 @@
 #include "graphics.h"
 
-#include "SDL3/SDL_init.h"
 #include "deferred_gbuffer_renderer.h"
 #include "deferred_lighting_renderer.h"
 #include "imguisdl.h"
@@ -8,10 +7,14 @@
 
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_hints.h>
+#include <SDL3/SDL_init.h>
 #include <SDL3/SDL_log.h>
 
-#include <stddef.h>
 #include <imgui_impl_sdlgpu3.h>
+
+#include <stddef.h>
+
+static SDL_AppResult graphics_create_render_targets(AppState& state);
 
 SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
@@ -67,7 +70,6 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     graphics.boxes[0].max[1] = 0.5f;
     graphics.boxes[0].max[2] = 0.5f;
 
-
     if (SDL_AppResult result = deferred_lighting_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
 
@@ -77,30 +79,36 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult graphics_create_render_targets(AppState& state) {
-    int w, h;
-    if (!SDL_GetWindowSize(state.window, &w, &h))
+static SDL_AppResult graphics_create_render_targets(AppState& state) {
+    int width, height;
+    if (!SDL_GetWindowSize(state.window, &width, &height))
         return SDL_APP_FAILURE;
 
-    int result = SDL_APP_CONTINUE;
+    for (SDL_GPUTexture*& texture : state.graphics->textures) {
+        if (texture) {
+            SDL_ReleaseGPUTexture(state.device, texture);
+            texture = nullptr;
+        }
+    }
 
-    if (state.graphics->textures[GeometryPosition])
-        SDL_ReleaseGPUTexture(state.device, state.graphics->textures[GeometryPosition]);
-    result |= createRenderTarget(state, GeometryPosition, w, h, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    SDL_AppResult result;
+    result = createRenderTarget(state, GeometryPosition, width, height, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
 
-    if (state.graphics->textures[GeometryNormal])
-        SDL_ReleaseGPUTexture(state.device, state.graphics->textures[GeometryNormal]);
-    result |= createRenderTarget(state, GeometryNormal, w, h, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    result = createRenderTarget(state, GeometryNormal, width, height, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
 
-    if (state.graphics->textures[GeometryAlbedo])
-        SDL_ReleaseGPUTexture(state.device, state.graphics->textures[GeometryAlbedo]);
-    result |= createRenderTarget(state, GeometryAlbedo, w, h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    result = createRenderTarget(state, GeometryAlbedo, width, height, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
 
-    if (state.graphics->textures[GeometryDepth])
-        SDL_ReleaseGPUTexture(state.device, state.graphics->textures[GeometryDepth]);
-    result |= createRenderTarget(state, GeometryDepth, w, h, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+    result = createRenderTarget(state, GeometryDepth, width, height, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
 
-    return static_cast<SDL_AppResult>(result);
+    return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult graphics_iterate(AppState& state) {
@@ -143,7 +151,6 @@ SDL_AppResult graphics_iterate(AppState& state) {
     ImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, renderPass);
 
     SDL_EndGPURenderPass(renderPass);
-
 
     SDL_SubmitGPUCommandBuffer(cmdbuf);
 
