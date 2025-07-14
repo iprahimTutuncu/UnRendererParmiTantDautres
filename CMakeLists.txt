@@ -143,7 +143,7 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
 
 #  ========== PROJECT ==========
 
-add_subdirectory(boreas EXCLUDE_FROM_ALL)
+add_subdirectory(boreas)
 
 # Add warning flags for Windows and Linux
 if (WIN32 OR MSVC)
