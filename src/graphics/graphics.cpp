@@ -7,10 +7,14 @@
 
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_hints.h>
+#include <SDL3/SDL_init.h>
 #include <SDL3/SDL_log.h>
 
-#include <stddef.h>
 #include <imgui_impl_sdlgpu3.h>
+
+#include <stddef.h>
+
+static SDL_AppResult graphics_create_render_targets(AppState& state);
 
 SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
@@ -19,14 +23,8 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
 
     SDL_GetHintBoolean(SDL_HINT_RENDER_VULKAN_DEBUG, true);
 
-    int w, h;
-    if (!SDL_GetWindowSize(state.window, &w, &h))
-        return SDL_APP_FAILURE;
-
-    createRenderTarget(state, GeometryPosition, w, h, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
-    createRenderTarget(state, GeometryNormal, w, h, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
-    createRenderTarget(state, GeometryAlbedo, w, h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
-    createRenderTarget(state, GeometryDepth, w, h, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+    if (SDL_AppResult result = graphics_create_render_targets(state); result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
 
     imgui_init(state);
     init_sampler_presets(state);
@@ -72,11 +70,46 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     graphics.boxes[0].max[1] = 0.5f;
     graphics.boxes[0].max[2] = 0.5f;
 
-
     if (SDL_AppResult result = deferred_lighting_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
 
     if (SDL_AppResult result = deferred_gbuffer_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+
+    return SDL_APP_CONTINUE;
+}
+
+static SDL_AppResult graphics_create_render_targets(AppState& state) {
+    int width, height;
+    if (!SDL_GetWindowSize(state.window, &width, &height)) [[unlikely]]
+        return SDL_APP_FAILURE;
+
+    for (SDL_GPUTexture*& texture : state.graphics->textures) {
+        if (texture) {
+            SDL_ReleaseGPUTexture(state.device, texture);
+            texture = nullptr;
+        }
+    }
+
+    SDL_AppResult result;
+    result = createRenderTarget(state, GeometryPosition, width, height, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+
+    result = createRenderTarget(state, GeometryNormal, width, height, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+
+    result = createRenderTarget(state, GeometryAlbedo, width, height, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+
+    result = createRenderTarget(state, GeometryDepth, width, height, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+
+    result = createSolidColorTextureRGBA8(state, DefaultWhite, 32, 32, 1.f, 1.f, 1.f, 1.f);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
 
     return SDL_APP_CONTINUE;
@@ -123,7 +156,6 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
     SDL_EndGPURenderPass(renderPass);
 
-
     SDL_SubmitGPUCommandBuffer(cmdbuf);
 
     return SDL_APP_CONTINUE;
@@ -131,6 +163,11 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
 SDL_AppResult graphics_event(AppState& state, SDL_Event& event) {
     imgui_event(state, event);
+
+    if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+        if (SDL_AppResult result = graphics_create_render_targets(state); result != SDL_APP_CONTINUE) [[unlikely]]
+            return result;
+    }
 
     return SDL_APP_CONTINUE;
 }
