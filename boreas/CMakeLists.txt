@@ -31,4 +31,4 @@ target_link_libraries(boreas
     glm::glm
     OpenMP::OpenMP_CXX
 )
-target_compile_definitions(boreas PRIVATE SHADERS_DIR="${SHADER_OUT_DIR}/")
+target_compile_definitions(boreas PRIVATE SHADERS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
