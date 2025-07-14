@@ -1,8 +1,7 @@
 #include "Renderer.hpp"
 
-const glm::vec3 camera_pos = glm::vec3(0.0f,0.5f,2.0f);
+const glm::vec3 camera_pos = glm::vec3(0.0f, 0.5f, 2.0f);
 const glm::vec3 camera_at = glm::vec3(0.0);
-
 
 bool Renderer::init(int width, int height, int nb_particles) {
     glEnable(GL_DEPTH_TEST);
@@ -31,10 +30,8 @@ bool Renderer::init_shaders() {
     // Particles
     bool particleShaderSuccess = true;
     m_particleShader = std::make_unique<ShaderProgram>();
-    particleShaderSuccess &=
-        m_particleShader->addShaderFromSource(GL_VERTEX_SHADER, directory + "particleShader.vert");
-    particleShaderSuccess &=
-        m_particleShader->addShaderFromSource(GL_FRAGMENT_SHADER, directory + "particleShader.frag");
+    particleShaderSuccess &= m_particleShader->addShaderFromSource(GL_VERTEX_SHADER, directory + "particleShader.vert");
+    particleShaderSuccess &= m_particleShader->addShaderFromSource(GL_FRAGMENT_SHADER, directory + "particleShader.frag");
     particleShaderSuccess &= m_particleShader->link();
     if (!particleShaderSuccess) {
         std::cerr << "ERROR: Failed to load particle shader!" << std::endl;
@@ -44,10 +41,8 @@ bool Renderer::init_shaders() {
     // Floor
     bool floorShaderSuccess = true;
     m_floorShader = std::make_unique<ShaderProgram>();
-    floorShaderSuccess &=
-        m_floorShader->addShaderFromSource(GL_VERTEX_SHADER, directory + "floorShader.vert");
-    floorShaderSuccess &=
-        m_floorShader->addShaderFromSource(GL_FRAGMENT_SHADER, directory + "floorShader.frag");
+    floorShaderSuccess &= m_floorShader->addShaderFromSource(GL_VERTEX_SHADER, directory + "floorShader.vert");
+    floorShaderSuccess &= m_floorShader->addShaderFromSource(GL_FRAGMENT_SHADER, directory + "floorShader.frag");
     floorShaderSuccess &= m_floorShader->link();
     if (!floorShaderSuccess) {
         std::cerr << "ERROR: Failed to load floor shader!" << std::endl;

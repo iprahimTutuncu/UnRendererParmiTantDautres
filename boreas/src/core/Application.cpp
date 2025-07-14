@@ -1,6 +1,6 @@
 #include "Application.hpp"
-#include "../sdl.hpp"
 #include "../eigen.hpp"
+#include "../sdl.hpp"
 #include <iostream>
 #include <thread>
 
@@ -20,12 +20,11 @@ const double DEFAULT_DENSITY = 4.0e2;
 const double DEFAULT_YOUNGS_MODULUS = 1.4e5;
 const double DEFAULT_POISSON_RATIO = 0.2;
 
-Application::Application() :
-     m_action_man{},
-     m_main_window{title, width, height},
-     m_renderer{},
-     m_mpm_solver()
-{}
+Application::Application()
+    : m_action_man {}
+    , m_main_window { title, width, height }
+    , m_renderer {}
+    , m_mpm_solver() { }
 
 void Application::init() {
     init_keymap();
@@ -54,8 +53,8 @@ void Application::init() {
     m_mpm_solver.params.max_iterations_newton = 20;
     m_mpm_solver.params.max_iterations_line_search = 8;
     m_mpm_solver.params.tolerance_newton = 1E-4;
-    m_mpm_solver.params.line_search_constant = 1E-4;    // armijo constant
-    m_mpm_solver.params.line_search_shrink = 0.5;      // alpha shrink
+    m_mpm_solver.params.line_search_constant = 1E-4; // armijo constant
+    m_mpm_solver.params.line_search_shrink = 0.5; // alpha shrink
 
     m_mpm_solver.params.beta_integration = 1.0;
     m_mpm_solver.params.alpha_blend = 0.95;
@@ -85,27 +84,47 @@ void Application::init_scene() {
 
 void Application::init_keymap() {
     m_action_man.set_action(SDL_QUIT,
-            [&]() { m_main_window.close(); });
+        [&]() {
+            m_main_window.close();
+        });
     m_action_man.set_action(SDL_MOUSEWHEEL,
-            [&]() { m_renderer.process_wheel(m_event.wheel.y); });
+        [&]() {
+            m_renderer.process_wheel(m_event.wheel.y);
+        });
     m_action_man.set_action(SDL_MOUSEMOTION,
-            [&]() { if (m_capture_mouse) m_renderer.process_mouse(m_event.motion.xrel, m_event.motion.yrel); });
+        [&]() {
+            if (m_capture_mouse) m_renderer.process_mouse(m_event.motion.xrel, m_event.motion.yrel);
+        });
 
     m_action_man.set_action(SDL_WINDOWEVENT,
-            [&]() { m_action_man.do_action(m_event.window.event); });
+        [&]() {
+            m_action_man.do_action(m_event.window.event);
+        });
     m_action_man.set_action(SDL_WINDOWEVENT_DISPLAY_CHANGED,
-            [&]() { resize(m_event.window.data1, m_event.window.data2); });
+        [&]() {
+            resize(m_event.window.data1, m_event.window.data2);
+        });
     m_action_man.set_action(SDL_WINDOWEVENT_RESIZED,
-            [&]() { resize(m_event.window.data1, m_event.window.data2); });
+        [&]() {
+            resize(m_event.window.data1, m_event.window.data2);
+        });
     m_action_man.set_action(SDL_WINDOWEVENT_SIZE_CHANGED,
-            [&]() { resize(m_event.window.data1, m_event.window.data2); });
+        [&]() {
+            resize(m_event.window.data1, m_event.window.data2);
+        });
 
     m_action_man.set_action(SDL_KEYDOWN,
-            [&]() { m_action_man.do_action((int)m_event.key.keysym.sym); });
+        [&]() {
+            m_action_man.do_action((int)m_event.key.keysym.sym);
+        });
     m_action_man.set_action(SDLK_ESCAPE,
-            [&]() { m_main_window.close(); });
+        [&]() {
+            m_main_window.close();
+        });
     m_action_man.set_action(SDLK_q,
-            [&]() { escape_mouse(); });
+        [&]() {
+            escape_mouse();
+        });
 }
 
 void Application::run() {
@@ -132,7 +151,7 @@ void Application::run() {
         m_renderer.update_particles(positions);
     }
 
-   simulation.join();
+    simulation.join();
 }
 
 void Application::process_events() {
@@ -158,12 +177,12 @@ void Application::iterate_particles() {
         old_time = new_time;
         total_time += delta_time;
 
-//        std::cout << "Ieration " << iteration_count << " time: " << delta_time * 1000.0 << "ms" << std::endl;
+        //        std::cout << "Ieration " << iteration_count << " time: " << delta_time * 1000.0 << "ms" << std::endl;
         ++iteration_count;
     }
 
     double average_time = (total_time / iteration_count) * 1000.0;
-    std::cout << "Average time: " <<  average_time << "ms" << std::endl;
+    std::cout << "Average time: " << average_time << "ms" << std::endl;
 }
 
 void Application::resize(int width, int height) {
@@ -176,4 +195,3 @@ void Application::escape_mouse() {
     SDL_CaptureMouse((SDL_bool)m_capture_mouse);
     SDL_SetRelativeMouseMode((SDL_bool)m_capture_mouse);
 }
-

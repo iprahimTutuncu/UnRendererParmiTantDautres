@@ -2,15 +2,14 @@
 
 #include "../eigen.hpp"
 
-
 struct MpmParticlesState {
-    std::vector<vec3> p_position;               // p
-    std::vector<vec3> p_velocity;               // v
-    std::vector<double> p_mass;                 // m
-    std::vector<double> p_volume_0;             // V
-    std::vector<mat3> p_deform_elastic;         // F_E
-    std::vector<mat3> p_deform_plastic;         // F_P
-    std::vector<mat3> p_deform_affine;          // B
+    std::vector<vec3> p_position; // p
+    std::vector<vec3> p_velocity; // v
+    std::vector<double> p_mass; // m
+    std::vector<double> p_volume_0; // V
+    std::vector<mat3> p_deform_elastic; // F_E
+    std::vector<mat3> p_deform_plastic; // F_P
+    std::vector<mat3> p_deform_affine; // B
 
     void resize(size_t size) {
         p_position.resize(size);

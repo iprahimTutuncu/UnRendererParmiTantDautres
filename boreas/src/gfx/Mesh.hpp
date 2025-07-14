@@ -10,18 +10,23 @@ enum VertexBufferId : unsigned int {
     NumVertexBuffers
 };
 
-class Mesh
-{
+class Mesh {
 public:
     virtual ~Mesh();
 
-    GLuint vao() const { return m_vao; }
-    const GLuint* vbo() const { return m_vbo; }
-    GLuint ebo() const { return m_ebo; }
+    GLuint vao() const {
+        return m_vao;
+    }
+    const GLuint* vbo() const {
+        return m_vbo;
+    }
+    GLuint ebo() const {
+        return m_ebo;
+    }
 
 protected:
     GLuint m_vao = 0;
-    GLuint m_vbo[VertexBufferId::NumVertexBuffers] = {0};
+    GLuint m_vbo[VertexBufferId::NumVertexBuffers] = { 0 };
     GLuint m_ebo = 0;
 
     bool m_initialized = false;

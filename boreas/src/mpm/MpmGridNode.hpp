@@ -2,13 +2,12 @@
 
 #include "../eigen.hpp"
 
-
 struct MpmGridNode {
-    double mass{0.0};                           // m
-    vec3 velocity_star = vec3::Zero();          // v
-    vec3 velocity = vec3::Zero();               // v*
-    vec3 momentum = vec3::Zero();               // v*
-    vec3 force = vec3::Zero();                  // F (stress)
+    double mass { 0.0 }; // m
+    vec3 velocity_star = vec3::Zero(); // v
+    vec3 velocity = vec3::Zero(); // v*
+    vec3 momentum = vec3::Zero(); // v*
+    vec3 force = vec3::Zero(); // F (stress)
     vec3i local_pos = vec3i::Zero();
     int index;
     bool is_active = false;

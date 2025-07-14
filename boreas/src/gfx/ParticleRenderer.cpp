@@ -2,16 +2,13 @@
 
 #include <iostream>
 
-ParticleRenderer::ParticleRenderer()
-{}
+ParticleRenderer::ParticleRenderer() { }
 
-ParticleRenderer::~ParticleRenderer()
-{
+ParticleRenderer::~ParticleRenderer() {
     deinit();
 }
 
-void ParticleRenderer::render() const
-{
+void ParticleRenderer::render() const {
     if (m_particleCount == 0) {
         return;
     }
@@ -22,12 +19,9 @@ void ParticleRenderer::render() const
     glDrawArrays(GL_POINTS, 0, m_particleCount);
 }
 
+void ParticleRenderer::init(ShaderProgram* shader) { }
 
-void ParticleRenderer::init(ShaderProgram* shader)
-{}
-
-void ParticleRenderer::init(ShaderProgram* shader, unsigned int nb_particles)
-{
+void ParticleRenderer::init(ShaderProgram* shader, unsigned int nb_particles) {
     m_shader = shader;
     m_shader->bind();
 
@@ -39,8 +33,7 @@ void ParticleRenderer::init(ShaderProgram* shader, unsigned int nb_particles)
         m_ebo,
         sizeof(Particle) * nb_particles,
         nullptr,
-        GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT
-    );
+        GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 
     GLenum init_error = glGetError();
     if (init_error != GL_NO_ERROR) {
@@ -49,7 +42,7 @@ void ParticleRenderer::init(ShaderProgram* shader, unsigned int nb_particles)
 
     m_bufferLocation = glGetProgramResourceIndex(shader->programId(), GL_SHADER_STORAGE_BLOCK, "particleInstances");
     if (m_bufferLocation == GL_INVALID_INDEX) {
-         std::cerr << "ERROR: ParticleRenderer SSBO block 'particleInstances' not found in shader!" << std::endl;
+        std::cerr << "ERROR: ParticleRenderer SSBO block 'particleInstances' not found in shader!" << std::endl;
     }
 
     GLenum prop = GL_BUFFER_BINDING;
@@ -59,11 +52,11 @@ void ParticleRenderer::init(ShaderProgram* shader, unsigned int nb_particles)
         shader->programId(),
         GL_SHADER_STORAGE_BLOCK,
         m_bufferLocation,
-        1,              // Count of properties
-        &prop,          // Property to query
-        1,              // Size of the buffer
-        &length,        // Length written
-        &tmp_binding     // Output buffer
+        1, // Count of properties
+        &prop, // Property to query
+        1, // Size of the buffer
+        &length, // Length written
+        &tmp_binding // Output buffer
     );
     m_bindingPoint = GLuint(tmp_binding);
 
@@ -83,8 +76,7 @@ void ParticleRenderer::init(ShaderProgram* shader, unsigned int nb_particles)
     m_particleCount = nb_particles;
 }
 
-void ParticleRenderer::deinit()
-{
+void ParticleRenderer::deinit() {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, m_bindingPoint, 0);
     Mesh::deinit();
 }
@@ -93,9 +85,9 @@ void ParticleRenderer::update_particles(std::vector<vec3>& positions) {
     float* dst = static_cast<float*>(m_bufferPointer);
     for (size_t i = 0; i < positions.size(); ++i) {
         const vec3& p = positions[i];
-        dst[4*i + 0] = p.x();
-        dst[4*i + 1] = p.y();
-        dst[4*i + 2] = p.z();
-        dst[4*i + 3] = 0.0f;
+        dst[4 * i + 0] = p.x();
+        dst[4 * i + 1] = p.y();
+        dst[4 * i + 2] = p.z();
+        dst[4 * i + 3] = 0.0f;
     }
 }

@@ -1,9 +1,7 @@
-#include "MpmParticle.hpp"
-#include "MpmGrid.hpp"
 #include "../eigen.hpp"
+#include "MpmGrid.hpp"
+#include "MpmParticle.hpp"
 
-#include <cmath>
-#include <cstring>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -39,18 +37,18 @@ public:
         vec3 grid_origin;
         vec3 grid_size;
 
-        double critical_compression;    // theta_c
-        double critical_stretch;        // theta_s
-        double hardening_coefficient;   // xi
-        double initial_density;         // rho_0
-        double initial_youngs_modulus;  // E_0
-        double poisson_ratio;           // nu
-        vec3 gravity;                   // g
+        double critical_compression; // theta_c
+        double critical_stretch; // theta_s
+        double hardening_coefficient; // xi
+        double initial_density; // rho_0
+        double initial_youngs_modulus; // E_0
+        double poisson_ratio; // nu
+        vec3 gravity; // g
 
         double world_floor;
-        vec3 v_co;                      // collider velocity
-        vec3 n_co;                      // collider normal
-        double mu_surface;              // Coulomb friction coefficient
+        vec3 v_co; // collider velocity
+        vec3 n_co; // collider normal
+        double mu_surface; // Coulomb friction coefficient
 
         int max_iterations_solver;
         double tolerance_solver;
@@ -58,11 +56,11 @@ public:
         int max_iterations_newton;
         int max_iterations_line_search;
         double tolerance_newton;
-        double line_search_constant;    // armijo constant
-        double line_search_shrink;      // alpha shrink
+        double line_search_constant; // armijo constant
+        double line_search_shrink; // alpha shrink
 
-        double beta_integration;        // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
-        double alpha_blend;             // PIC/FLIP blend
+        double beta_integration; // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
+        double alpha_blend; // PIC/FLIP blend
     } params;
 
     std::unique_ptr<MpmGrid> grid;
@@ -95,10 +93,10 @@ private:
     void step4_update_grid_velocities();
     void step5_grid_based_collisions();
 
-    template<class Solver>
+    template <class Solver>
     void step6_solve_linear_system();
 
-    template<class Solver>
+    template <class Solver>
     void step6_solve_linear_system_preconditioned();
     void step7_update_deformation_gradient();
     void step8_update_particle_velocities();
