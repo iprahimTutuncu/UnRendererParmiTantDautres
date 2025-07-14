@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 /*
@@ -26,9 +27,9 @@ public:
     void iterate(double dt);
     void update_lame_params();
 
-    void create_particle_cube(vec3& c, vec3& size, vec3& initial_velocity, double particle_spacing);
-    void create_particle_sphere(vec3& center, double radius, vec3& initial_velocity, double particle_spacing);
-    void create_particle_clumpy_sphere(vec3& center, double radius, vec3& initial_velocity, int num_clumps, double clump_radius_factor, unsigned int* seed, double particle_spacing);
+    void swap_buffers();
+    std::vector<vec3> get_positions();
+
     void create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, int nb_points, unsigned int* seed);
 
     struct {
@@ -51,19 +52,30 @@ public:
         vec3 n_co;                      // collider normal
         double mu_surface;              // Coulomb friction coefficient
 
-        int max_iterations;
-        double tolerance;
-        double beta_integration;        // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
+        int max_iterations_solver;
+        double tolerance_solver;
 
+        int max_iterations_newton;
+        int max_iterations_line_search;
+        double tolerance_newton;
+        double line_search_constant;    // armijo constant
+        double line_search_shrink;      // alpha shrink
+
+        double beta_integration;        // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
+        double alpha_blend;             // PIC/FLIP blend
     } params;
 
     std::unique_ptr<MpmGrid> grid;
     std::vector<int> global_to_active_map;
 
-    std::vector<MpmParticle> particles;
-    std::vector<vec3> positions;
+    // Particles
+    MpmParticlesState p_states[2];
+    MpmParticlesState* p_current_state;
+    MpmParticlesState* p_next_state;
+    std::mutex p_state_mutex;
 
-    std::atomic<bool> is_ready;
+    std::vector<std::array<double, 64>> p_weights;
+    std::vector<std::array<vec3, 64>> p_weights_gradient;
 
 private:
     double dt;
@@ -71,6 +83,8 @@ private:
     double lambda_0;
 
     void calculate_Ar(mat3n& residuals, const mat3n& Ar, mat3n& df) const;
+
+    void compute_preconditioner(mat3n& M_inv) const;
 
     double N(const double x);
     double d_N(const double x);
@@ -83,6 +97,9 @@ private:
 
     template<class Solver>
     void step6_solve_linear_system();
+
+    template<class Solver>
+    void step6_solve_linear_system_preconditioned();
     void step7_update_deformation_gradient();
     void step8_update_particle_velocities();
     void step9_particle_based_collisions();

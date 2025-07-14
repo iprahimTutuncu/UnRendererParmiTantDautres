@@ -27,6 +27,7 @@ set(HEADER_FILES
     libs/sdl.hpp
     mpm/MpmGrid.hpp
     mpm/MpmGridNode.hpp
+    mpm/MpmMath.hpp
     mpm/MpmParticle.hpp
     mpm/MpmSolver.hpp
     mpm/MpmSolver.hpp
@@ -52,4 +53,5 @@ target_link_libraries(${PROJECT_NAME}
     Eigen3::Eigen
     GLEW::glew
     glm::glm
+    OpenMP::OpenMP_CXX
 )

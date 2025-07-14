@@ -13,22 +13,12 @@ struct MpmGrid {
     std::vector<MpmGridNode> nodes;
     std::vector<MpmGridNode*> active_nodes;
 
-    const vec3 box_min;
-    const vec3 box_max;
-    const double box_eps; // boundary collision margin
-    const double box_mu; // friction of grid boundary
-
     MpmGrid(vec3 origin, double size_x, double size_y, double size_z, double spacing) :
         origin{origin}, 
         spacing{spacing}, 
         width{static_cast<int>(std::ceil(size_x / spacing)) + 1},
         height{static_cast<int>(std::ceil(size_y / spacing)) + 1},
-        depth{static_cast<int>(std::ceil(size_z / spacing)) + 1},
-        // TODO: bounding box
-        box_min{origin},
-        box_max{origin + vec3(width-1, height-1, depth-1) * spacing},
-        box_eps{EPSILON * spacing},
-        box_mu{0.5}
+        depth{static_cast<int>(std::ceil(size_z / spacing)) + 1}
     {
         int nb_nodes = static_cast<int>(width * height * depth);
         nodes.resize(nb_nodes, MpmGridNode());

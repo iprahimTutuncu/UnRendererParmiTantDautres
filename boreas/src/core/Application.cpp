@@ -13,6 +13,13 @@ const int height = 480;
 // Semi-implicit:       dt ~= 0.5e-3
 const double simulation_dt = 0.5e-3;
 
+const double DEFAULT_COMPRESSION = 2.5e-2;
+const double DEFAULT_STRETCH = 7.5e-3;
+const double DEFAULT_HARDENING = 10.0;
+const double DEFAULT_DENSITY = 4.0e2;
+const double DEFAULT_YOUNGS_MODULUS = 1.4e5;
+const double DEFAULT_POISSON_RATIO = 0.2;
+
 Application::Application() :
      m_action_man{},
      m_main_window{title, width, height}, 
@@ -23,17 +30,17 @@ Application::Application() :
 void Application::init() {
     init_keymap();
 
-    m_mpm_solver.params.particles_per_cell = 2;
-    m_mpm_solver.params.grid_spacing = 0.040;
-    m_mpm_solver.params.grid_origin = vec3(-1.5, -1.50, -1.5);
-    m_mpm_solver.params.grid_size = vec3(2.0, 5.0, 2.0);
+    m_mpm_solver.params.particles_per_cell = 32;
+    m_mpm_solver.params.grid_spacing = 0.080;
+    m_mpm_solver.params.grid_origin = vec3(-2.5, 0.0, -2.5);
+    m_mpm_solver.params.grid_size = vec3(5.0, 3.0, 5.0);
 
-    m_mpm_solver.params.critical_compression = 2.5E-2;
-    m_mpm_solver.params.critical_stretch = 7.5E-3;
-    m_mpm_solver.params.hardening_coefficient = 10.0;
-    m_mpm_solver.params.initial_density = 4.0E2;
-    m_mpm_solver.params.initial_youngs_modulus = 1.4E3;
-    m_mpm_solver.params.poisson_ratio = 0.2;
+    m_mpm_solver.params.critical_compression = DEFAULT_COMPRESSION;
+    m_mpm_solver.params.critical_stretch = DEFAULT_STRETCH;
+    m_mpm_solver.params.hardening_coefficient = DEFAULT_HARDENING * 1.0;
+    m_mpm_solver.params.initial_density = DEFAULT_DENSITY;
+    m_mpm_solver.params.initial_youngs_modulus = DEFAULT_YOUNGS_MODULUS * 1.0;
+    m_mpm_solver.params.poisson_ratio = DEFAULT_POISSON_RATIO * 1.0;
     m_mpm_solver.params.gravity = vec3(0.0, -20.0, 0.0);
 
     m_mpm_solver.params.world_floor = 0.0;
@@ -41,14 +48,22 @@ void Application::init() {
     m_mpm_solver.params.n_co = vec3(0.0, 1.0, 0.0);
     m_mpm_solver.params.mu_surface = 0.5;
 
-    m_mpm_solver.params.max_iterations = 30;
-    m_mpm_solver.params.tolerance = 1E-5;
+    m_mpm_solver.params.max_iterations_solver = 20;
+    m_mpm_solver.params.tolerance_solver = 1E-5;
+
+    m_mpm_solver.params.max_iterations_newton = 20;
+    m_mpm_solver.params.max_iterations_line_search = 8;
+    m_mpm_solver.params.tolerance_newton = 1E-4;
+    m_mpm_solver.params.line_search_constant = 1E-4;    // armijo constant
+    m_mpm_solver.params.line_search_shrink = 0.5;      // alpha shrink
+
     m_mpm_solver.params.beta_integration = 1.0;
+    m_mpm_solver.params.alpha_blend = 0.95;
 
     init_scene();
     m_mpm_solver.initialize();
 
-    int nb_particles = m_mpm_solver.particles.size();
+    int nb_particles = m_mpm_solver.p_current_state->p_position.size();
     std::cout << "INFO: Initialized simulation with " << nb_particles << " particles." << std::endl;
 
     if (!m_renderer.init(m_main_window.get_width(), m_main_window.get_height(), nb_particles)) {
@@ -59,10 +74,10 @@ void Application::init() {
 }
 
 void Application::init_scene() {
-    vec3 velocity = vec3(0.0, -10.0, 0.0);
+    vec3 velocity = vec3(0.0, -5.0, 0.0);
     vec3 origin = vec3(0.0, 1.0, 0.0);
-    double radius = 0.10;
-    int nb_particles = 500;
+    double radius = 0.5;
+    int nb_particles = 2000;
     unsigned int seed = 33;
 
     m_mpm_solver.create_particle_sphere_seeded(origin, radius, velocity, nb_particles, &seed);
@@ -113,10 +128,8 @@ void Application::run() {
 
         SDL_GL_SwapWindow(m_main_window.get_handle());
 
-        if (m_mpm_solver.is_ready) {
-            m_renderer.update_particles(m_mpm_solver.positions);
-            m_mpm_solver.is_ready = false;
-        }
+        std::vector<vec3> positions = m_mpm_solver.get_positions();
+        m_renderer.update_particles(positions);
     }
 
    simulation.join();
@@ -129,17 +142,28 @@ void Application::process_events() {
 }
 
 void Application::iterate_particles() {
-    unsigned int iteration = 0;
+    double old_time, new_time, delta_time;
+
+    unsigned int iteration_count = 0;
+    double total_time = 0.0;
 
     const double frequency = static_cast<double>(SDL_GetPerformanceFrequency());
-    double old_time = SDL_GetPerformanceCounter();
+
     while (m_main_window.is_active()) {
-        double new_time = SDL_GetPerformanceCounter();
-        double delta_time = (new_time - old_time) / frequency;
-        old_time = new_time;
+        old_time = SDL_GetPerformanceCounter();
         m_mpm_solver.iterate(simulation_dt);
-//        std::cout << "Iteration " << ++iteration << " done! " << delta_time << "s" << std::endl;
+        new_time = SDL_GetPerformanceCounter();
+
+        delta_time = (new_time - old_time) / frequency;
+        old_time = new_time;
+        total_time += delta_time;
+
+//        std::cout << "Ieration " << iteration_count << " time: " << delta_time * 1000.0 << "ms" << std::endl;
+        ++iteration_count;
     }
+
+    double average_time = (total_time / iteration_count) * 1000.0;
+    std::cout << "Average time: " <<  average_time << "ms" << std::endl;
 }
 
 void Application::resize(int width, int height) {
