@@ -1,6 +1,6 @@
 #pragma once
 
-#include "libs/eigen.hpp"
+#include "../eigen.hpp"
 
 
 struct MpmParticlesState {

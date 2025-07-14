@@ -1,4 +1,4 @@
-#include "core/Window.hpp"
+#include "Window.hpp"
 
 #include <stdexcept>
 #include <format>
@@ -59,7 +59,7 @@ void Window::init_sdl()
     _window = SDL_CreateWindow(
             title,
             SDL_WINDOWPOS_UNDEFINED,
-            SDL_WINDOWPOS_UNDEFINED, 
+            SDL_WINDOWPOS_UNDEFINED,
             m_width,
             m_height,
             SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
@@ -74,7 +74,7 @@ void Window::init_sdl()
     _gl_context = SDL_GL_CreateContext(_window);
     if (_gl_context == NULL) {
         throw std::runtime_error(std::format(
-                    "ERROR: Failed to create GL context! SDL_Error: {}\n", 
+                    "ERROR: Failed to create GL context! SDL_Error: {}\n",
                     SDL_GetError()));
     }
 
@@ -111,7 +111,7 @@ void Window::resize(int width, int height)
     glViewport(0, 0, m_width, m_height);
 }
 
-void Window::close()	
+void Window::close()
 {
     m_active = false;
 }

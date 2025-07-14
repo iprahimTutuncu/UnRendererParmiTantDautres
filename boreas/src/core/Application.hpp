@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core/ActionManager.hpp"
-#include "core/Window.hpp"
-#include "gfx/Renderer.hpp"
-#include "mpm/MpmSolver.hpp"
+#include "ActionManager.hpp"
+#include "Window.hpp"
+#include "../gfx/Renderer.hpp"
+#include "../mpm/MpmSolver.hpp"
 
 class Application {
     public:

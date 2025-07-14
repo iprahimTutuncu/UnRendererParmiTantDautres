@@ -1,6 +1,6 @@
 #include "MpmParticle.hpp"
 #include "MpmGrid.hpp"
-#include "libs/eigen.hpp"
+#include "../eigen.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -12,7 +12,7 @@
  To simulate different types of snow, we found the following intu-
 ition useful. θc and θs determine when the material starts breaking
 (larger = chunky, smaller = powdery). The hardening coefficient
-determines how fast the material breaks once it is plastic 
+determines how fast the material breaks once it is plastic
 (larger = brittle, smaller = ductile). Dry and powdery snow has smaller criti-
 cal compression and stretch constants, while the opposite is true for
 wet and chunky snow. Icy snow has a higher hardening coefficient
@@ -23,7 +23,7 @@ class MpmSolver {
 public:
     MpmSolver();
 
-    void initialize(); 
+    void initialize();
     void iterate(double dt);
     void update_lame_params();
 

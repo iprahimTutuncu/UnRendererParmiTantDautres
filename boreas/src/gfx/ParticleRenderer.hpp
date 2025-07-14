@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../libs/eigen.hpp"
+#include "../eigen.hpp"
 #include "Mesh.hpp"
 #include "ShaderProgram.hpp"
 

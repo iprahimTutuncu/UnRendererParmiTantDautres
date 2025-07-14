@@ -1,7 +1,7 @@
 #pragma once
 
 #include "MpmGridNode.hpp"
-#include "libs/eigen.hpp"
+#include "../eigen.hpp"
 
 
 struct MpmGrid {
@@ -14,8 +14,8 @@ struct MpmGrid {
     std::vector<MpmGridNode*> active_nodes;
 
     MpmGrid(vec3 origin, double size_x, double size_y, double size_z, double spacing) :
-        origin{origin}, 
-        spacing{spacing}, 
+        origin{origin},
+        spacing{spacing},
         width{static_cast<int>(std::ceil(size_x / spacing)) + 1},
         height{static_cast<int>(std::ceil(size_y / spacing)) + 1},
         depth{static_cast<int>(std::ceil(size_z / spacing)) + 1}
@@ -47,8 +47,8 @@ struct MpmGrid {
     }
 
     const size_t get_node_id_from_local(vec3i pos) const {
-        return static_cast<size_t>(pos.x()) + 
-            static_cast<size_t>(pos.y()) * width + 
+        return static_cast<size_t>(pos.x()) +
+            static_cast<size_t>(pos.y()) * width +
             static_cast<size_t>(pos.z()) * width * height;
     }
 

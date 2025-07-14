@@ -4,7 +4,7 @@
 #include "CameraPerspective.hpp"
 #include "ParticleRenderer.hpp"
 #include "FloorRenderer.hpp"
-#include "libs/eigen.hpp"
+#include "../eigen.hpp"
 
 #include <memory>
 

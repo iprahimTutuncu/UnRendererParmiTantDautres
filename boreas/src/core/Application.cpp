@@ -1,6 +1,6 @@
-#include "core/Application.hpp"
-#include "libs/sdl.hpp"
-#include "libs/eigen.hpp"
+#include "Application.hpp"
+#include "../sdl.hpp"
+#include "../eigen.hpp"
 #include <iostream>
 #include <thread>
 
@@ -22,7 +22,7 @@ const double DEFAULT_POISSON_RATIO = 0.2;
 
 Application::Application() :
      m_action_man{},
-     m_main_window{title, width, height}, 
+     m_main_window{title, width, height},
      m_renderer{},
      m_mpm_solver()
 {}
@@ -88,23 +88,23 @@ void Application::init_keymap() {
             [&]() { m_main_window.close(); });
     m_action_man.set_action(SDL_MOUSEWHEEL,
             [&]() { m_renderer.process_wheel(m_event.wheel.y); });
-    m_action_man.set_action(SDL_MOUSEMOTION, 
+    m_action_man.set_action(SDL_MOUSEMOTION,
             [&]() { if (m_capture_mouse) m_renderer.process_mouse(m_event.motion.xrel, m_event.motion.yrel); });
 
-    m_action_man.set_action(SDL_WINDOWEVENT, 
+    m_action_man.set_action(SDL_WINDOWEVENT,
             [&]() { m_action_man.do_action(m_event.window.event); });
-    m_action_man.set_action(SDL_WINDOWEVENT_DISPLAY_CHANGED, 
+    m_action_man.set_action(SDL_WINDOWEVENT_DISPLAY_CHANGED,
             [&]() { resize(m_event.window.data1, m_event.window.data2); });
     m_action_man.set_action(SDL_WINDOWEVENT_RESIZED,
             [&]() { resize(m_event.window.data1, m_event.window.data2); });
-    m_action_man.set_action(SDL_WINDOWEVENT_SIZE_CHANGED, 
+    m_action_man.set_action(SDL_WINDOWEVENT_SIZE_CHANGED,
             [&]() { resize(m_event.window.data1, m_event.window.data2); });
 
-    m_action_man.set_action(SDL_KEYDOWN, 
+    m_action_man.set_action(SDL_KEYDOWN,
             [&]() { m_action_man.do_action((int)m_event.key.keysym.sym); });
-    m_action_man.set_action(SDLK_ESCAPE, 
+    m_action_man.set_action(SDLK_ESCAPE,
             [&]() { m_main_window.close(); });
-    m_action_man.set_action(SDLK_q, 
+    m_action_man.set_action(SDLK_q,
             [&]() { escape_mouse(); });
 }
 

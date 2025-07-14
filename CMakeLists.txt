@@ -82,6 +82,11 @@ add_custom_command(
 # OpenGL Mathematics (GLM)
 add_subdirectory(libs/glm EXCLUDE_FROM_ALL)
 
+# Eigen: C++ template library for linear algebra
+set(EIGEN_BUILD_TESTING OFF)
+set(EIGEN_INCLUDE_INSTALL_DIR OFF)
+add_subdirectory(libs/eigen EXCLUDE_FROM_ALL)
+
 #  ========== SHADERS ==========
 
 set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
@@ -137,6 +142,8 @@ endforeach()
 add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
 
 #  ========== PROJECT ==========
+
+add_subdirectory(boreas)
 
 # Add warning flags for Windows and Linux
 if (WIN32 OR MSVC)

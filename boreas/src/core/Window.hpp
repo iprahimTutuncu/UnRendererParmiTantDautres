@@ -1,6 +1,6 @@
 #pragma once
 
-#include "libs/sdl.hpp"
+#include "../sdl.hpp"
 #include <atomic>
 
 class Window {
