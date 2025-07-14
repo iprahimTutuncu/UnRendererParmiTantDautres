@@ -81,7 +81,7 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
 
 static SDL_AppResult graphics_create_render_targets(AppState& state) {
     int width, height;
-    if (!SDL_GetWindowSize(state.window, &width, &height))
+    if (!SDL_GetWindowSize(state.window, &width, &height)) [[unlikely]]
         return SDL_APP_FAILURE;
 
     for (SDL_GPUTexture*& texture : state.graphics->textures) {
@@ -105,6 +105,10 @@ static SDL_AppResult graphics_create_render_targets(AppState& state) {
         return result;
 
     result = createRenderTarget(state, GeometryDepth, width, height, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+
+    result = createSolidColorTextureRGBA8(state, DefaultWhite, 32, 32, 1.f, 1.f, 1.f, 1.f);
     if (result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
 
