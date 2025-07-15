@@ -28,7 +28,7 @@ public:
     void swap_buffers();
     std::vector<vec3> get_positions();
 
-    void create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, size_t nb_points, unsigned int* seed);
+    void create_particle(vec3 position, vec3 velocity);
 
     struct {
         unsigned int particles_per_cell;

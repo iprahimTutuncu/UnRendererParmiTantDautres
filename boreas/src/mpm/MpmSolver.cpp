@@ -17,6 +17,7 @@
 
 #include "MpmSolver.hpp"
 #include "MpmMath.hpp"
+
 #include <memory>
 #include <mutex>
 
@@ -75,7 +76,6 @@ void MpmSolver::iterate(double dt) {
     step8_update_particle_velocities();
     step9_particle_based_collisions();
     step10_update_particle_positions();
-
 }
 
 void MpmSolver::update_lame_params() {
@@ -85,28 +85,16 @@ void MpmSolver::update_lame_params() {
         / ((1.0 + params.poisson_ratio) * (1.0 - 2.0 * params.poisson_ratio));
 }
 
-void MpmSolver::create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, size_t nb_points, unsigned int* seed) {
+void MpmSolver::create_particle(vec3 position, vec3 velocity) {
     const double mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
-
-    size_t i = 0;
-    do {
-        double x = get_random(-r, r, seed);
-        double y = get_random(-r, r, seed);
-        double z = get_random(-r, r, seed);
-        vec3 pos = c + vec3(x, y, z);
-
-        if ((pos - c).squaredNorm() <= r * r) {
-            p_current_state->create_particle(pos, initial_velocity, mass);
-            p_next_state->create_particle(pos, initial_velocity, mass);
-            ++i;
-        }
-    } while (i < nb_points);
+    p_current_state->create_particle(position, velocity, mass);
+    p_next_state->create_particle(position, velocity, mass);
 }
 
 // grid basis function to get weights
 // dyadic products of one-dimensional cubic B-splines
 // x parameter is the position of the particle relative to a given node within the eulerian grid
-double MpmSolver::N(const double x) {
+double MpmSolver::N(double x) {
     double x_abs = std::abs(x);
     if (x_abs < 1.0) {
         return 1.0 / 2.0 * std::pow(x_abs, 3) - std::pow(x_abs, 2) + 2.0 / 3.0;
@@ -119,7 +107,7 @@ double MpmSolver::N(const double x) {
 
 // derivative of the grid basis function
 // see [Zhuo Lu 2019] at https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-double MpmSolver::d_N(const double x) {
+double MpmSolver::d_N(double x) {
     double x_abs = std::abs(x);
     double sign = (x < 0.0) ? -1.0 : 1.0;
     if (x_abs < 1.0) {

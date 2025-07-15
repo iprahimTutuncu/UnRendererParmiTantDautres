@@ -3,6 +3,7 @@
 #include "../eigen.hpp"
 
 #include <iostream>
+#include <random>
 #include <thread>
 
 const char* title = "Boreas";
@@ -74,13 +75,31 @@ void Application::init() {
 }
 
 void Application::init_scene() {
-    vec3 velocity = vec3(0.0, -5.0, 0.0);
-    vec3 origin = vec3(0.0, 1.0, 0.0);
-    double radius = 0.5;
-    size_t nb_particles = 2000;
-    unsigned int seed = 33;
+    const vec3 velocity = vec3(0.0, -5.0, 0.0);
+    const vec3 origin = vec3(0.0, 1.0, 0.0);
+    constexpr double radius = 0.5;
+    constexpr size_t nb_particles = 2000;
+    constexpr std::uint64_t seed = 33ull;
 
-    m_mpm_solver.create_particle_sphere_seeded(origin, radius, velocity, nb_particles, &seed);
+    std::random_device rd;
+    std::mt19937 generator(rd());
+    std::uniform_real_distribution<double> dist6(-radius, radius);
+
+    generator.seed(seed);
+    size_t particle_created = 0;
+    do {
+        double x = dist6(generator);
+        double y = dist6(generator);
+        double z = dist6(generator);
+        vec3 relative_pos = vec3(x, y, z);
+
+
+        if (relative_pos.squaredNorm() <= radius * radius) {
+            m_mpm_solver.create_particle(origin + relative_pos, velocity);
+            ++particle_created;
+        }
+    } while (particle_created < nb_particles);
+
 }
 
 void Application::init_keymap() {
