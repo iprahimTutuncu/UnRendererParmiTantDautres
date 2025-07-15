@@ -19,6 +19,7 @@ jobs:
         libwayland-dev
         libxkbcommon-dev
         wayland-protocols
+        libsdl2-dev libsdl2-2.0-0 libglew-dev
     - uses: actions/checkout@v4
       with:
         submodules: true
@@ -60,6 +61,12 @@ jobs:
   build-windows:
     runs-on: windows-2025
     steps:
+    - uses: libsdl-org/setup-sdl@main
+      id: sdl
+      with:
+        install-linux-dependencies: true
+        version: 2-latest
+        version-sdl-image: 2-latest
     - uses: actions/checkout@v4
       with:
         submodules: true

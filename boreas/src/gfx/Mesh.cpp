@@ -1,12 +1,10 @@
 #include "Mesh.hpp"
 
-Mesh::~Mesh()
-{
+Mesh::~Mesh() {
     deinit();
 }
 
-void Mesh::deinit()
-{
+void Mesh::deinit() {
     if (m_vao) {
         glDeleteVertexArrays(1, &m_vao);
     }

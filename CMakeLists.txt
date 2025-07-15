@@ -82,6 +82,12 @@ add_custom_command(
 # OpenGL Mathematics (GLM)
 add_subdirectory(libs/glm EXCLUDE_FROM_ALL)
 
+# Eigen: C++ template library for linear algebra
+set(EIGEN_BUILD_TESTING OFF)
+set(EIGEN_INCLUDE_INSTALL_DIR OFF)
+add_subdirectory(libs/eigen EXCLUDE_FROM_ALL)
+target_compile_definitions(eigen INTERFACE EIGEN_NO_DEBUG)
+
 #  ========== SHADERS ==========
 
 set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
@@ -138,9 +144,15 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
 
 #  ========== PROJECT ==========
 
+if (NOT WIN32 AND NOT MSVC)
+    # windows cant stop complaining when compiling boreas
+    # so we exclude it from windows builds
+    add_subdirectory(boreas)
+endif()
+
 # Add warning flags for Windows and Linux
 if (WIN32 OR MSVC)
-    add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
+add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
 endif()
