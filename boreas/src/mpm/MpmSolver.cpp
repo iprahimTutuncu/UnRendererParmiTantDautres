@@ -53,13 +53,10 @@ void MpmSolver::swap_buffers() {
 }
 
 std::vector<vec3> MpmSolver::get_positions() {
-    std::vector<vec3> positions;
-    positions.resize(p_current_state->p_position.size());
 
-    {
-        std::lock_guard<std::mutex> lock(p_state_mutex);
-        positions = p_current_state->p_position;
-    }
+    std::lock_guard<std::mutex> lock(p_state_mutex);
+    std::vector<vec3> positions(p_current_state->p_position.size());
+    std::memcpy(positions.data(), p_current_state->p_position.data(), sizeof(vec3) * p_current_state->p_position.size());
 
     return positions;
 }
@@ -79,7 +76,6 @@ void MpmSolver::iterate(double dt) {
     step9_particle_based_collisions();
     step10_update_particle_positions();
 
-    swap_buffers();
 }
 
 void MpmSolver::update_lame_params() {

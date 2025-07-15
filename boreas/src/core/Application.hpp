@@ -27,5 +27,6 @@ private:
     MpmSolver m_mpm_solver;
     ActionManager m_action_man;
     SDL_Event m_event;
+    std::atomic_uint32_t iteration_count = 0;
     bool m_capture_mouse = true;
 };

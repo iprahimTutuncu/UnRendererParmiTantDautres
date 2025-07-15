@@ -66,8 +66,8 @@ void ParticleRenderer::init(ShaderProgram* shader, unsigned int nb_particles) {
     }
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_ebo);
 
-    m_bufferPointer = glMapNamedBufferRange(m_ebo, 0, sizeof(Particle) * nb_particles, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    if (m_bufferPointer == nullptr) {
+    m_gpu_map_buffer = glMapNamedBufferRange(m_ebo, 0, sizeof(Particle) * nb_particles, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    if (m_gpu_map_buffer == nullptr) {
         GLenum map_error = glGetError();
         std::cerr << "ERROR: Failed to map particle buffer (m_ebo: " << m_ebo << ") to pointer! OpenGL Error: " << map_error << std::endl;
         return;
@@ -81,13 +81,12 @@ void ParticleRenderer::deinit() {
     Mesh::deinit();
 }
 
-void ParticleRenderer::update_particles(std::vector<vec3>& positions) {
-    float* dst = static_cast<float*>(m_bufferPointer);
-    for (size_t i = 0; i < positions.size(); ++i) {
-        const vec3& p = positions[i];
-        dst[4 * i + 0] = p.x();
-        dst[4 * i + 1] = p.y();
-        dst[4 * i + 2] = p.z();
-        dst[4 * i + 3] = 0.0f;
+void ParticleRenderer::update_particles(std::vector<vec3> const& positions) {
+    float* dst = static_cast<float*>(m_gpu_map_buffer);
+    for (vec3 const& p : positions) {
+        *(dst++) = p.x();
+        *(dst++) = p.y();
+        *(dst++) = p.z();
+        *(dst++) = 0.0f;
     }
 }

@@ -3,14 +3,9 @@
 #include <format>
 #include <stdexcept>
 
-Window::Window(const char* title, int width, int height, bool vsync, bool windowed)
-    : title { title }
-    , m_width { width }
-    , m_height { height }
-    , m_vsync(vsync)
-    , m_windowed(windowed) {
+Window::Window(const char* title, int width, int height, bool vsync) {
     try {
-        init_sdl();
+        init_sdl(title, width, height, vsync);
         init_opengl();
         m_active = true;
     } catch (std::exception e) {
@@ -28,15 +23,13 @@ Window::~Window() {
     SDL_Quit();
 }
 
-SDL_Window* Window::get_handle() const {
-    return _window;
-}
+
 
 SDL_GLContext Window::get_gl_context() const {
     return _gl_context;
 }
 
-void Window::init_sdl() {
+void Window::init_sdl(const char* title, int width, int height, bool vsync) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) < 0) {
         throw std::runtime_error(std::format(
             "ERROR: Failed to initialize SDL! SDL_Error: {}\n",
@@ -58,8 +51,8 @@ void Window::init_sdl() {
         title,
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        m_width,
-        m_height,
+        width,
+        height,
         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
 
     SDL_SetWindowResizable(_window, SDL_TRUE);
@@ -76,7 +69,7 @@ void Window::init_sdl() {
             SDL_GetError()));
     }
 
-    SDL_GL_SetSwapInterval(m_vsync);
+    SDL_GL_SetSwapInterval(vsync);
 
     glewExperimental = GL_TRUE;
     if (GLenum glewError = glewInit(); glewError != GLEW_OK) {
@@ -101,9 +94,7 @@ void Window::init_opengl() {
 }
 
 void Window::resize(int width, int height) {
-    m_width = width;
-    m_height = height;
-    glViewport(0, 0, m_width, m_height);
+    glViewport(0, 0, width, height);
 }
 
 void Window::close() {

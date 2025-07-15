@@ -1,6 +1,7 @@
 #include "Application.hpp"
+
 #include "../eigen.hpp"
-#include "../sdl.hpp"
+
 #include <iostream>
 #include <thread>
 
@@ -22,7 +23,7 @@ const double DEFAULT_POISSON_RATIO = 0.2;
 
 Application::Application()
     : m_action_man {}
-    , m_main_window { title, width, height }
+    , m_main_window(title, width, height, true)
     , m_renderer {}
     , m_mpm_solver() { }
 
@@ -62,10 +63,10 @@ void Application::init() {
     init_scene();
     m_mpm_solver.initialize();
 
-    int nb_particles = m_mpm_solver.p_current_state->p_position.size();
+    std::size_t nb_particles = m_mpm_solver.p_current_state->p_position.size();
     std::cout << "INFO: Initialized simulation with " << nb_particles << " particles." << std::endl;
 
-    if (!m_renderer.init(m_main_window.get_width(), m_main_window.get_height(), nb_particles)) {
+    if (!m_renderer.init(width, height, nb_particles)) {
         std::cerr << "ERROR: Failed to init renderer!" << std::endl;
         return;
     }
@@ -127,13 +128,38 @@ void Application::init_keymap() {
         });
 }
 
+static inline void setFPSinTitle(std::uint32_t i, char* title) {
+    if (i > 999) i = 999;
+    title[0] = static_cast<char>(i / 100 ? i / 100 + '0' : ' ');
+    title[1] = static_cast<char>(i / 10 % 10 ? i / 10 % 10 + '0' : ' ');
+    title[2] = static_cast<char>(i % 10 + '0');
+}
+
 void Application::run() {
     std::thread simulation(&Application::iterate_particles, this);
 
     const double frequency = static_cast<double>(SDL_GetPerformanceFrequency());
     double old_time = SDL_GetPerformanceCounter();
 
-    while (m_main_window.is_active()) {
+    std::uint_fast16_t numFrames = 0;
+    std::uint32_t currentTick = SDL_GetTicks();
+
+    while (m_main_window.is_active().load()) {
+        numFrames += 1;
+        if (SDL_GetTicks() - currentTick >= 1000ull) [[unlikely]] {
+            currentTick = SDL_GetTicks();
+            static char title[] = "Running at XXX fps - Iteration: XXX";
+            constexpr int indexFirstX = 11;
+            constexpr int indexSecondX = 32;
+            setFPSinTitle(numFrames, title + indexFirstX);
+
+            std::uint32_t iteration_count = this->iteration_count.load();
+            this->iteration_count.store(0);
+
+            setFPSinTitle(iteration_count, title + indexSecondX);
+            SDL_SetWindowTitle(m_main_window.get_handle(), title);
+            numFrames = 0;
+        }
         double new_time = SDL_GetPerformanceCounter();
         double delta_time = (new_time - old_time) / frequency;
         old_time = new_time;
@@ -171,11 +197,13 @@ void Application::iterate_particles() {
     while (m_main_window.is_active()) {
         old_time = SDL_GetPerformanceCounter();
         m_mpm_solver.iterate(simulation_dt);
-        new_time = SDL_GetPerformanceCounter();
-
+        this->iteration_count++;
         delta_time = (new_time - old_time) / frequency;
+
         old_time = new_time;
         total_time += delta_time;
+        m_mpm_solver.swap_buffers();
+        new_time = SDL_GetPerformanceCounter();
 
         //        std::cout << "Ieration " << iteration_count << " time: " << delta_time * 1000.0 << "ms" << std::endl;
         ++iteration_count;
@@ -187,7 +215,7 @@ void Application::iterate_particles() {
 
 void Application::resize(int width, int height) {
     m_main_window.resize(width, height);
-    m_renderer.resize(m_main_window.get_width(), m_main_window.get_height());
+    m_renderer.resize(width, height);
 }
 
 void Application::escape_mouse() {
