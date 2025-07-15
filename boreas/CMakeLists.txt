@@ -5,7 +5,7 @@ set(OpenGL_GL_PREFERENCE GLVND)
 
 find_package(SDL2 REQUIRED)
 find_package(OpenGL 4.6 REQUIRED)
-find_package(OpenMP)
+# find_package(OpenMP)
 
 
 
@@ -33,6 +33,6 @@ target_link_libraries(boreas
     Eigen3::Eigen
     glad
     glm::glm
-    OpenMP::OpenMP_CXX
+    # OpenMP::OpenMP_CXX
 )
 target_compile_definitions(boreas PRIVATE SHADERS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
