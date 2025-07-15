@@ -144,11 +144,15 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
 
 #  ========== PROJECT ==========
 
-add_subdirectory(boreas)
+if (NOT WIN32 AND NOT MSVC)
+    # windows cant stop complaining when compiling boreas
+    # so we exclude it from windows builds
+    add_subdirectory(boreas)
+endif()
 
 # Add warning flags for Windows and Linux
 if (WIN32 OR MSVC)
-    add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
+add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
 endif()
