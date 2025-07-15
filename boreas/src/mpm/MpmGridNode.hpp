@@ -8,7 +8,7 @@ struct MpmGridNode {
     vec3 velocity; // v*
     vec3 momentum; // v*
     vec3 force; // F (stress)
-    vec3i local_pos;
-    int index;
     bool is_active;
+    int index;
+    vec3i local_pos;
 };

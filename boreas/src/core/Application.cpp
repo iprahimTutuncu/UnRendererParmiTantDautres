@@ -93,13 +93,11 @@ void Application::init_scene() {
         double z = dist6(generator);
         vec3 relative_pos = vec3(x, y, z);
 
-
         if (relative_pos.squaredNorm() <= radius * radius) {
             m_mpm_solver.create_particle(origin + relative_pos, velocity);
             ++particle_created;
         }
     } while (particle_created < nb_particles);
-
 }
 
 void Application::init_keymap() {
