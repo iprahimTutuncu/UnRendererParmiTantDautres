@@ -177,7 +177,8 @@ void Application::run() {
             this->iteration_count = 0;
 
             setFPSinTitle(iteration_count, title + indexSecondX);
-            setFPSinTitle(1000u / iteration_count, title + indexThirdX);
+            if (iteration_count > 0) iteration_count = 1000u / iteration_count;
+            setFPSinTitle(iteration_count, title + indexThirdX);
             SDL_SetWindowTitle(m_main_window.get_handle(), title);
             numFrames = 0;
         }
