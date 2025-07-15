@@ -7,19 +7,19 @@
 
 const char* title = "Boreas";
 
-const int width = 640;
-const int height = 480;
+constexpr int width = 640;
+constexpr int height = 480;
 
 // Explicit:            dt ~= 10e-5
 // Semi-implicit:       dt ~= 0.5e-3
-const double simulation_dt = 0.5e-3;
+constexpr double simulation_dt = 0.5e-3;
 
-const double DEFAULT_COMPRESSION = 2.5e-2;
-const double DEFAULT_STRETCH = 7.5e-3;
-const double DEFAULT_HARDENING = 10.0;
-const double DEFAULT_DENSITY = 4.0e2;
-const double DEFAULT_YOUNGS_MODULUS = 1.4e5;
-const double DEFAULT_POISSON_RATIO = 0.2;
+constexpr double DEFAULT_COMPRESSION = 2.5e-2;
+constexpr double DEFAULT_STRETCH = 7.5e-3;
+constexpr double DEFAULT_HARDENING = 10.0;
+constexpr double DEFAULT_DENSITY = 4.0e2;
+constexpr double DEFAULT_YOUNGS_MODULUS = 1.4e5;
+constexpr double DEFAULT_POISSON_RATIO = 0.2;
 
 Application::Application()
     : m_action_man {}
