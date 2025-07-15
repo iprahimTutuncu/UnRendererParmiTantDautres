@@ -5,8 +5,13 @@ set(OpenGL_GL_PREFERENCE GLVND)
 
 find_package(SDL2 REQUIRED)
 find_package(OpenGL 4.6 REQUIRED)
-find_package(GLEW REQUIRED)
 find_package(OpenMP)
+
+
+
+# GLAD: Load OpenGL extensions
+include_directories(libs)
+add_library(glad libs/glad/glad.c)
 
 add_executable(boreas
     src/Main.cpp
@@ -26,7 +31,7 @@ target_link_libraries(boreas
     OpenGL::GL
     SDL2::SDL2
     Eigen3::Eigen
-    GLEW::glew
+    glad
     glm::glm
     OpenMP::OpenMP_CXX
 )
