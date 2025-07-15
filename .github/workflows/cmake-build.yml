@@ -19,7 +19,7 @@ jobs:
         libwayland-dev
         libxkbcommon-dev
         wayland-protocols
-        libsdl2-dev libsdl2-2.0-0 libglew-dev
+        libsdl2-dev libsdl2-2.0-0 libglew-dev libomp-dev
     - uses: actions/checkout@v4
       with:
         submodules: true
