@@ -77,7 +77,7 @@ void Application::init_scene() {
     vec3 velocity = vec3(0.0, -5.0, 0.0);
     vec3 origin = vec3(0.0, 1.0, 0.0);
     double radius = 0.5;
-    int nb_particles = 2000;
+    size_t nb_particles = 2000;
     unsigned int seed = 33;
 
     m_mpm_solver.create_particle_sphere_seeded(origin, radius, velocity, nb_particles, &seed);
@@ -148,15 +148,17 @@ void Application::run() {
         numFrames += 1;
         if (SDL_GetTicks() - currentTick >= 1000ull) [[unlikely]] {
             currentTick = SDL_GetTicks();
-            static char title[] = "Running at XXX fps - Iteration: XXX";
+            static char title[] = "Running at XXX fps - XXX iter/s - XXX ms/iter.";
             constexpr int indexFirstX = 11;
-            constexpr int indexSecondX = 32;
+            constexpr int indexSecondX = 21;
+            constexpr int indexThirdX = 34;
             setFPSinTitle(numFrames, title + indexFirstX);
 
-            std::uint32_t iteration_count = this->iteration_count.load();
-            this->iteration_count.store(0);
+            std::uint32_t iteration_count = this->iteration_count;
+            this->iteration_count = 0;
 
             setFPSinTitle(iteration_count, title + indexSecondX);
+            setFPSinTitle(1000u / iteration_count, title + indexThirdX);
             SDL_SetWindowTitle(m_main_window.get_handle(), title);
             numFrames = 0;
         }
@@ -164,7 +166,9 @@ void Application::run() {
         double delta_time = (new_time - old_time) / frequency;
         old_time = new_time;
 
-        process_events();
+        while (SDL_PollEvent(&m_event)) {
+            m_action_man.do_action(m_event.type);
+        }
 
         m_renderer.process_input(delta_time);
         m_renderer.clear();
@@ -180,37 +184,12 @@ void Application::run() {
     simulation.join();
 }
 
-void Application::process_events() {
-    while (SDL_PollEvent(&m_event)) {
-        m_action_man.do_action(m_event.type);
-    }
-}
-
 void Application::iterate_particles() {
-    double old_time, new_time, delta_time;
-
-    unsigned int iteration_count = 0;
-    double total_time = 0.0;
-
-    const double frequency = static_cast<double>(SDL_GetPerformanceFrequency());
-
     while (m_main_window.is_active()) {
-        old_time = SDL_GetPerformanceCounter();
         m_mpm_solver.iterate(simulation_dt);
         this->iteration_count++;
-        delta_time = (new_time - old_time) / frequency;
-
-        old_time = new_time;
-        total_time += delta_time;
         m_mpm_solver.swap_buffers();
-        new_time = SDL_GetPerformanceCounter();
-
-        //        std::cout << "Ieration " << iteration_count << " time: " << delta_time * 1000.0 << "ms" << std::endl;
-        ++iteration_count;
     }
-
-    double average_time = (total_time / iteration_count) * 1000.0;
-    std::cout << "Average time: " << average_time << "ms" << std::endl;
 }
 
 void Application::resize(int width, int height) {

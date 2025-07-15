@@ -85,10 +85,10 @@ void MpmSolver::update_lame_params() {
         / ((1.0 + params.poisson_ratio) * (1.0 - 2.0 * params.poisson_ratio));
 }
 
-void MpmSolver::create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, int nb_points, unsigned int* seed) {
+void MpmSolver::create_particle_sphere_seeded(vec3& c, double r, vec3& initial_velocity, size_t nb_points, unsigned int* seed) {
     const double mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
 
-    int i = 0;
+    size_t i = 0;
     do {
         double x = get_random(-r, r, seed);
         double y = get_random(-r, r, seed);

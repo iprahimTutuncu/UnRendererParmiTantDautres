@@ -23,18 +23,18 @@ Window::~Window() {
     SDL_Quit();
 }
 
-
-
 SDL_GLContext Window::get_gl_context() const {
     return _gl_context;
 }
 
 void Window::init_sdl(const char* title, int width, int height, bool vsync) {
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) < 0) {
         throw std::runtime_error(std::format(
             "ERROR: Failed to initialize SDL! SDL_Error: {}\n",
             SDL_GetError()));
     }
+    SDL_GL_LoadLibrary(NULL);
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
@@ -71,12 +71,12 @@ void Window::init_sdl(const char* title, int width, int height, bool vsync) {
 
     SDL_GL_SetSwapInterval(vsync);
 
-    glewExperimental = GL_TRUE;
-    if (GLenum glewError = glewInit(); glewError != GLEW_OK) {
-        throw std::runtime_error(std::format(
-            "ERROR: Failed to initialize GLEW! GLEW_Error: {}\n",
-            glewError));
-    }
+    // Check OpenGL properties
+    printf("OpenGL loaded\n");
+    gladLoadGLLoader(SDL_GL_GetProcAddress);
+    printf("Vendor:   %s\n", glGetString(GL_VENDOR));
+    printf("Renderer: %s\n", glGetString(GL_RENDERER));
+    printf("Version:  %s\n", glGetString(GL_VERSION));
 }
 
 static void GLAPIENTRY message_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {

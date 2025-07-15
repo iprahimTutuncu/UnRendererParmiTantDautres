@@ -16,7 +16,6 @@ public:
 private:
     void init_keymap();
     void init_scene();
-    void process_events();
     void iterate_particles();
     void resize(int width, int height);
     void escape_mouse();
@@ -27,6 +26,6 @@ private:
     MpmSolver m_mpm_solver;
     ActionManager m_action_man;
     SDL_Event m_event;
-    std::atomic_uint32_t iteration_count = 0;
+    std::uint32_t iteration_count = 0;
     bool m_capture_mouse = true;
 };
