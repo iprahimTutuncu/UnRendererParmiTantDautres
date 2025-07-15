@@ -7,14 +7,15 @@
 #include <vector>
 
 /*
- To simulate different types of snow, we found the following intu-
-ition useful. θc and θs determine when the material starts breaking
-(larger = chunky, smaller = powdery). The hardening coefficient
-determines how fast the material breaks once it is plastic
-(larger = brittle, smaller = ductile). Dry and powdery snow has smaller criti-
-cal compression and stretch constants, while the opposite is true for
-wet and chunky snow. Icy snow has a higher hardening coefficient
-and Young’s modulus, with the opposite producing muddy snow.
+ To simulate different types of snow, we found the following intuition useful.
+ θc and θs determine when the material starts breaking (larger = chunky, smaller = powdery).
+
+ The hardening coefficient determines how fast the material breaks once it is plastic (larger = brittle, smaller = ductile).
+
+ Dry and powdery snow has smaller critical compression and stretch constants,
+ while the opposite is true for wet and chunky snow.
+
+ Icy snow has a higher hardening coefficient and Young’s modulus, with the opposite producing muddy snow.
 */
 
 class MpmSolver {
