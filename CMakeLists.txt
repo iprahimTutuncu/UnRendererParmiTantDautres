@@ -86,6 +86,7 @@ add_subdirectory(libs/glm EXCLUDE_FROM_ALL)
 set(EIGEN_BUILD_TESTING OFF)
 set(EIGEN_INCLUDE_INSTALL_DIR OFF)
 add_subdirectory(libs/eigen EXCLUDE_FROM_ALL)
+target_compile_definitions(eigen INTERFACE EIGEN_NO_DEBUG)
 
 #  ========== SHADERS ==========
 
