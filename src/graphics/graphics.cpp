@@ -28,6 +28,7 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     createRenderTarget(state, GeometryNormal, w, h, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
     createRenderTarget(state, GeometryAlbedo, w, h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
     createRenderTarget(state, GeometryDepth, w, h, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+    createRenderTarget(state, GeometryDepthModified, w, h, SDL_GPU_TEXTUREFORMAT_R32_FLOAT, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_SIMULTANEOUS_READ_WRITE);
 
     imgui_init(state);
     init_sampler_presets(state);
@@ -35,7 +36,7 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     // Initialize random seed
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 
-    static constexpr std::size_t numParticles = 100; // Total number of random particles
+    static constexpr std::size_t numParticles = 1000; // Total number of random particles
     static constexpr float sizeX = 10.0f;
     static constexpr float sizeY = 10.0f;
     static constexpr float sizeZ = 10.0f;
@@ -81,6 +82,10 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     if (SDL_AppResult result = deferred_gbuffer_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
 
+    //if (SDL_AppResult result = deferred_ssao_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
+    //    return result;
+
+
     return SDL_APP_CONTINUE;
 }
 
@@ -108,6 +113,25 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
     deferred_gbuffer_render(state, cmdbuf);
 
+
+    // deferred_ssao_render(state, cmdbuf);
+
+    // ou
+
+    /*
+    * 
+    * 
+    SDL_GPUColorTargetInfo colorTarget = {};
+    colorTarget.texture = state.textures[ssaoTexture];
+    colorTarget.clear_color = SDL_FColor { 0.0f, 0.0f, 0.0f, 1.0f };
+    colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+    colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+
+    SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTarget, 1, nullptr);
+    deferred_ssao_render(state, renderPass, cmdbuf);
+    SDL_EndGPURenderPass(renderPass);
+    */
+
     imgui_iterate(state);
     ImDrawData* draw_data = ImGui::GetDrawData();
     Imgui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
@@ -119,8 +143,9 @@ SDL_AppResult graphics_iterate(AppState& state) {
     colorTarget.store_op = SDL_GPU_STOREOP_STORE;
 
     SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTarget, 1, nullptr);
-    state.graphics->displayMode = DisplayMode::Normal;
-    deferred_lighting_render_to_texture(state, renderPass, cmdbuf, state.graphics->displayMode);
+
+    state.graphics->displayMode = DisplayMode::Final;
+    deferred_lighting_render_to_texture(state, renderPass, cmdbuf, state.graphics->displayMode); // le "to_texture" dans le nom je vais retirer
     ImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, renderPass);
 
     SDL_EndGPURenderPass(renderPass);

@@ -9,7 +9,8 @@
 
 #include <stddef.h>
 
-SDL_AppResult deferred_gbuffer_init(AppState& state) {
+SDL_AppResult deferred_gbuffer_init(AppState& state) 
+{
     deferred_gbuffer_create_pipelines(state);
     deferred_gbuffer_create_box_geometry(state);
     deferred_gbuffer_create_sphere_geometry(state);
@@ -18,27 +19,9 @@ SDL_AppResult deferred_gbuffer_init(AppState& state) {
         return SDL_APP_FAILURE;
     }
 
-    state.graphics->marchingCubeBufferUniform.size[0] = 100;
-    state.graphics->marchingCubeBufferUniform.size[1] = 100;
-    state.graphics->marchingCubeBufferUniform.size[2] = 100;
-
-    state.graphics->marchingCubeBufferUniform.radius = 1.f;
-    state.graphics->marchingCubeBufferUniform.cellSize = 0.125f;
-
-    SDL_GPUTextureCreateInfo info {};
-    info.type = SDL_GPU_TEXTURETYPE_3D;
-    info.format = SDL_GPU_TEXTUREFORMAT_R32_FLOAT;
-    info.usage = SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_TEXTUREUSAGE_GRAPHICS_STORAGE_READ;
-    info.width = state.graphics->marchingCubeBufferUniform.size[0];
-    info.height = state.graphics->marchingCubeBufferUniform.size[1];
-    info.layer_count_or_depth = state.graphics->marchingCubeBufferUniform.size[2];
-    info.num_levels = 1;
-    state.graphics->textures[MarchingCubeScalarField3D] = SDL_CreateGPUTexture(state.device, &info);
-
-    if (!state.graphics->textures[MarchingCubeScalarField3D]) {
-        SDL_Log("Failed to create texture: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
+    state.graphics->bilateralBlurBufferUniform.blurScale = 1.0f;
+    state.graphics->bilateralBlurBufferUniform.blurDepthFalloff = 0.02f;
+    state.graphics->bilateralBlurBufferUniform.filterRadius = 4;
 
     deferred_gbuffer_update_particles(state);
 
@@ -101,44 +84,21 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         return;
     }
 
-
     // ParticleUpdate
     graphics.particleUniformBuffer.time += 0.01f;
 
     SDL_GPUStorageBufferReadWriteBinding bufferBindings {};
     bufferBindings.buffer = graphics.buffers[ParticlePositionBuffer];
 
-    SDL_GPUCommandBuffer* cmdBufParticle = SDL_AcquireGPUCommandBuffer(state.device);
-    SDL_GPUComputePass* computePassParticle = SDL_BeginGPUComputePass(cmdBufParticle, nullptr, 0, &bufferBindings, 1);
+    SDL_GPUComputePass* computePassParticle = SDL_BeginGPUComputePass(cmdBuf, nullptr, 0, &bufferBindings, 1);
 
     SDL_BindGPUComputePipeline(computePassParticle, graphics.computePipeline[ParticleUpdate]);
 
-    SDL_PushGPUComputeUniformData(cmdBufParticle, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
+    SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
 
     Uint32 particleGroupCount = static_cast<Uint32>((graphics.particles.size() + 63) / 64);
     SDL_DispatchGPUCompute(computePassParticle, particleGroupCount, 1, 1);
     SDL_EndGPUComputePass(computePassParticle);
-    SDL_SubmitGPUCommandBuffer(cmdBufParticle);
-
-    // MarchingCubeScalarFieldGen
-    SDL_GPUStorageTextureReadWriteBinding textureBindings[1] {};
-    textureBindings[0].texture = state.graphics->textures[MarchingCubeScalarField3D];
-
-    SDL_GPUCommandBuffer* cmdBufMarching = SDL_AcquireGPUCommandBuffer(state.device);
-    SDL_GPUComputePass* computePassMarching = SDL_BeginGPUComputePass(cmdBufMarching, textureBindings, 1, nullptr, 0);
-
-    SDL_BindGPUComputePipeline(computePassMarching, graphics.computePipeline[MarchingCubeScalarFieldGen]);
-
-    SDL_GPUBuffer* readOnlyBuffers[] = { graphics.buffers[ParticlePositionBuffer] };
-    SDL_BindGPUComputeStorageBuffers(computePassMarching, 0, readOnlyBuffers, 1);
-
-    SDL_PushGPUComputeUniformData(cmdBufMarching, 0, &graphics.marchingCubeBufferUniform, sizeof(MarchingCubeBufferUniform));
-
-    Uint32 marchingGroupCount = static_cast<Uint32>((graphics.particles.size() + 63) / 64);
-    SDL_DispatchGPUCompute(computePassMarching, marchingGroupCount, 1, 1);
-    SDL_EndGPUComputePass(computePassMarching);
-    SDL_SubmitGPUCommandBuffer(cmdBufMarching);
-
 
     SDL_GPUDepthStencilTargetInfo depthTarget {};
     depthTarget.texture = graphics.textures[GeometryDepth];
@@ -159,7 +119,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     for (auto& target : colorTargets) {
         target.load_op = SDL_GPU_LOADOP_CLEAR;
         target.store_op = SDL_GPU_STOREOP_STORE;
-        target.clear_color = { 0, 0, 0, 1 };
+        target.clear_color = { 0, 0, 0, 0 };
     }
 
     // Begin geometry pass
@@ -214,6 +174,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         graphics.geometryBufferUniform.model = model;
         graphics.geometryBufferUniform.view = state.camera->view_matrix();
         graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
+        graphics.geometryBufferUniform.id = 1;
         SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
         SDL_DrawGPUIndexedPrimitives(pass, graphics.numBoxIndices, 1, 0, 0, 0);
     }
@@ -245,13 +206,41 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
 
     graphics.geometryBufferUniform.model = model;
 
-    graphics.geometryBufferUniform.view = state.camera->view_matrix();
-    graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
+    graphics.geometryBufferParticlesUniform.view = state.camera->view_matrix();
+    graphics.geometryBufferParticlesUniform.proj = state.camera->projection_matrix();
+    graphics.geometryBufferParticlesUniform.id = 2;
+    graphics.geometryBufferParticlesUniform.radius = 2.f;
+    graphics.geometryBufferParticlesUniform.color.r = 1.f;
+    graphics.geometryBufferParticlesUniform.color.g = 1.f;
+    graphics.geometryBufferParticlesUniform.color.b = 1.f;
+    graphics.geometryBufferParticlesUniform.color.a = 1.f;
 
-    SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
+    SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
+    SDL_PushGPUFragmentUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
     SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
 
     SDL_EndGPURenderPass(pass);
+
+    //ParticleBilateralBlur
+   SDL_GPUStorageTextureReadWriteBinding textureBinding {};
+   textureBinding.texture = state.graphics->textures[GeometryDepthModified];
+   
+   SDL_GPUComputePass* computePassBilateralBlur = SDL_BeginGPUComputePass(cmdBuf, &textureBinding, 1, nullptr, 0);
+   
+
+
+   SDL_BindGPUComputePipeline(computePassBilateralBlur, graphics.computePipeline[ParticleBilateralBlur]);
+   SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.bilateralBlurBufferUniform, sizeof(BilateralBlurBufferUniform));
+   
+   SDL_GPUTextureSamplerBinding bilateralBlurSamplerBinding {};
+   bilateralBlurSamplerBinding.texture = state.graphics->textures[GeometryDepth];
+   bilateralBlurSamplerBinding.sampler = state.graphics->samplersPreset[LinearClamp];
+   
+   SDL_BindGPUComputeSamplers(computePassBilateralBlur, 0, &bilateralBlurSamplerBinding, 1);
+   
+   Uint32 bialteralBlureGroupCount = static_cast<Uint32>((graphics.particles.size() + 15) / 16);
+   SDL_DispatchGPUCompute(computePassParticle, bialteralBlureGroupCount, bialteralBlureGroupCount, 1);
+   SDL_EndGPUComputePass(computePassParticle);
 }
 
 void deferred_gbuffer_create_pipelines(AppState& state) {
@@ -275,16 +264,16 @@ void deferred_gbuffer_create_pipelines(AppState& state) {
     state.graphics->computePipeline[ParticleUpdate] = createComputePipelineFromShader(state.device, SHADER_PATH("particle_update.comp"), &pipelineInfo);
 
     pipelineInfo.num_readwrite_storage_textures = 1;
-    pipelineInfo.num_readonly_storage_buffers = 1;
+    pipelineInfo.num_readonly_storage_buffers = 0;
     pipelineInfo.num_readwrite_storage_buffers = 0;
     pipelineInfo.num_readonly_storage_textures = 0;
     pipelineInfo.num_uniform_buffers = 1;
-    pipelineInfo.num_samplers = 0;
-    pipelineInfo.threadcount_x = 64;
-    pipelineInfo.threadcount_y = 1;
+    pipelineInfo.num_samplers = 1;
+    pipelineInfo.threadcount_x = 16;
+    pipelineInfo.threadcount_y = 16;
     pipelineInfo.threadcount_z = 1;
 
-    state.graphics->computePipeline[MarchingCubeScalarFieldGen] = createComputePipelineFromShader(state.device, SHADER_PATH("mc_scalar_field_gen.comp"), &pipelineInfo);
+    state.graphics->computePipeline[ParticleBilateralBlur] = createComputePipelineFromShader(state.device, SHADER_PATH("particle_bilateral_blur.comp"), &pipelineInfo);
 }
 
 void deferred_gbuffer_create_particles_pipeline(AppState& state) {
@@ -296,7 +285,7 @@ void deferred_gbuffer_create_particles_pipeline(AppState& state) {
         return;
     }
 
-    SDL_GPUShader* fragmentShader = loadShader(device, SHADER_PATH("deferred_gBuffer.frag"), 1, 0, 0, 0);
+    SDL_GPUShader* fragmentShader = loadShader(device, SHADER_PATH("deferred_gBuffer_particles.frag"), 1, 1, 0, 0);
     if (!fragmentShader) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load fragment shader: deferred_gBuffer.frag");
         SDL_ReleaseGPUShader(device, vertexShader);
@@ -572,72 +561,34 @@ void deferred_gbuffer_create_box_geometry(AppState& state) {
 }
 
 void deferred_gbuffer_create_sphere_geometry(AppState& state) {
-    static constexpr std::size_t kLatitudeBands = 32;
-    static constexpr std::size_t kLongitudeBands = 64;
-    static constexpr float pi = 3.14159265358979323846f;
-
     std::vector<Vertex> vertices;
     std::vector<uint16_t> indices;
 
-    for (std::size_t lat = 0; lat <= kLatitudeBands; ++lat) {
-        float theta = static_cast<float>(lat) * pi / kLatitudeBands;
-        float sinTheta = std::sin(theta);
-        float cosTheta = std::cos(theta);
+    float r = 0.5f;
 
-        for (std::size_t lon = 0; lon <= kLongitudeBands; ++lon) {
-            float phi = static_cast<float>(lon) * (2.f * pi) / kLongitudeBands;
-            float sinPhi = std::sin(phi);
-            float cosPhi = std::cos(phi);
+    // Positions (x, y, z), normals (up), texcoords
+    vertices.push_back(Vertex { { -r, -r, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } }); // bottom left
+    vertices.push_back(Vertex { { r, -r, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } }); // bottom right
+    vertices.push_back(Vertex { { r, r, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } }); // top right
+    vertices.push_back(Vertex { { -r, r, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } }); // top left
 
-            float x = cosPhi * sinTheta;
-            float y = cosTheta;
-            float z = sinPhi * sinTheta;
-
-            float u = 1.0f - static_cast<float>(lon) / kLongitudeBands;
-            float v = 1.0f - static_cast<float>(lat) / kLatitudeBands;
-
-            Vertex vertex = {};
-            vertex.position[0] = x;
-            vertex.position[1] = y;
-            vertex.position[2] = z;
-
-            vertex.normal[0] = x;
-            vertex.normal[1] = y;
-            vertex.normal[2] = z;
-
-            vertex.texCoord[0] = u;
-            vertex.texCoord[1] = v;
-
-            vertices.push_back(vertex);
-        }
-    }
-
-    for (std::size_t lat = 0; lat < kLatitudeBands; ++lat) {
-        for (std::size_t lon = 0; lon < kLongitudeBands; ++lon) {
-            std::uint16_t first = static_cast<std::uint16_t>(lat * (kLongitudeBands + 1) + lon);
-            std::uint16_t second = static_cast<std::uint16_t>(first + kLongitudeBands + 1);
-
-            indices.push_back(first);
-            indices.push_back(second);
-            indices.push_back(first + 1);
-
-            indices.push_back(second);
-            indices.push_back(second + 1);
-            indices.push_back(first + 1);
-        }
-    }
+    // Two triangles (0-1-2 and 2-3-0)
+    indices = {
+        0, 1, 2,
+        2, 3, 0
+    };
 
     state.graphics->numSphereIndices = static_cast<std::uint32_t>(indices.size());
 
     // Upload to GPU
     SDL_GPUBufferCreateInfo vertexBufferInfo = {};
     vertexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE;
-    vertexBufferInfo.size = static_cast<std::uint32_t>(sizeof(decltype(vertices)::value_type) * vertices.size());
+    vertexBufferInfo.size = static_cast<std::uint32_t>(sizeof(Vertex) * vertices.size());
     state.graphics->buffers[SphereVertexBuffer] = SDL_CreateGPUBuffer(state.device, &vertexBufferInfo);
 
     SDL_GPUBufferCreateInfo indexBufferInfo = {};
     indexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_INDEX | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE;
-    indexBufferInfo.size = static_cast<std::uint32_t>(sizeof(decltype(indices)::value_type) * indices.size());
+    indexBufferInfo.size = static_cast<std::uint32_t>(sizeof(uint16_t) * indices.size());
     state.graphics->buffers[SphereIndexBuffer] = SDL_CreateGPUBuffer(state.device, &indexBufferInfo);
 
     // Transfer buffer

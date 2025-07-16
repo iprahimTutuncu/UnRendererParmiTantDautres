@@ -25,14 +25,14 @@ enum GraphicPipelineIndex {
 
 enum ComputePipelineIndex {
     ParticleUpdate,
-    MarchingCubeScalarFieldGen,
+    ParticleBilateralBlur,
     NumComputePipelines // must be last
 };
 
 enum BufferIndex {
     BoxVertexBuffer,
     BoxIndexBuffer,
-    ParticlePositionBuffer, // TODO: this has to be the struct for MPM and be renamed
+    ParticlePositionBuffer, // TODO: this has to be the MPM and be renamed
     ParticlesVertexBuffer,
     ParticlesIndexBuffer,
     SphereVertexBuffer,
@@ -45,8 +45,8 @@ enum TextureIndex {
     GeometryNormal,
     GeometryAlbedo,
     GeometryDepth,
+    GeometryDepthModified,
     DefaultWhite,
-    MarchingCubeScalarField3D,
     NumTextures // must be last
 };
 
@@ -117,17 +117,27 @@ struct GeometryBufferUniform {
     mat4 proj;
     mat4 view;
     mat4 model;
+    int id;
+    int p0, p1, p2;
 };
 
-struct MarchingCubeBufferUniform {
-    uint32_t size[3]; // grid size: (x, y, z)
-    int p0;
+struct BilateralBlurBufferUniform {
+    int filterRadius;
+    float blurScale; 
+    float blurDepthFalloff;
+    int p0, p1, p2;
+};
 
-    float cellSize;
+struct GeometryBufferParticlesUniform {
+    mat4 proj;
+    mat4 view;
+    mat4 model;
     float radius;
-
-    int p1, p2;
+    int id;
+    int p0, p1;
+    vec4 color;
 };
+
 
 struct GraphicState {
     SDL_GPUGraphicsPipeline* graphicPipeline[NumGraphicPipelines];
@@ -143,7 +153,8 @@ struct GraphicState {
 
     ParticleUpdateUniform particleUniformBuffer;
     GeometryBufferUniform geometryBufferUniform;
-    MarchingCubeBufferUniform marchingCubeBufferUniform;
+    GeometryBufferParticlesUniform geometryBufferParticlesUniform;
+    BilateralBlurBufferUniform bilateralBlurBufferUniform;
 
     std::vector<Box> boxes;
     std::vector<Particle> particles;

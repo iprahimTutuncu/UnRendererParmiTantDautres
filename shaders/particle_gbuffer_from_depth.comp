@@ -1,0 +1,14 @@
+#version 450
+
+layout(set = 0, binding = 0, r32f) uniform readonly image2D gModifiedDepth;
+
+layout(set = 1, binding = 0, r32f) uniform writeonly image2D gPosition;
+layout(set = 1, binding = 0, r32f) uniform writeonly image2D gNormal;
+layout(set = 1, binding = 0, r32f) uniform writeonly image2D gAlbedo;
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+void main() {
+    ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+    float depth = imageLoad(gModifiedDepth, coords).r;
+}

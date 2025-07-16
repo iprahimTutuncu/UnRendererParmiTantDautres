@@ -1,6 +1,7 @@
 #include "deferred_lighting_renderer.h"
 #include "shaders.h"
 #include "graphics.h"
+#include "../camera.h"
 
 #include <SDL3/SDL_log.h>
 
@@ -12,7 +13,7 @@ SDL_AppResult deferred_lighting_init(AppState& state) {
     if (vs == nullptr) [[unlikely]] {
         return SDL_APP_FAILURE;
     }
-    SDL_GPUShader* fsFinal = loadShader(device, SHADER_PATH("deferred_render.frag"), 3, 0, 0, 0);
+    SDL_GPUShader* fsFinal = loadShader(device, SHADER_PATH("deferred_render.frag"), 3, 1, 0, 0);
     if (fsFinal == nullptr) [[unlikely]] {
         return SDL_APP_FAILURE;
     }
@@ -79,10 +80,17 @@ void deferred_lighting_render_to_texture(
         { gfx.textures[GeometryAlbedo], sampler }
     };
 
+    state.graphics->geometryBufferUniform.model = mat4::identity();
+    state.graphics->geometryBufferUniform.view = state.camera->view_matrix();
+    state.graphics->geometryBufferUniform.proj = state.camera->projection_matrix();
+    state.graphics->geometryBufferUniform.id = 1;
     SDL_BindGPUFragmentSamplers(renderPass, 0, gbufferSamplers, 3);
 
     int displayMode = static_cast<int>(mode);
-    SDL_PushGPUFragmentUniformData(cmdBuf, 0, &displayMode, sizeof(int));
+    if (mode != DisplayMode::Final)
+        SDL_PushGPUFragmentUniformData(cmdBuf, 0, &displayMode, sizeof(int));
+    else
+        SDL_PushGPUFragmentUniformData(cmdBuf, 0, &state.graphics->geometryBufferUniform, sizeof(GeometryBufferUniform));
 
     SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
 
