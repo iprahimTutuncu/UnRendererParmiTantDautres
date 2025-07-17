@@ -95,14 +95,30 @@ void MpmSolver::create_particle(vec3 position, vec3 velocity) {
 // dyadic products of one-dimensional cubic B-splines
 // x parameter is the position of the particle relative to a given node within the eulerian grid
 double MpmSolver::N(double x) {
-    double x_abs = std::abs(x);
-    if (x_abs < 1.0) {
-        return 1.0 / 2.0 * std::pow(x_abs, 3) - std::pow(x_abs, 2) + 2.0 / 3.0;
-    } else if (x_abs < 2.0) {
-        return -1.0 / 6.0 * std::pow(x_abs, 3) + std::pow(x_abs, 2) - 2.0 * x_abs + 4.0 / 3.0;
-    } else {
-        return 0.0;
-    }
+
+    float a = std::pow(std::abs(x), 3.0) / 2 - std::pow(x, 2.0) + 2.0 / 3.0;
+    float b = std::pow(2.0 - std::abs(x), 3.0) / 6.0;
+
+    bool s = std::abs(x) < 1 - std::numeric_limits<double>::epsilon();
+
+    return (std::abs(x) < 2.0 - std::numeric_limits<double>::epsilon()) * (a * (s) + b * (!s));
+
+    // if (std::abs(x) > 2 - std::numeric_limits<T>::epsilon()) [[unlikely]]
+    //     return static_cast<T>(0);
+
+    // if (std::abs(x) < static_cast<T>(1) - std::numeric_limits<T>::epsilon())
+    //     return
+
+    // return
+
+    // double x_abs = std::abs(x);
+    // if (x_abs < 1.0) {
+    //     return 1.0 / 2.0 * std::pow(x_abs, 3) - std::pow(x_abs, 2) + 2.0 / 3.0;
+    // } else if (x_abs < 2.0) {
+    //     return -1.0 / 6.0 * std::pow(x_abs, 3) + std::pow(x_abs, 2) - 2.0 * x_abs + 4.0 / 3.0;
+    // } else {
+    //     return 0.0;
+    // }
 }
 
 // derivative of the grid basis function
