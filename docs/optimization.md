@@ -33,3 +33,13 @@ Iteration delay: 1628.21 ms, Average: 1735 ms
 Iteration delay: 1762.12 ms, Average: 1740.43 ms
 Iteration delay: 1761.94 ms, Average: 1744.01 ms
 Iteration delay: 1762.61 ms, Average: 1746.67 ms
+
+## use size_t instead of int for node indices
+
+Iteration delay: 1528.53 ms, Average: 1528.53 ms
+Iteration delay: 2005.32 ms, Average: 1766.93 ms
+Iteration delay: 1740.08 ms, Average: 1757.98 ms
+Iteration delay: 1611.42 ms, Average: 1721.34 ms
+Iteration delay: 1742.07 ms, Average: 1725.48 ms
+Iteration delay: 1742.52 ms, Average: 1728.32 ms
+Iteration delay: 1743.31 ms, Average: 1730.46 ms
