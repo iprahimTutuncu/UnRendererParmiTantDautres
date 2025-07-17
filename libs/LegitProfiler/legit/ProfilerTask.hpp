@@ -32,8 +32,8 @@ namespace legit {
         const static uint32_t imguiText = RGBA_LE(0xF2F5FAFFu);
     }
     struct ProfilerTask {
-        double startTime;
-        double endTime;
+        float startTime;
+        float endTime;
         std::string name;
         uint32_t color;
     };

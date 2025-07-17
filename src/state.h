@@ -1,8 +1,11 @@
 #pragma once
 
-#include <cstdint>
+#include <legit/ProfilerTask.hpp>
 
-#define INITIAL_WINDOW_WIDTH 1280u
+#include <cstdint>
+#include <vector>
+
+#define INITIAL_WINDOW_WIDTH  1280u
 #define INITIAL_WINDOW_HEIGHT 768u
 
 struct SDL_GPUDevice;
@@ -26,4 +29,7 @@ struct AppState {
     std::uint32_t lastTick;
     std::uint32_t numFrames;
     float deltaTime;
+
+    // profiling
+    std::vector<legit::ProfilerTask> profilerTasks;
 };

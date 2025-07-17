@@ -111,6 +111,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
     AppState &app = *static_cast<AppState *>(appstate);
+
+    ProfilingTask
+
+
     updateTiming(app);
 
     SDL_AppResult result;

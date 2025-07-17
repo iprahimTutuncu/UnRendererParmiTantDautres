@@ -39,33 +39,6 @@ struct alignas(16) quat {
     }
 };
 
-struct vec2 {
-    float x;
-    float y;
-
-    vec2(float x, float y)
-        : x(x)
-        , y(y) { }
-    template <typename T>
-    vec2(T x, T y)
-        : x(static_cast<float>(x))
-        , y(static_cast<float>(y)) { }
-    template <typename T>
-    vec2(T x, float y)
-        : x(static_cast<float>(x))
-        , y(y) { }
-
-    vec2 operator+(vec2 const& v) const {
-        return { x + v.x, y + v.y };
-    }
-    vec2 operator-(vec2 const& v) const {
-        return { x - v.x, y - v.y };
-    }
-    vec2 operator*(float f) const {
-        return { x * f, y * f };
-    }
-};
-
 struct alignas(16) vec3 {
     float x;
     float y;

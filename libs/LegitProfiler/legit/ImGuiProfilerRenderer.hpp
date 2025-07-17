@@ -2,11 +2,9 @@
 
 #include "ProfilerTask.hpp"
 
-#include "../../vmath.h"
-
-#include <algorithm>
 #include <imgui.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <map>
@@ -14,6 +12,33 @@
 #include <vector>
 
 namespace ImGuiUtils {
+    struct vec2 {
+        float x;
+        float y;
+
+        vec2(float x, float y)
+            : x(x)
+            , y(y) { }
+        template <typename T>
+        vec2(T x, T y)
+            : x(static_cast<float>(x))
+            , y(static_cast<float>(y)) { }
+        template <typename T>
+        vec2(T x, float y)
+            : x(static_cast<float>(x))
+            , y(y) { }
+
+        vec2 operator+(vec2 const &v) const {
+            return { x + v.x, y + v.y };
+        }
+        vec2 operator-(vec2 const &v) const {
+            return { x - v.x, y - v.y };
+        }
+        vec2 operator*(float f) const {
+            return { x * f, y * f };
+        }
+    };
+
     inline vec2 Vec2(ImVec2 vec) {
         return vec2(vec.x, vec.y);
     }
@@ -299,7 +324,7 @@ namespace ImGuiUtils {
         };
 
         struct TaskStats {
-            double maxTime;
+            float maxTime;
             size_t priorityOrder;
             size_t onScreenIndex;
         };
