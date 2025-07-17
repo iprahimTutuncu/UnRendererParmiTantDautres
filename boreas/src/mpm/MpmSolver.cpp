@@ -126,6 +126,8 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
     double inv_h = 1.0 / grid->spacing;
     const double D_inv = 3.0 * inv_h * inv_h;
 
+    std::memset(p_weights.data(), 0, sizeof(std::array<double, 64>) * p_weights.size());
+    std::memset(p_weights_gradient.data(), 0, sizeof(std::array<vec3, 64>) * p_weights_gradient.size());
     // #pragma omp parallel
     // #pragma omp for
     for (int i = 0; i < p_current_state->p_position.size(); ++i) {
