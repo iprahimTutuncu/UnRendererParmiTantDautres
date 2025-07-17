@@ -7,7 +7,15 @@
 
 #include <SDL3/SDL_log.h>
 
+#include <cstdlib>
 #include <stddef.h>
+
+const float DEFAULT_COMPRESSION = 2.5e-2f;
+const float DEFAULT_STRETCH = 7.5e-3f;
+const float DEFAULT_HARDENING = 10.0f;
+const float DEFAULT_DENSITY = 4.0e2f;
+const float DEFAULT_YOUNGS_MODULUS = 1.4e5f;
+const float DEFAULT_POISSON_RATIO = 0.2f;
 
 SDL_AppResult deferred_gbuffer_init(AppState& state) {
     deferred_gbuffer_create_pipelines(state);
@@ -18,43 +26,62 @@ SDL_AppResult deferred_gbuffer_init(AppState& state) {
         return SDL_APP_FAILURE;
     }
 
-    deferred_gbuffer_update_particles(state);
+    deffered_gbuffer_init_particles(state);
 
     return SDL_APP_CONTINUE;
 }
 
-void deferred_gbuffer_update_particles(AppState& state) {
+inline float get_random(float min, float max, unsigned int* seed) {
+    return min + ((float)rand_r(seed) / (float)RAND_MAX) * (max - min);
+}
 
-    std::vector<float> positions;
+static constexpr std::size_t nb_particles = 2000;
+static constexpr std::size_t nb_grid_nodes = 512;
 
-    positions.resize(state.graphics->particles.size() * 4);
+void deffered_gbuffer_init_particles(AppState& state) {
+    std::vector<Particle> particles;
+    particles.resize(nb_particles);
 
-    for (std::size_t i = 0; i < state.graphics->particles.size(); i++) {
-        // Access the i-th particle
-        auto& p = state.graphics->particles[i];
+    float mass = 1.0;
+    vec3 c = vec3(0.0, 1.0, 0.0);
+    float r = 0.50;
+    vec3 v = vec3(0.0, -5.0, 0.0);
+    unsigned int seed = 33;
 
-        positions[i * 4 + 0] = p.position[0];
-        positions[i * 4 + 1] = p.position[1];
-        positions[i * 4 + 2] = p.position[2];
-        positions[i * 4 + 3] = p.position[3];
-    }
+    size_t i = 0;
+    do {
+        float x = get_random(-r, r, &seed);
+        float y = get_random(-r, r, &seed);
+        float z = get_random(-r, r, &seed);
+        vec3 pos = c + vec3(x, y, z);
 
-    if (!state.graphics->buffers[ParticlePositionBuffer]) {
+        if ((pos - c).length() <= r * r) {
+            auto& p = particles[i];
+            p.position = pos;
+            p.mass = mass;
+            p.velocity = v;
+            ++i;
+        }
+    } while (i < nb_particles);
+
+    if (!state.graphics->buffers[ParticlesBuffer]) {
         SDL_GPUBufferCreateInfo bufferInfo;
         bufferInfo.usage = SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ | SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ;
-        bufferInfo.size = static_cast<std::uint32_t>(state.graphics->particles.size() * sizeof(Particle::position));
-        state.graphics->buffers[ParticlePositionBuffer] = SDL_CreateGPUBuffer(state.device, &bufferInfo);
+        bufferInfo.size = static_cast<std::uint32_t>(nb_grid_nodes * sizeof(GridNode) + particles.size() * sizeof(Particle));
+        state.graphics->buffers[ParticlesBuffer] = SDL_CreateGPUBuffer(state.device, &bufferInfo);
     }
 
     // Create transfer buffer
     SDL_GPUTransferBufferCreateInfo transferInfo = {};
     transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transferInfo.size = static_cast<std::uint32_t>(state.graphics->particles.size() * sizeof(Particle::color));
+    transferInfo.size = static_cast<std::uint32_t>(particles.size() * sizeof(Particle));
     SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(state.device, &transferInfo);
 
     // Map and fill transfer buffer
     void* mapped = SDL_MapGPUTransferBuffer(state.device, transferBuffer, false);
-    SDL_memcpy(mapped, positions.data(), transferInfo.size);
+    mapped = static_cast<GridNode*>(mapped) + nb_grid_nodes;
+
+    SDL_memcpy(mapped, particles.data(), transferInfo.size);
     SDL_UnmapGPUTransferBuffer(state.device, transferBuffer);
 
     // Upload to GPU buffer
@@ -62,10 +89,51 @@ void deferred_gbuffer_update_particles(AppState& state) {
     SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(cmdBuf);
 
     SDL_GPUTransferBufferLocation transferLoc = { transferBuffer, 0 };
-    SDL_GPUBufferRegion bufferRegion = { state.graphics->buffers[ParticlePositionBuffer], 0, transferInfo.size };
+    SDL_GPUBufferRegion bufferRegion = { state.graphics->buffers[ParticlesBuffer], 0, transferInfo.size };
     SDL_UploadToGPUBuffer(copyPass, &transferLoc, &bufferRegion, true);
 
     SDL_EndGPUCopyPass(copyPass);
+
+    GraphicState& graphics = *state.graphics;
+    graphics.particleUniformBuffer.time = 0.5e-3f;
+    graphics.particleUniformBuffer.u_particles_per_cell = 32;
+    graphics.particleUniformBuffer.u_grid_spacing = 0.080f;
+    graphics.particleUniformBuffer.u_grid_origin = vec3(-2.5, 0.0, -2.5);
+    graphics.particleUniformBuffer.u_grid_dimension = vec3(5.0, 3.0, 5.0);
+
+    graphics.particleUniformBuffer.u_critical_compression = DEFAULT_COMPRESSION;
+    graphics.particleUniformBuffer.u_critical_stretch = DEFAULT_STRETCH;
+    graphics.particleUniformBuffer.u_hardening_coefficient = DEFAULT_HARDENING * 1.0;
+    graphics.particleUniformBuffer.u_initial_density = DEFAULT_DENSITY;
+    graphics.particleUniformBuffer.u_poisson_ratio = DEFAULT_POISSON_RATIO * 1.0;
+    graphics.particleUniformBuffer.u_gravity = vec3(0.0, -20.0, 0.0);
+    graphics.particleUniformBuffer.u_mu_0 =
+        DEFAULT_YOUNGS_MODULUS / (2.0f * (1.0f + DEFAULT_POISSON_RATIO));
+    graphics.particleUniformBuffer.u_lambda_0 =
+        (DEFAULT_YOUNGS_MODULUS * DEFAULT_POISSON_RATIO) / ((1.0f + DEFAULT_POISSON_RATIO) * (1.0f - 2.0f * DEFAULT_POISSON_RATIO));
+
+    graphics.particleUniformBuffer.u_alpha_blend = 0.95f;
+
+    graphics.particleUniformBuffer.u_co_floor_y = 0.0;
+    graphics.particleUniformBuffer.u_co_normal = vec3(0.0, 1.0, 0.0);
+    graphics.particleUniformBuffer.u_co_mu = 0.5;
+    graphics.particleUniformBuffer.u_D_inv = 3.0f / (0.080f * 0.080f);
+
+    SDL_GPUStorageBufferReadWriteBinding bufferBindings {};
+    bufferBindings.buffer = graphics.buffers[ParticlesBuffer];
+
+    SDL_GPUCommandBuffer* cmdBufcomp = SDL_AcquireGPUCommandBuffer(state.device);
+    SDL_PushGPUComputeUniformData(cmdBufcomp, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
+
+    Uint32 groupCount = static_cast<std::uint32_t>((nb_particles + 63) / 64);
+
+    // BEGIN
+    SDL_GPUComputePass* computePass1 = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
+    SDL_BindGPUComputePipeline(computePass1, graphics.computePipeline[MpmInit]);
+    SDL_DispatchGPUCompute(computePass1, groupCount, 1, 1);
+    SDL_EndGPUComputePass(computePass1);
+    // END
+
     SDL_SubmitGPUCommandBuffer(cmdBuf);
 }
 
@@ -77,21 +145,59 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         return;
     }
 
-    graphics.particleUniformBuffer.time += 0.01f;
+    graphics.particleUniformBuffer.time = 0.5e-3f;
+    graphics.particleUniformBuffer.u_particles_per_cell = 32;
+    graphics.particleUniformBuffer.u_grid_spacing = 0.080f;
+    graphics.particleUniformBuffer.u_grid_origin = vec3(-2.5, 0.0, -2.5);
+    graphics.particleUniformBuffer.u_grid_dimension = vec3(5.0, 3.0, 5.0);
+
+    graphics.particleUniformBuffer.u_critical_compression = DEFAULT_COMPRESSION;
+    graphics.particleUniformBuffer.u_critical_stretch = DEFAULT_STRETCH;
+    graphics.particleUniformBuffer.u_hardening_coefficient = DEFAULT_HARDENING * 1.0;
+    graphics.particleUniformBuffer.u_initial_density = DEFAULT_DENSITY;
+    graphics.particleUniformBuffer.u_poisson_ratio = DEFAULT_POISSON_RATIO * 1.0;
+    graphics.particleUniformBuffer.u_gravity = vec3(0.0, -20.0, 0.0);
+    graphics.particleUniformBuffer.u_mu_0 =
+        DEFAULT_YOUNGS_MODULUS / (2.0f * (1.0f + DEFAULT_POISSON_RATIO));
+    graphics.particleUniformBuffer.u_lambda_0 =
+        (DEFAULT_YOUNGS_MODULUS * DEFAULT_POISSON_RATIO) / ((1.0f + DEFAULT_POISSON_RATIO) * (1.0f - 2.0f * DEFAULT_POISSON_RATIO));
+
+    graphics.particleUniformBuffer.u_alpha_blend = 0.95f;
+
+    graphics.particleUniformBuffer.u_co_floor_y = 0.0;
+    graphics.particleUniformBuffer.u_co_normal = vec3(0.0, 1.0, 0.0);
+    graphics.particleUniformBuffer.u_co_mu = 0.5;
+    graphics.particleUniformBuffer.u_D_inv = 3.0f / (0.080f * 0.080f);
 
     SDL_GPUStorageBufferReadWriteBinding bufferBindings {};
-    bufferBindings.buffer = graphics.buffers[ParticlePositionBuffer];
+    bufferBindings.buffer = graphics.buffers[ParticlesBuffer];
 
     SDL_GPUCommandBuffer* cmdBufcomp = SDL_AcquireGPUCommandBuffer(state.device);
+    SDL_PushGPUComputeUniformData(cmdBufcomp, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
+
+    Uint32 groupCount = static_cast<std::uint32_t>((nb_particles + 63) / 64);
 
     // BEGIN
-    SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
-    SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleUpdate]);
+    SDL_GPUComputePass* computePass1 = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
+    SDL_BindGPUComputePipeline(computePass1, graphics.computePipeline[MpmParticleToGrid]);
+    SDL_DispatchGPUCompute(computePass1, groupCount, 1, 1);
+    SDL_EndGPUComputePass(computePass1);
 
-    SDL_PushGPUComputeUniformData(cmdBufcomp, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
-    Uint32 groupCount = static_cast<std::uint32_t>((graphics.particles.size() + 63) / 64);
-    SDL_DispatchGPUCompute(computePass, groupCount, 1, 1);
-    SDL_EndGPUComputePass(computePass);
+    SDL_GPUComputePass* computePass2 = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
+    SDL_BindGPUComputePipeline(computePass2, graphics.computePipeline[MpmUpdateGrid]);
+    SDL_DispatchGPUCompute(computePass2, groupCount, 1, 1);
+    SDL_EndGPUComputePass(computePass2);
+
+    SDL_GPUComputePass* computePass3 = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
+    SDL_BindGPUComputePipeline(computePass3, graphics.computePipeline[MpmGridToParticle]);
+    SDL_DispatchGPUCompute(computePass3, groupCount, 1, 1);
+    SDL_EndGPUComputePass(computePass3);
+
+    SDL_GPUComputePass* computePass4 = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
+    SDL_BindGPUComputePipeline(computePass4, graphics.computePipeline[MpmResetGrid]);
+    SDL_DispatchGPUCompute(computePass4, groupCount, 1, 1);
+    SDL_EndGPUComputePass(computePass4);
+
     SDL_SubmitGPUCommandBuffer(cmdBufcomp);
     // END
 
@@ -210,7 +316,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
     SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
-    SDL_BindGPUVertexStorageBuffers(pass, 0, &graphics.buffers[ParticlePositionBuffer], 1);
+    SDL_BindGPUVertexStorageBuffers(pass, 0, &graphics.buffers[ParticlesBuffer], 1);
 
     mat4 model {};
     model[0].x = 0.25f;
@@ -224,7 +330,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
 
     SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
-    SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
+    SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(nb_particles), 0, 0, 0);
 
     SDL_EndGPURenderPass(pass);
 }
@@ -247,7 +353,11 @@ void deferred_gbuffer_create_pipelines(AppState& state) {
     pipelineInfo.threadcount_y = 1;
     pipelineInfo.threadcount_z = 1;
 
-    state.graphics->computePipeline[ParticleUpdate] = createComputePipelineFromShader(state.device, SHADER_PATH("particleUpdate.comp"), &pipelineInfo);
+    state.graphics->computePipeline[MpmInit] = createComputePipelineFromShader(state.device, SHADER_PATH("mpm_init.comp"), &pipelineInfo);
+    state.graphics->computePipeline[MpmParticleToGrid] = createComputePipelineFromShader(state.device, SHADER_PATH("mpm_p2g.comp"), &pipelineInfo);
+    state.graphics->computePipeline[MpmUpdateGrid] = createComputePipelineFromShader(state.device, SHADER_PATH("mpm_update_grid.comp"), &pipelineInfo);
+    state.graphics->computePipeline[MpmGridToParticle] = createComputePipelineFromShader(state.device, SHADER_PATH("mpm_g2p.comp"), &pipelineInfo);
+    state.graphics->computePipeline[MpmResetGrid] = createComputePipelineFromShader(state.device, SHADER_PATH("mpm_reset_grid.comp"), &pipelineInfo);
 }
 
 void deferred_gbuffer_create_particles_pipeline(AppState& state) {

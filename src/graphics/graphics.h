@@ -25,16 +25,18 @@ enum GraphicPipelineIndex {
 };
 
 enum ComputePipelineIndex {
-    ParticleUpdate,
+    MpmInit,
+    MpmParticleToGrid,
+    MpmUpdateGrid,
+    MpmGridToParticle,
+    MpmResetGrid,
     NumComputePipelines // must be last
 };
 
 enum BufferIndex {
     BoxVertexBuffer,
     BoxIndexBuffer,
-    ParticlePositionBuffer, // TODO: this has to be the struct for MPM and be renamed
-    ParticlesVertexBuffer,
-    ParticlesIndexBuffer,
+    ParticlesBuffer,
     SphereVertexBuffer,
     SphereIndexBuffer,
     NumBuffers // must be last
@@ -84,15 +86,28 @@ struct Rect {
     float halfHeight;
 };
 
-struct Particle {
-    alignas(16) float position[4];
-    alignas(16) float color[4];
-};
-
 struct Vertex {
     alignas(16) float position[3];
     alignas(16) float normal[3];
     alignas(16) float texCoord[2];
+};
+
+struct Particle {
+    vec3 position;
+    float mass;
+    vec3 velocity;
+    float volume_0;
+    alignas(16) mat3 deform_elastic;
+    alignas(16) mat3 deform_plastic;
+    alignas(16) mat3 deform_affine;
+};
+
+struct GridNode {
+    vec3 force;
+    float mass;
+    alignas(16) vec3 momentum;
+    alignas(16) vec3 velocity_star;
+    alignas(16) vec3 velocity;
 };
 
 struct SDL_GPUGraphicsPipeline;
@@ -104,6 +119,25 @@ struct SDL_GPUSampler;
 // c'est le uniform buffer pour le compute
 
 struct ParticleUpdateUniform {
+    vec3 u_grid_origin;
+    float u_grid_spacing; // h
+    vec3 u_grid_dimension;
+    float u_particles_per_cell;
+    float u_initial_density;
+    float u_mu_0;
+    float u_lambda_0;
+    float u_hardening_coefficient;
+    float u_critical_compression;
+    float u_critical_stretch;
+    float u_poisson_ratio;
+    float u_alpha_blend;
+
+    vec3 u_gravity;
+    float u_co_floor_y;
+    vec3 u_co_normal;
+    float u_co_mu;
+
+    float u_D_inv; // 3.0 / h * h
     float time;
 };
 
@@ -128,5 +162,4 @@ struct GraphicState {
     GeometryBufferUniform geometryBufferUniform;
 
     std::vector<Box> boxes;
-    std::vector<Particle> particles;
 };

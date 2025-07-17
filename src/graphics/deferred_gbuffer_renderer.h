@@ -20,3 +20,4 @@ void deferred_gbuffer_create_mesh_pipeline(AppState& state);
 void deferred_gbuffer_create_particles_pipeline(AppState& state);
 void deferred_gbuffer_create_box_geometry(AppState& state);
 void deferred_gbuffer_create_sphere_geometry(AppState& state);
+void deffered_gbuffer_init_particles(AppState& state);
