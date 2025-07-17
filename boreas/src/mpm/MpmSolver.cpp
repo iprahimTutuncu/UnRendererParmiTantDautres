@@ -18,32 +18,33 @@
 #include "MpmSolver.hpp"
 #include "MpmMath.hpp"
 
-#include <memory>
 #include <mutex>
 
 #define USE_APIC 1
 
-MpmSolver::MpmSolver()
-    : params {} {
+MpmSolver::MpmSolver() {
+
     p_current_state = &p_states[0];
     p_next_state = &p_states[1];
 }
 
-void MpmSolver::initialize() {
+void MpmSolver::initialize(MpmSolverParams& params) {
     this->dt = 4.0E-4;
 
-    grid = std::make_unique<MpmGrid>(
+    grid = MpmGrid(
         params.grid_origin,
         params.grid_size.x(), params.grid_size.y(), params.grid_size.z(),
         params.grid_spacing);
+    this->params = params;
 
     const size_t nb_particles = p_current_state->p_position.size();
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
 
-    update_lame_params();
+    mu_0 = params.initial_youngs_modulus / (2.0 * (1.0 + params.poisson_ratio));
+    lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) / ((1.0 + params.poisson_ratio) * (1.0 - 2.0 * params.poisson_ratio));
 
-    grid->reset_nodes();
+    grid.reset_nodes();
     step1_rasterize_particles_to_grid();
     step2_compute_volumes_and_densities();
 }
@@ -65,7 +66,7 @@ std::vector<vec3> MpmSolver::get_positions() {
 void MpmSolver::iterate(double dt) {
     this->dt = dt;
 
-    grid->reset_nodes();
+    grid.reset_nodes();
     step1_rasterize_particles_to_grid();
     step3_compute_grid_forces();
     step4_update_grid_velocities();
@@ -76,13 +77,6 @@ void MpmSolver::iterate(double dt) {
     step8_update_particle_velocities();
     step9_particle_based_collisions();
     step10_update_particle_positions();
-}
-
-void MpmSolver::update_lame_params() {
-    mu_0 = params.initial_youngs_modulus
-        / (2.0 * (1.0 + params.poisson_ratio));
-    lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio)
-        / ((1.0 + params.poisson_ratio) * (1.0 - 2.0 * params.poisson_ratio));
 }
 
 void MpmSolver::create_particle(vec3 position, vec3 velocity) {
@@ -139,7 +133,7 @@ double MpmSolver::d_N(double x) {
 // Transfer mass using the weighing function
 // Transfer velocity using normalized weights
 void MpmSolver::step1_rasterize_particles_to_grid() {
-    double inv_h = 1.0 / grid->spacing;
+    double inv_h = 1.0 / grid.spacing;
     const double D_inv = 3.0 * inv_h * inv_h;
 
     std::memset(p_weights.data(), 0, sizeof(std::array<double, 64>) * p_weights.size());
@@ -148,7 +142,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
     // #pragma omp for
     for (size_t i = 0; i < p_current_state->p_position.size(); ++i) {
         // find the closest bottom-left node to the current cell
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) * inv_h;
+        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         // look at the neighbor 4x4 grid
@@ -157,7 +151,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
                 for (size_t z = 0; z < 4; ++z) {
                     // calculate particle offset
                     vec3i node_position_local = base_position + vec3i(x, y, z);
-                    MpmGridNode& node = grid->get_node_from_local(node_position_local);
+                    MpmGridNode& node = grid.get_node_from_local(node_position_local);
 
                     vec3 p_off = p_position_rel - node_position_local.cast<double>();
 
@@ -185,7 +179,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
                     node.mass += m_i;
 
 #if USE_APIC
-                    vec3 node_pos = grid->get_node_world_coords(node.local_pos) - p_current_state->p_position[i];
+                    vec3 node_pos = grid.get_node_world_coords(node.local_pos) - p_current_state->p_position[i];
                     vec3 apic = (p_current_state->p_velocity[i] + p_current_state->p_deform_affine[i] * D_inv * node_pos);
                     vec3 momentum = m_i * apic;
 #else
@@ -203,14 +197,14 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
     }
 
     // #pragma omp single
-    for (size_t i = 0; i < grid->nodes.size(); ++i) {
+    for (size_t i = 0; i < grid.nodes.size(); ++i) {
         // v_i = sum( v_p * m_p * w_ip / m_i )
         // p = mv -> v = p/m
-        MpmGridNode& node = grid->nodes[i];
+        MpmGridNode& node = grid.nodes[i];
         if (node.mass > EPSILON) {
             if (!node.is_active) {
                 node.is_active = true;
-                grid->active_nodes.push_back(&node);
+                grid.active_nodes.push_back(&node);
             }
 
             node.velocity = node.momentum / node.mass;
@@ -220,12 +214,12 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
 
 // First time step only - initial configuration
 void MpmSolver::step2_compute_volumes_and_densities() {
-    double inv_h = 1.0 / grid->spacing;
+    double inv_h = 1.0 / grid.spacing;
     double inv_h3 = inv_h * inv_h * inv_h;
 
     // #pragma omp parallel for
     for (size_t i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) * inv_h;
+        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         double rho_p = 0.0;
@@ -234,7 +228,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
             for (size_t y = 0; y < 4; ++y) {
                 for (size_t z = 0; z < 4; ++z) {
                     vec3i node_position_local = base_position + vec3i(x, y, z);
-                    MpmGridNode& node = grid->get_node_from_local(node_position_local);
+                    MpmGridNode& node = grid.get_node_from_local(node_position_local);
 
                     // rho_p = sum(w_ip * (m_i * / h^3))
                     double w_ip = p_weights[i][x + y * 4 + z * 4 * 4];
@@ -258,11 +252,11 @@ void MpmSolver::step2_compute_volumes_and_densities() {
 // gradient_w_ip is the gradient of N_i(xp), the derivative of the cubic b-spline N() above
 // See p.5 https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf for more on the equations
 void MpmSolver::step3_compute_grid_forces() {
-    double inv_h = 1.0 / grid->spacing;
+    double inv_h = 1.0 / grid.spacing;
 
     // #pragma omp parallel for
     for (size_t i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) * inv_h;
+        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         mat3 Fe = p_current_state->p_deform_elastic[i];
@@ -291,7 +285,7 @@ void MpmSolver::step3_compute_grid_forces() {
             for (size_t y = 0; y < 4; ++y) {
                 for (size_t z = 0; z < 4; ++z) {
                     vec3i node_position_local = base_position + vec3i(x, y, z);
-                    MpmGridNode& node = grid->get_node_from_local(node_position_local);
+                    MpmGridNode& node = grid.get_node_from_local(node_position_local);
 
                     vec3 w_ip_grad = p_weights_gradient[i][x + y * 4 + z * 4 * 4];
 
@@ -314,8 +308,8 @@ void MpmSolver::step3_compute_grid_forces() {
 // this will then be used in step 6 in euler semi-implicite integration as the right side of the linear system
 void MpmSolver::step4_update_grid_velocities() {
     // #pragma omp parallel for
-    for (size_t i = 0; i < grid->active_nodes.size(); ++i) {
-        MpmGridNode& node = *grid->active_nodes[i];
+    for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
+        MpmGridNode& node = *grid.active_nodes[i];
         if (node.mass > 0.0) {
             vec3 f_ext = node.mass * params.gravity;
             vec3 f_i = node.force + f_ext;
@@ -329,9 +323,9 @@ void MpmSolver::step4_update_grid_velocities() {
 // see section 8 of Stomakhin
 void MpmSolver::step5_grid_based_collisions() {
     // #pragma omp parallel for
-    for (size_t i = 0; i < grid->active_nodes.size(); ++i) {
-        MpmGridNode& node = *grid->active_nodes[i];
-        vec3 node_position_world = grid->get_node_world_coords(node.local_pos);
+    for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
+        MpmGridNode& node = *grid.active_nodes[i];
+        vec3 node_position_world = grid.get_node_world_coords(node.local_pos);
 
         if (node_position_world.y() > params.world_floor) {
             continue;
@@ -360,7 +354,7 @@ void MpmSolver::step5_grid_based_collisions() {
 // see https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
 void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) const {
     df.setZero();
-    double inv_h = 1.0 / grid->spacing;
+    double inv_h = 1.0 / grid.spacing;
 
     // calculate Ar
     // #pragma omp parallel
@@ -370,14 +364,14 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         // 3.23 - velocity gradient
         mat3 velocities_grad = mat3::Zero();
 
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) * inv_h;
+        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         for (size_t x = 0; x < 4; ++x) {
             for (size_t y = 0; y < 4; ++y) {
                 for (size_t z = 0; z < 4; ++z) {
 
-                    int active_id = global_to_active_map[grid->get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z)];
+                    int active_id = global_to_active_map[grid.get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z)];
                     if (active_id < 0) continue;
 
                     vec3 w_ip_grad = p_weights_gradient[i][x + y * 4 + z * 4 * 4];
@@ -462,7 +456,7 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
             for (size_t y = 0; y < 4; ++y) {
                 for (size_t z = 0; z < 4; ++z) {
 
-                    int active_id = global_to_active_map[grid->get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z)];
+                    int active_id = global_to_active_map[grid.get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z)];
                     if (active_id < 0) [[unlikely]]
                         continue;
 
@@ -481,9 +475,9 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
     }
 
     // #pragma omp for
-    for (size_t i = 0; i < grid->active_nodes.size(); ++i) {
+    for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
         Av_next.col(i) = v_next.col(i);
-        double& node_mass = grid->active_nodes[i]->mass;
+        double& node_mass = grid.active_nodes[i]->mass;
         if (node_mass > 0.0) {
             vec3 df_res = params.beta_integration * dt * df.col(i) / node_mass;
             // #pragma omp atomic
@@ -498,19 +492,19 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
 
 template <class Solver>
 void MpmSolver::step6_solve_linear_system() {
-    if (params.beta_integration == 0.0 || grid->active_nodes.empty()) {
+    if (params.beta_integration == 0.0 || grid.active_nodes.empty()) {
         return;
     }
 
-    int nb_active_nodes = grid->active_nodes.size();
-    global_to_active_map.assign(grid->nodes.size(), -1);
+    int nb_active_nodes = grid.active_nodes.size();
+    global_to_active_map.assign(grid.nodes.size(), -1);
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        global_to_active_map[grid->active_nodes[i]->index] = i;
+        global_to_active_map[grid.active_nodes[i]->index] = i;
     }
 
     mat3n b(3, nb_active_nodes);
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        b.col(i) = grid->active_nodes[i]->velocity_star;
+        b.col(i) = grid.active_nodes[i]->velocity_star;
     }
 
     mat3n x = b;
@@ -525,20 +519,20 @@ void MpmSolver::step6_solve_linear_system() {
     Solver::solve(A, x, b, params.max_iterations_solver, params.tolerance_solver);
 
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        grid->active_nodes[i]->velocity_star = x.col(i);
+        grid.active_nodes[i]->velocity_star = x.col(i);
     }
 }
 
 template <class Solver>
 void MpmSolver::step6_solve_linear_system_preconditioned() {
-    if (params.beta_integration == 0.0 || grid->active_nodes.empty()) {
+    if (params.beta_integration == 0.0 || grid.active_nodes.empty()) {
         return;
     }
 
-    int nb_active_nodes = grid->active_nodes.size();
-    global_to_active_map.assign(grid->nodes.size(), -1);
+    int nb_active_nodes = grid.active_nodes.size();
+    global_to_active_map.assign(grid.nodes.size(), -1);
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        global_to_active_map[grid->active_nodes[i]->index] = i;
+        global_to_active_map[grid.active_nodes[i]->index] = i;
     }
 
     mat3n M_inv;
@@ -546,7 +540,7 @@ void MpmSolver::step6_solve_linear_system_preconditioned() {
 
     mat3n b(3, nb_active_nodes);
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        b.col(i) = grid->active_nodes[i]->velocity_star;
+        b.col(i) = grid.active_nodes[i]->velocity_star;
     }
 
     mat3n x = b;
@@ -561,22 +555,22 @@ void MpmSolver::step6_solve_linear_system_preconditioned() {
     Solver::solve(A, x, b, M_inv, params.max_iterations_solver, params.tolerance_solver);
 
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        grid->active_nodes[i]->velocity_star = x.col(i);
+        grid.active_nodes[i]->velocity_star = x.col(i);
     }
 }
 
 void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
-    int nb_active_nodes = grid->active_nodes.size();
+    int nb_active_nodes = grid.active_nodes.size();
     M_inv.resize(3, nb_active_nodes);
 
     mat3n P(3, nb_active_nodes);
     P.setZero();
 
-    const double h = grid->spacing;
+    const double h = grid.spacing;
 
     // #pragma omp parallel for
     for (size_t i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) / h;
+        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) / h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         double Jp = p_current_state->p_deform_plastic[i].determinant();
@@ -588,7 +582,7 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
         for (size_t x = 0; x < 4; ++x) {
             for (size_t y = 0; y < 4; ++y) {
                 for (size_t z = 0; z < 4; ++z) {
-                    MpmGridNode& node = grid->get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    MpmGridNode const& node = grid.get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     if (!node.is_active) continue;
 
                     int active_id = global_to_active_map[node.index];
@@ -610,7 +604,7 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
 
     double factor = params.beta_integration * dt * dt;
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        double node_mass = grid->active_nodes[i]->mass;
+        double node_mass = grid.active_nodes[i]->mass;
         if (node_mass > EPSILON) {
             vec3 A_diag = vec3::Ones() + (factor / node_mass) * P.col(i);
             M_inv.col(i) = A_diag.cwiseInverse();
@@ -621,11 +615,11 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
 }
 
 void MpmSolver::step7_update_deformation_gradient() {
-    double inv_h = 1.0 / grid->spacing;
+    double inv_h = 1.0 / grid.spacing;
 
     // #pragma omp parallel for
     for (size_t i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) * inv_h;
+        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         // 3.23 - velolity gradient
@@ -635,7 +629,7 @@ void MpmSolver::step7_update_deformation_gradient() {
         for (size_t x = 0; x < 4; ++x) {
             for (size_t y = 0; y < 4; ++y) {
                 for (size_t z = 0; z < 4; ++z) {
-                    MpmGridNode const& node = grid->get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    MpmGridNode const& node = grid.get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
 
                     vec3 w_ip_grad = p_weights_gradient[i][x + y * 4 + z * 4 * 4];
                     velocities_grad += node.velocity_star * w_ip_grad.transpose();
@@ -660,11 +654,11 @@ void MpmSolver::step7_update_deformation_gradient() {
 }
 
 void MpmSolver::step8_update_particle_velocities() {
-    double inv_h = 1.0 / grid->spacing;
+    double inv_h = 1.0 / grid.spacing;
 
     // #pragma omp parallel for
     for (size_t i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid->origin) * inv_h;
+        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         vec3 v_pic = vec3::Zero();
@@ -678,9 +672,9 @@ void MpmSolver::step8_update_particle_velocities() {
         for (size_t x = 0; x < 4; ++x) {
             for (size_t y = 0; y < 4; ++y) {
                 for (size_t z = 0; z < 4; ++z) {
-                    MpmGridNode const& node = grid->get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    MpmGridNode const& node = grid.get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
 
-                    vec3 node_pos = grid->get_node_world_coords(node.local_pos) - p_current_state->p_position[i];
+                    vec3 node_pos = grid.get_node_world_coords(node.local_pos) - p_current_state->p_position[i];
                     double w_ip = p_weights[i][x + y * 4 + z * 4 * 4];
                     v_pic += node.velocity_star * w_ip;
                     v_flip += (node.velocity_star - node.velocity) * w_ip;

@@ -1,6 +1,5 @@
 ## beginning of optimization.md
 
-
 Iteration delay: 2130.74 ms, Average: 2130.74 ms
 Iteration delay: 2762.26 ms, Average: 2446.5 ms
 Iteration delay: 2367.8 ms, Average: 2420.27 ms
@@ -43,3 +42,15 @@ Iteration delay: 1611.42 ms, Average: 1721.34 ms
 Iteration delay: 1742.07 ms, Average: 1725.48 ms
 Iteration delay: 1742.52 ms, Average: 1728.32 ms
 Iteration delay: 1743.31 ms, Average: 1730.46 ms
+
+## Directly use MpmGridNode instead of unique_ptr<MpmGridNode>
+
+Iteration delay: 438.61 ms, Average: 438.61 ms
+Iteration delay: 426.551 ms, Average: 432.58 ms
+Iteration delay: 426.165 ms, Average: 430.442 ms
+Iteration delay: 425.983 ms, Average: 429.327 ms
+Iteration delay: 426.283 ms, Average: 428.718 ms
+Iteration delay: 426.131 ms, Average: 428.287 ms
+Iteration delay: 426.264 ms, Average: 427.998 ms
+Iteration delay: 449.687 ms, Average: 430.709 ms
+Iteration delay: 426.129 ms, Average: 430.2 ms

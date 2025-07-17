@@ -2,7 +2,6 @@
 #include "MpmGrid.hpp"
 #include "MpmParticle.hpp"
 
-#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -18,53 +17,54 @@
  Icy snow has a higher hardening coefficient and Young’s modulus, with the opposite producing muddy snow.
 */
 
+struct MpmSolverParams {
+    unsigned int particles_per_cell;
+    double particle_spacing;
+    double grid_spacing;
+    vec3 grid_origin;
+    vec3 grid_size;
+
+    double critical_compression; // theta_c
+    double critical_stretch; // theta_s
+    double hardening_coefficient; // xi
+    double initial_density; // rho_0
+    double initial_youngs_modulus; // E_0
+    double poisson_ratio; // nu
+    vec3 gravity; // g
+
+    double world_floor;
+    vec3 v_co; // collider velocity
+    vec3 n_co; // collider normal
+    double mu_surface; // Coulomb friction coefficient
+
+    int max_iterations_solver;
+    double tolerance_solver;
+
+    int max_iterations_newton;
+    int max_iterations_line_search;
+    double tolerance_newton;
+    double line_search_constant; // armijo constant
+    double line_search_shrink; // alpha shrink
+
+    double beta_integration; // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
+    double alpha_blend; // PIC/FLIP blend
+};
+
 class MpmSolver {
 public:
     MpmSolver();
 
-    void initialize();
+    void initialize(MpmSolverParams& params);
     void iterate(double dt);
-    void update_lame_params();
 
     void swap_buffers();
     std::vector<vec3> get_positions();
 
     void create_particle(vec3 position, vec3 velocity);
 
-    struct {
-        unsigned int particles_per_cell;
-        double particle_spacing;
-        double grid_spacing;
-        vec3 grid_origin;
-        vec3 grid_size;
+    MpmGrid grid;
+    MpmSolverParams params;
 
-        double critical_compression; // theta_c
-        double critical_stretch; // theta_s
-        double hardening_coefficient; // xi
-        double initial_density; // rho_0
-        double initial_youngs_modulus; // E_0
-        double poisson_ratio; // nu
-        vec3 gravity; // g
-
-        double world_floor;
-        vec3 v_co; // collider velocity
-        vec3 n_co; // collider normal
-        double mu_surface; // Coulomb friction coefficient
-
-        int max_iterations_solver;
-        double tolerance_solver;
-
-        int max_iterations_newton;
-        int max_iterations_line_search;
-        double tolerance_newton;
-        double line_search_constant; // armijo constant
-        double line_search_shrink; // alpha shrink
-
-        double beta_integration; // 0 for explicit, 1/2 for trapezoidal, 1 for backward euler
-        double alpha_blend; // PIC/FLIP blend
-    } params;
-
-    std::unique_ptr<MpmGrid> grid;
     std::vector<int> global_to_active_map;
 
     // Particles

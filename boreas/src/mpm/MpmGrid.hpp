@@ -6,26 +6,33 @@
 struct MpmGrid {
     double spacing; // h
     vec3 origin; // world space origin of the grid
-    int width;
-    int height;
-    int depth;
+    size_t width;
+    size_t height;
+    size_t depth;
     std::vector<MpmGridNode> nodes;
     std::vector<MpmGridNode*> active_nodes;
+
+    MpmGrid() {
+        spacing = 0.0;
+        width = 0;
+        height = 0;
+        depth = 0;
+    }
 
     MpmGrid(vec3 origin, double size_x, double size_y, double size_z, double spacing)
         : origin { origin }
         , spacing { spacing }
-        , width { static_cast<int>(std::ceil(size_x / spacing)) + 1 }
-        , height { static_cast<int>(std::ceil(size_y / spacing)) + 1 }
-        , depth { static_cast<int>(std::ceil(size_z / spacing)) + 1 } {
-        int nb_nodes = static_cast<int>(width * height * depth);
+        , width { static_cast<size_t>(std::ceil(size_x / spacing)) + 1 }
+        , height { static_cast<size_t>(std::ceil(size_y / spacing)) + 1 }
+        , depth { static_cast<size_t>(std::ceil(size_z / spacing)) + 1 } {
+        size_t nb_nodes = width * height * depth;
         nodes.resize(nb_nodes, MpmGridNode());
         active_nodes.reserve(nb_nodes);
 
-        for (int z = 0; z < depth; ++z) {
-            for (int y = 0; y < height; ++y) {
-                for (int x = 0; x < width; ++x) {
-                    size_t index = get_node_id_from_local({ x, y, z });
+        for (size_t z = 0; z < depth; ++z) {
+            for (size_t y = 0; y < height; ++y) {
+                for (size_t x = 0; x < width; ++x) {
+                    size_t index = get_node_id_from_local(x, y, z);
                     nodes[index].index = index;
                     nodes[index].local_pos = vec3i(x, y, z);
                 }
@@ -55,6 +62,10 @@ struct MpmGrid {
     }
 
     MpmGridNode& get_node_from_local(vec3i pos) {
+        return get_node_from_local(pos.x(), pos.y(), pos.z());
+    }
+
+    MpmGridNode const& get_node_from_local(vec3i pos) const {
         return get_node_from_local(pos.x(), pos.y(), pos.z());
     }
 
