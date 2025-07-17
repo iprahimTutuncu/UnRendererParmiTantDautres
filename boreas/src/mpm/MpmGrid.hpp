@@ -46,20 +46,24 @@ struct MpmGrid {
         active_nodes.clear();
     }
 
-    const size_t get_node_id_from_local(vec3i pos) const {
+    size_t get_node_id_from_local(vec3i pos) const {
         return static_cast<size_t>(pos.x()) + static_cast<size_t>(pos.y()) * width + static_cast<size_t>(pos.z()) * width * height;
     }
 
-    MpmGridNode* get_node_from_local(vec3i pos) {
+    size_t get_node_id_from_local(size_t x, size_t y, size_t z) const {
+        return static_cast<size_t>(x) + static_cast<size_t>(y) * width + static_cast<size_t>(z) * width * height;
+    }
+
+    MpmGridNode& get_node_from_local(vec3i pos) {
         return get_node_from_local(pos.x(), pos.y(), pos.z());
     }
 
-    MpmGridNode* get_node_from_local(int x, int y, int z) {
-        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= depth) {
-            return nullptr;
-        }
+    inline MpmGridNode& get_node_from_local(int x, int y, int z) {
+        return nodes[get_node_id_from_local(x, y, z)];
+    }
 
-        return &nodes[get_node_id_from_local({ x, y, z })];
+    inline MpmGridNode const& get_node_from_local(int x, int y, int z) const {
+        return nodes[get_node_id_from_local(x, y, z)];
     }
 
     const vec3i get_node_local_coords(const vec3& pos) const {
