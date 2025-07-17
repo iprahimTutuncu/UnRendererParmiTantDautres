@@ -102,6 +102,11 @@ set(SHADERS
     ${SHADER_DIR}/FillTexture.comp
     ${SHADER_DIR}/floorShader.frag
     ${SHADER_DIR}/floorShader.vert
+    ${SHADER_DIR}/mpm_init.comp
+    ${SHADER_DIR}/mpm_p2g.comp
+    ${SHADER_DIR}/mpm_update_grid.comp
+    ${SHADER_DIR}/mpm_g2p.comp
+    ${SHADER_DIR}/mpm_reset_grid.comp
     ${SHADER_DIR}/particleShader.frag
     ${SHADER_DIR}/particleShader.vert
     ${SHADER_DIR}/particleUpdate.comp
