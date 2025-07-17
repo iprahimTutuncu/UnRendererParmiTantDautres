@@ -88,11 +88,6 @@ set(EIGEN_INCLUDE_INSTALL_DIR OFF)
 add_subdirectory(libs/eigen EXCLUDE_FROM_ALL)
 target_compile_definitions(eigen INTERFACE EIGEN_NO_DEBUG)
 
-# LegitProfiler: C++ profiling library for ImGui
-add_library(LegitProfiler INTERFACE)
-target_include_directories(LegitProfiler INTERFACE libs/LegitProfiler)
-target_link_libraries(LegitProfiler INTERFACE ImGui)
-
 #  ========== SHADERS ==========
 
 set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
@@ -182,7 +177,6 @@ add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
     SDL3::SDL3
     ImGui
-    LegitProfiler
 )
 target_compile_definitions(app PRIVATE
     SHADERS_DIR="${SHADER_OUT_DIR}/"
