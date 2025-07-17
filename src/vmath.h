@@ -48,6 +48,14 @@ struct alignas(16) vec3 {
         return { -x, -y, -z };
     }
 
+    inline vec3 operator+(vec3 const& v) {
+        return { x + v.x, y + v.y, z + v.z };
+    }
+
+    inline vec3 operator-(vec3 const& v) {
+        return { x - v.x, y - v.y, z - v.z };
+    }
+
     inline vec3& operator+=(vec3 const& v) {
         this->x += v.x;
         this->y += v.y;
