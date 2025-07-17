@@ -53,7 +53,7 @@ void main()
     vec4 position = texture(gPosition, uv);
 
     vec3 color;
-    bool isEmpty = length(position.xyz) < 1e-5;
+    bool isEmpty = length(position.xyz) < 1e-5 || position.y < 0.0;
 
     if (isEmpty)
     {
@@ -76,7 +76,10 @@ void main()
     }
     else
     {
-        color = albedo;
+        vec3 normal = texture(gNormal, uv).xyz;
+        vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+        float diff = max(dot(normal, lightDir), 0.0);
+        color = albedo * diff;
     }
 
     outColor = vec4(color, 1.0);

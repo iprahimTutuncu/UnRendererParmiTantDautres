@@ -26,6 +26,7 @@ enum GraphicPipelineIndex {
 enum ComputePipelineIndex {
     ParticleUpdate,
     ParticleBilateralBlur,
+    ParticleDepthToGBuffer,
     NumComputePipelines // must be last
 };
 
@@ -133,8 +134,9 @@ struct GeometryBufferParticlesUniform {
     mat4 view;
     mat4 model;
     float radius;
+    float near;
+    float far;
     int id;
-    int p0, p1;
     vec4 color;
 };
 

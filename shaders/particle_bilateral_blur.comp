@@ -23,6 +23,7 @@ void main() {
             ivec2 offset = coords + ivec2(dx, dy);
 
             float sampled = texelFetch(gDepth, offset, 0).r;
+            if (isnan(sampled) || sampled == 1.0) continue;
 
             // Spatial Gaussian
             float r2 = float(dx * dx + dy * dy) * params.blurScale * params.blurScale;

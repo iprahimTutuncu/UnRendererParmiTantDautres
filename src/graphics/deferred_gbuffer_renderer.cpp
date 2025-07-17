@@ -19,9 +19,9 @@ SDL_AppResult deferred_gbuffer_init(AppState& state)
         return SDL_APP_FAILURE;
     }
 
-    state.graphics->bilateralBlurBufferUniform.blurScale = 1.0f;
-    state.graphics->bilateralBlurBufferUniform.blurDepthFalloff = 0.02f;
-    state.graphics->bilateralBlurBufferUniform.filterRadius = 4;
+    state.graphics->bilateralBlurBufferUniform.blurScale = 2.0f;
+    state.graphics->bilateralBlurBufferUniform.blurDepthFalloff = 1.0f;
+    state.graphics->bilateralBlurBufferUniform.filterRadius = 10;
 
     deferred_gbuffer_update_particles(state);
 
@@ -78,28 +78,32 @@ void deferred_gbuffer_update_particles(AppState& state) {
 void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     GraphicState& graphics = *state.graphics;
 
-    graphics.particles[0].position.x;
+    int w, h;
+    if (!SDL_GetWindowSize(state.window, &w, &h))
+        return;
+
     if (!graphics.textures[GeometryPosition] || !graphics.textures[GeometryNormal] || !graphics.textures[GeometryAlbedo] || !graphics.textures[GeometryDepth]) [[unlikely]] {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GBuffer textures not set!");
         return;
     }
 
-    // ParticleUpdate
-    graphics.particleUniformBuffer.time += 0.01f;
+    // --- ParticleUpdate Compute Pass ---
+    {
+        graphics.particleUniformBuffer.time += 0.01f;
 
-    SDL_GPUStorageBufferReadWriteBinding bufferBindings {};
-    bufferBindings.buffer = graphics.buffers[ParticlePositionBuffer];
+        SDL_GPUStorageBufferReadWriteBinding bufferBinding {};
+        bufferBinding.buffer = graphics.buffers[ParticlePositionBuffer];
 
-    SDL_GPUComputePass* computePassParticle = SDL_BeginGPUComputePass(cmdBuf, nullptr, 0, &bufferBindings, 1);
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBuf, nullptr, 0, &bufferBinding, 1);
+        SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleUpdate]);
+        SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
 
-    SDL_BindGPUComputePipeline(computePassParticle, graphics.computePipeline[ParticleUpdate]);
+        Uint32 groupCount = static_cast<Uint32>((graphics.particles.size() + 63) / 64);
+        SDL_DispatchGPUCompute(computePass, groupCount, 1, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
 
-    SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
-
-    Uint32 particleGroupCount = static_cast<Uint32>((graphics.particles.size() + 63) / 64);
-    SDL_DispatchGPUCompute(computePassParticle, particleGroupCount, 1, 1);
-    SDL_EndGPUComputePass(computePassParticle);
-
+    // --- Setup Depth and Color Targets ---
     SDL_GPUDepthStencilTargetInfo depthTarget {};
     depthTarget.texture = graphics.textures[GeometryDepth];
     depthTarget.cycle = true;
@@ -110,7 +114,6 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     depthTarget.stencil_load_op = SDL_GPU_LOADOP_CLEAR;
     depthTarget.stencil_store_op = SDL_GPU_STOREOP_STORE;
 
-    // Set up render targets
     SDL_GPUColorTargetInfo colorTargets[3] = {};
     colorTargets[0].texture = graphics.textures[GeometryPosition];
     colorTargets[1].texture = graphics.textures[GeometryNormal];
@@ -122,125 +125,148 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         target.clear_color = { 0, 0, 0, 0 };
     }
 
-    // Begin geometry pass
     SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(cmdBuf, colorTargets, 3, &depthTarget);
 
-    SDL_GPUGraphicsPipeline* boxPipeline = graphics.rasterMode == RasterMode_Fill
-        ? graphics.graphicPipeline[GeometryBufferFillPipeline]
-        : graphics.graphicPipeline[GeometryBufferLinePipeline];
+    // --- Box Rendering Pass ---
+    {
+        SDL_GPUGraphicsPipeline* pipeline = graphics.rasterMode == RasterMode_Fill
+            ? graphics.graphicPipeline[GeometryBufferFillPipeline]
+            : graphics.graphicPipeline[GeometryBufferLinePipeline];
 
-    SDL_BindGPUGraphicsPipeline(pass, boxPipeline);
+        SDL_BindGPUGraphicsPipeline(pass, pipeline);
 
-    // Bind box geometry
-    SDL_GPUBufferBinding vertexBinding {};
-    vertexBinding.buffer = graphics.buffers[BoxVertexBuffer];
-    vertexBinding.offset = 0;
+        SDL_GPUBufferBinding vertexBinding {};
+        vertexBinding.buffer = graphics.buffers[BoxVertexBuffer];
 
-    SDL_GPUBufferBinding indexBinding {};
-    indexBinding.buffer = graphics.buffers[BoxIndexBuffer];
-    indexBinding.offset = 0;
+        SDL_GPUBufferBinding indexBinding {};
+        indexBinding.buffer = graphics.buffers[BoxIndexBuffer];
 
-    // Bind default texture
-    SDL_GPUTextureSamplerBinding samplerBinding {};
-    samplerBinding.texture = graphics.textures[DefaultWhite];
-    samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
+        SDL_GPUTextureSamplerBinding samplerBinding {};
+        samplerBinding.texture = graphics.textures[DefaultWhite];
+        samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
 
-    SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
+        SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
+        SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
+        SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
-    SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
-    SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+        for (Box& box : graphics.boxes) {
+            vec3 min = { box.min[0], box.min[1], box.min[2] };
+            vec3 max = { box.max[0], box.max[1], box.max[2] };
 
-    // Render each box
-    for (Box& box : graphics.boxes) {
-        vec3 min = { box.min[0], box.min[1], box.min[2] };
-        vec3 max = { box.max[0], box.max[1], box.max[2] };
+            vec3 size = { max.x - min.x, max.y - min.y, max.z - min.z };
+            vec3 center = { (max.x + min.x) * 0.5f, (max.y + min.y) * 0.5f, (max.z + min.z) * 0.5f };
 
-        vec3 size = { max.x - min.x, max.y - min.y, max.z - min.z };
-        vec3 center = { (max.x + min.x) * 0.5f, (max.y + min.y) * 0.5f, (max.z + min.z) * 0.5f };
+            mat4 model = mat4::identity();
+            model[3].x = center.x;
+            model[3].y = center.y;
+            model[3].z = center.z;
+            model[0].x *= size.x * 0.5f;
+            model[1].y *= size.y * 0.5f;
+            model[2].z *= size.z * 0.5f;
+            model[3].w = 1.f;
 
-        mat4 model = mat4::identity();
+            graphics.geometryBufferUniform.model = model;
+            graphics.geometryBufferUniform.view = state.camera->view_matrix();
+            graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
+            graphics.geometryBufferUniform.id = 1;
 
-        // Apply translation
-        model[3].x = center.x;
-        model[3].y = center.y;
-        model[3].z = center.z;
+            SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
+            SDL_DrawGPUIndexedPrimitives(pass, graphics.numBoxIndices, 1, 0, 0, 0);
+        }
 
-        // Apply scaling (column-major)
-        model[0].x *= size.x * 0.5f;
-        model[1].y *= size.y * 0.5f;
-        model[2].z *= size.z * 0.5f;
+    }
+
+            // --- Particle Rendering Pass ---
+    {
+        SDL_GPUGraphicsPipeline* pipeline = graphics.rasterMode == RasterMode_Fill
+            ? graphics.graphicPipeline[GeometryBufferParticleFillPipeline]
+            : graphics.graphicPipeline[GeometryBufferParticleLinePipeline];
+
+        SDL_BindGPUGraphicsPipeline(pass, pipeline);
+
+        SDL_GPUBufferBinding vertexBinding {};
+        vertexBinding.buffer = graphics.buffers[SphereVertexBuffer];
+
+        SDL_GPUBufferBinding indexBinding {};
+        indexBinding.buffer = graphics.buffers[SphereIndexBuffer];
+
+        SDL_GPUTextureSamplerBinding samplerBinding {};
+        samplerBinding.texture = graphics.textures[DefaultWhite];
+        samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
+
+        SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
+        SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
+        SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+
+        SDL_BindGPUVertexStorageBuffers(pass, 0, &graphics.buffers[ParticlePositionBuffer], 1);
+
+        mat4 model {};
+        model[0].x = 0.25f;
+        model[1].y = 0.25f;
+        model[2].z = 0.25f;
         model[3].w = 1.f;
 
         graphics.geometryBufferUniform.model = model;
-        graphics.geometryBufferUniform.view = state.camera->view_matrix();
-        graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
-        graphics.geometryBufferUniform.id = 1;
-        SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
-        SDL_DrawGPUIndexedPrimitives(pass, graphics.numBoxIndices, 1, 0, 0, 0);
+
+        graphics.geometryBufferParticlesUniform.view = state.camera->view_matrix();
+        graphics.geometryBufferParticlesUniform.proj = state.camera->projection_matrix();
+        graphics.geometryBufferParticlesUniform.id = 2;
+        graphics.geometryBufferParticlesUniform.radius = 2.f;
+        graphics.geometryBufferParticlesUniform.color = { 1.f, 1.f, 1.f, 1.f };
+        graphics.geometryBufferParticlesUniform.near = state.camera->near;
+        graphics.geometryBufferParticlesUniform.far = state.camera->far;
+
+        SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
+        SDL_PushGPUFragmentUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
+
+        SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
     }
-
-    SDL_GPUGraphicsPipeline* particlePipeline = graphics.rasterMode == RasterMode_Fill
-        ? graphics.graphicPipeline[GeometryBufferParticleFillPipeline]
-        : graphics.graphicPipeline[GeometryBufferParticleLinePipeline];
-
-    SDL_BindGPUGraphicsPipeline(pass, particlePipeline);
-
-    vertexBinding.buffer = graphics.buffers[SphereVertexBuffer];
-    vertexBinding.offset = 0;
-
-    indexBinding.buffer = graphics.buffers[SphereIndexBuffer];
-    indexBinding.offset = 0;
-
-    SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
-
-    SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
-    SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
-
-    SDL_BindGPUVertexStorageBuffers(pass, 0, &graphics.buffers[ParticlePositionBuffer], 1);
-
-    mat4 model {};
-    model[0].x = 0.25f;
-    model[1].y = 0.25f;
-    model[2].z = 0.25f;
-    model[3].w = 1.f;
-
-    graphics.geometryBufferUniform.model = model;
-
-    graphics.geometryBufferParticlesUniform.view = state.camera->view_matrix();
-    graphics.geometryBufferParticlesUniform.proj = state.camera->projection_matrix();
-    graphics.geometryBufferParticlesUniform.id = 2;
-    graphics.geometryBufferParticlesUniform.radius = 2.f;
-    graphics.geometryBufferParticlesUniform.color.r = 1.f;
-    graphics.geometryBufferParticlesUniform.color.g = 1.f;
-    graphics.geometryBufferParticlesUniform.color.b = 1.f;
-    graphics.geometryBufferParticlesUniform.color.a = 1.f;
-
-    SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
-    SDL_PushGPUFragmentUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
-    SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
-
+    
     SDL_EndGPURenderPass(pass);
 
-    //ParticleBilateralBlur
-   SDL_GPUStorageTextureReadWriteBinding textureBinding {};
-   textureBinding.texture = state.graphics->textures[GeometryDepthModified];
-   
-   SDL_GPUComputePass* computePassBilateralBlur = SDL_BeginGPUComputePass(cmdBuf, &textureBinding, 1, nullptr, 0);
-   
+    { // Particle Bilateral Blur
+        SDL_GPUStorageTextureReadWriteBinding textureBinding {};
+        textureBinding.texture = state.graphics->textures[GeometryDepthModified];
+
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBuf, &textureBinding, 1, nullptr, 0);
+
+        SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleBilateralBlur]);
+        SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.bilateralBlurBufferUniform, sizeof(BilateralBlurBufferUniform));
+
+        SDL_GPUTextureSamplerBinding samplerBinding {};
+        samplerBinding.texture = state.graphics->textures[GeometryDepth];
+        samplerBinding.sampler = state.graphics->samplersPreset[LinearClamp];
+
+        SDL_BindGPUComputeSamplers(computePass, 0, &samplerBinding, 1);
+
+         Uint32 x = static_cast<Uint32>((w + 15) / 16);
+        Uint32 y = static_cast<Uint32>((h + 15) / 16);
+        SDL_DispatchGPUCompute(computePass, x, y, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
+
+    { // Particle Depth To Position/Normal/Albedo
+        SDL_GPUStorageTextureReadWriteBinding textureBinding[3] {};
+        textureBinding[0].texture = state.graphics->textures[GeometryPosition];
+        textureBinding[1].texture = state.graphics->textures[GeometryNormal];
+        textureBinding[2].texture = state.graphics->textures[GeometryAlbedo];
+
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBuf, textureBinding, 3, nullptr, 0);
 
 
-   SDL_BindGPUComputePipeline(computePassBilateralBlur, graphics.computePipeline[ParticleBilateralBlur]);
-   SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.bilateralBlurBufferUniform, sizeof(BilateralBlurBufferUniform));
-   
-   SDL_GPUTextureSamplerBinding bilateralBlurSamplerBinding {};
-   bilateralBlurSamplerBinding.texture = state.graphics->textures[GeometryDepth];
-   bilateralBlurSamplerBinding.sampler = state.graphics->samplersPreset[LinearClamp];
-   
-   SDL_BindGPUComputeSamplers(computePassBilateralBlur, 0, &bilateralBlurSamplerBinding, 1);
-   
-   Uint32 bialteralBlureGroupCount = static_cast<Uint32>((graphics.particles.size() + 15) / 16);
-   SDL_DispatchGPUCompute(computePassParticle, bialteralBlureGroupCount, bialteralBlureGroupCount, 1);
-   SDL_EndGPUComputePass(computePassParticle);
+        SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleDepthToGBuffer]);
+        SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
+
+        SDL_GPUTextureSamplerBinding samplerBinding {};
+        samplerBinding.texture = state.graphics->textures[GeometryDepthModified];
+        samplerBinding.sampler = state.graphics->samplersPreset[LinearClamp];
+        SDL_BindGPUComputeSamplers(computePass, 0, &samplerBinding, 1);
+
+        Uint32 x = static_cast<Uint32>((w + 15) / 16);
+        Uint32 y = static_cast<Uint32>((h + 15) / 16);
+        SDL_DispatchGPUCompute(computePass, x, y, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
 }
 
 void deferred_gbuffer_create_pipelines(AppState& state) {
@@ -274,6 +300,19 @@ void deferred_gbuffer_create_pipelines(AppState& state) {
     pipelineInfo.threadcount_z = 1;
 
     state.graphics->computePipeline[ParticleBilateralBlur] = createComputePipelineFromShader(state.device, SHADER_PATH("particle_bilateral_blur.comp"), &pipelineInfo);
+    pipelineInfo.num_readwrite_storage_textures = 3;
+    pipelineInfo.num_readonly_storage_buffers = 0;
+    pipelineInfo.num_readwrite_storage_buffers = 0;
+    pipelineInfo.num_readonly_storage_textures = 0;
+    pipelineInfo.num_uniform_buffers = 1;
+    pipelineInfo.num_samplers = 1;
+    pipelineInfo.threadcount_x = 16;
+    pipelineInfo.threadcount_y = 16;
+    pipelineInfo.threadcount_z = 1;
+
+    state.graphics->computePipeline[ParticleDepthToGBuffer] = createComputePipelineFromShader(state.device, SHADER_PATH("particle_gbuffer_from_depth.comp"), &pipelineInfo);
+
+
 }
 
 void deferred_gbuffer_create_particles_pipeline(AppState& state) {

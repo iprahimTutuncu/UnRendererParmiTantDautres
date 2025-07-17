@@ -21,6 +21,8 @@ layout(set = 1, binding = 0) uniform gBufferParticlesUniform
     mat4 view;
     mat4 model;
     float radius;
+    float near;
+    float far;
     int id;
     vec4 color;
 };

@@ -2,6 +2,7 @@
 
 #include "../camera.h"
 #include "../controls/controls.h"
+#include "graphics.h"
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -86,7 +87,20 @@ void imgui_iterate(AppState& state) {
             }
             ImGui::EndTabItem();
         }
-        ImGui::EndTabBar();
+
+        
+    // --- Blur Settings Tab ---
+        if (ImGui::BeginTabItem("Blur Settings")) {
+            ImGui::Text("Bilateral Blur Settings");
+            ImGui::SliderFloat("Blur Scale", &state.graphics->bilateralBlurBufferUniform.blurScale, 0.1f, 10.0f);
+            ImGui::SliderFloat("Depth Falloff", &state.graphics->bilateralBlurBufferUniform.blurDepthFalloff, 0.01f, 5.0f);
+            ImGui::SliderInt("Filter Radius", &state.graphics->bilateralBlurBufferUniform.filterRadius, 1, 10);
+            ImGui::EndTabItem();
+        }
+
+                ImGui::EndTabBar();
+
+
     }
 
     ImGui::End();
