@@ -14,9 +14,9 @@ struct Particle {
 };
 
 struct GridNode {
-    uvec3 force;
-    uint mass;
-    uvec3 momentum;
+    vec3 force;
+    float mass;
+    vec3 momentum;
     vec3 velocity_star;
     vec3 velocity;
 };
@@ -49,22 +49,6 @@ layout(std430, set = 2, binding = 0) uniform UBO {
     float time;
 };
 
-#define ATOMIC_ADD_FLOAT(MEM_LOCATION, VALUE_TO_ADD) \
-    { \
-        uint old_val, new_val; \
-        do { \
-            old_val = (MEM_LOCATION); \
-            new_val = floatBitsToUint(uintBitsToFloat(old_val) + (VALUE_TO_ADD)); \
-        } while (old_val != atomicCompSwap((MEM_LOCATION), old_val, new_val)); \
-    }
-
-uint grid_node_id(ivec3 pos) {
-    return uint(
-    pos.x 
-            + pos.y * u_grid_dimension.x
-            + pos.z * u_grid_dimension.y * u_grid_dimension.z);
-}
-
 float N(float x) {
     x = abs(x);
     float n1 = 0.5 * x * x * x - x * x + 2.0 / 3.0;
@@ -83,15 +67,6 @@ float d_N(float x) {
     return result * (1.0 - step(2.0, x_abs));
 }
 
-mat3 polar_decompose(mat3 M, int nb_iterations) {
-    mat3 R = M;
-    for (int i = 0; i < nb_iterations; ++i) {
-        mat3 R_invT = inverse(transpose(R));
-        R = 0.5 * (R + R_invT);
-    }
-    return R;
-}
-
 void main() {
     uint particle_id = gl_GlobalInvocationID.x;
     if (particle_id >= particles.length()) {
@@ -100,22 +75,12 @@ void main() {
     Particle p = particles[particle_id];
 
     float inv_h = 1.0 / u_grid_spacing;
+    float inv_h3 = inv_h * inv_h * inv_h;
+
     vec3 p_pos_rel = (p.position.xyz - u_grid_origin) * inv_h;
     ivec3 base_pos = ivec3(floor(p_pos_rel - 1.0));
-
-    mat3 Fe = p.deform_elastic;
-    mat3 Fp = p.deform_plastic;
-    float Je = determinant(Fe);
-    float Jp = determinant(Fp);
-    float J = Je * Jp;
-
-    float h_exp = exp(u_hardening_coefficient * (1.0 - Jp));
-    float mu = u_mu_0 * h_exp;
-    float lambda = u_lambda_0 * h_exp;
-
-    mat3 R = polar_decompose(Fe, 2);
-    mat3 dPsi = 2.0 * mu * (Fe - R) + lambda * (Je - 1.0) * Je * inverse(transpose(Fe));
-    mat3 sigma = (1.0 / J) * dPsi * transpose(Fe);
+    float mass = u_initial_density * u_grid_spacing * u_grid_spacing * u_grid_spacing / u_particles_per_cell;
+    float rho_p = 0.0;
 
     for (int x = 0; x < 4; ++x) {
     for (int y = 0; y < 4; ++y) {
@@ -132,8 +97,8 @@ void main() {
 
         vec3 node_pos_world = u_grid_origin + vec3(node_pos_local) * u_grid_spacing;
         vec3 p_offset = p_pos_rel - vec3(node_pos_local);
+        GridNode node = grid[node_id];
 
-        // weights
         float w_ip_x = N(p_offset.x);
         float w_ip_y = N(p_offset.y);
         float w_ip_z = N(p_offset.z);
@@ -145,19 +110,14 @@ void main() {
             w_ip_x * w_ip_y * d_N(p_offset.z)
         );
 
-        // particle's mass contribution to node
-        float mass = p.mass * w_ip;
-        ATOMIC_ADD_FLOAT(grid[node_id].mass, mass);
-        // particle's momentum contribution to node
-        vec3 momentum = mass * (p.velocity.xyz + p.deform_affine * u_D_inv * (node_pos_world - p.position.xyz));
-        ATOMIC_ADD_FLOAT(grid[node_id].momentum.x, momentum.x);
-        ATOMIC_ADD_FLOAT(grid[node_id].momentum.y, momentum.y);
-        ATOMIC_ADD_FLOAT(grid[node_id].momentum.z, momentum.z);
-        // particle's force contribution to node
-        vec3 force = -p.volume_0 * sigma * w_ip_grad;
-        ATOMIC_ADD_FLOAT(grid[node_id].force.x, -force.x);
-        ATOMIC_ADD_FLOAT(grid[node_id].force.y, -force.y);
-        ATOMIC_ADD_FLOAT(grid[node_id].force.z, -force.z);
+        rho_p += w_ip * node.mass * inv_h3;
     }}}
-}
 
+    p.mass = mass;
+
+    if (rho_p > 0.0) {
+        p.volume_0 = mass / rho_p;
+    }
+
+    particles[particle_id] = p;
+}

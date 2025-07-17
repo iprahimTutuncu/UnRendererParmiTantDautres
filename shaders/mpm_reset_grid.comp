@@ -59,36 +59,9 @@ void main() {
             + node_pos_local.y * node_pos_local.x 
             + node_pos_local.z * node_pos_local.x * node_pos_local.y);
 
-    GridNode node = grid[node_id];
-    if (node.mass > 0.0) {
-        vec3 f_ext = node.mass * u_gravity;
-        vec3 f_i = node.force + f_ext;
-        node.velocity_star = node.velocity + time * f_i / node.mass;
-
-        vec3 node_pos_world = u_grid_origin + vec3(node_pos_local) * u_grid_spacing;
-        if (node_pos_world.y < u_co_floor_y) {
-            vec3 v_rel = node.velocity_star;
-            float v_n = dot(v_rel, u_co_normal) ;
-
-            if (v_n < 0.0) {
-                vec3 v_t = v_rel - (v_n * u_co_normal);
-                float v_t_norm = length(v_t);
-
-                if (v_t_norm <= -u_co_mu * v_n) {
-                    v_rel = vec3(0.0);
-                }
-                else {
-                    v_rel = v_t + u_co_mu * v_n * (v_t / v_t_norm);
-                }
-
-                node.velocity_star = v_rel;
-            }
-        }
-
-        grid[node_id] = node;
-    }
-    else {
-        grid[node_id].velocity = vec3(0.0);
-        grid[node_id].velocity_star = vec3(0.0);
-    }
+    grid[node_id].mass = 0.0;
+    grid[node_id].momentum = vec3(0.0);
+    grid[node_id].force = vec3(0.0);
+    grid[node_id].velocity = vec3(0.0);
+    grid[node_id].velocity_star = vec3(0.0);
 }
