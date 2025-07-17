@@ -203,10 +203,29 @@ void Application::run() {
 }
 
 void Application::iterate_particles() {
+    using clock = std::chrono::high_resolution_clock;
+    std::vector<double> delays;
+    delays.reserve(16); // Reserve space for efficiency
+
+    double total_delay = 0.0;
+    size_t count = 0;
+
+    auto last_time = clock::now();
     while (m_main_window.is_active()) {
+        auto start_time = clock::now();
+
         m_mpm_solver.iterate(simulation_dt);
+        auto end_time = clock::now();
         this->iteration_count++;
+
         m_mpm_solver.swap_buffers();
+        std::chrono::duration<double, std::milli> delay = end_time - start_time;
+        delays.push_back(delay.count());
+        total_delay += delay.count();
+        count++;
+
+        std::cout << "Iteration delay: " << delay.count() << " ms, "
+        << "Average: " << (total_delay / count) << " ms" << std::endl;
     }
 }
 
