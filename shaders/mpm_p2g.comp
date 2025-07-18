@@ -58,13 +58,6 @@ layout(std430, set = 2, binding = 0) uniform UBO {
         } while (old_val != atomicCompSwap((MEM_LOCATION), old_val, new_val)); \
     }
 
-uint grid_node_id(ivec3 pos) {
-    return uint(
-    pos.x 
-            + pos.y * u_grid_dimension.x
-            + pos.z * u_grid_dimension.y * u_grid_dimension.z);
-}
-
 float N(float x) {
     x = abs(x);
     float n1 = 0.5 * x * x * x - x * x + 2.0 / 3.0;
@@ -128,7 +121,7 @@ void main() {
         uint node_id = 
             uint(node_pos_local.x 
             + node_pos_local.y * u_grid_dimension.x
-            + node_pos_local.z * u_grid_dimension.y * u_grid_dimension.z);
+            + node_pos_local.z * u_grid_dimension.x * u_grid_dimension.y);
 
         vec3 node_pos_world = u_grid_origin + vec3(node_pos_local) * u_grid_spacing;
         vec3 p_offset = p_pos_rel - vec3(node_pos_local);

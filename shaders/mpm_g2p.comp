@@ -301,7 +301,7 @@ void main() {
         uint node_id = 
             uint(node_pos_local.x 
             + node_pos_local.y * u_grid_dimension.x
-            + node_pos_local.z * u_grid_dimension.y * u_grid_dimension.z);
+            + node_pos_local.z * u_grid_dimension.x * u_grid_dimension.y);
 
         vec3 node_pos_world = u_grid_origin + vec3(node_pos_local) * u_grid_spacing;
         vec3 p_offset = p_pos_rel - vec3(node_pos_local);
