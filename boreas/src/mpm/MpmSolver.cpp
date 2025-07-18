@@ -145,6 +145,11 @@ static inline constexpr double N(double x) {
     return (std::abs(x) < static_cast<double>(2)) * a;
 }
 
+static inline constexpr double weight_i_p(vec3 p, vec3 i, double one_over_h){
+    return N((p.x() - i.x()) * one_over_h) * N((p.y() - i.y()) * one_over_h) *
+           N((p.z() - i.z()) * one_over_h);
+}
+
 // derivative of the grid basis function
 // see [Zhuo Lu 2019] at https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
 static inline constexpr double d_N(double x) {
@@ -162,7 +167,7 @@ static inline constexpr double d_N(double x) {
 // Transfer mass using the weighing function
 // Transfer velocity using normalized weights
 void MpmSolver::step1_rasterize_particles_to_grid() {
-    double inv_h = 1.0 / grid.spacing;
+    const double inv_h = 1.0 / grid.spacing;
     const double D_inv = 3.0 * inv_h * inv_h;
 
 #pragma omp parallel
@@ -180,11 +185,14 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
             for (int y = 0; y < 4; ++y) {
                 for (int z = 0; z < 4; ++z) {
                     // calculate particle offset
-                    vec3i node_position_local = base_position + vec3i(x, y, z);
-                    MpmGridNode* node = grid.get_node_from_local(node_position_local);
-                    if (!node) continue;
+                    size_t node_index  = grid.get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    MpmGridNode& node = grid.nodes[node_index];
 
-                    vec3 p_off = p_position_rel - node_position_local.cast<double>();
+                    const vec3 p_off = p_position_rel - vec3 {
+                        static_cast<double>(base_position.x() + x),
+                        static_cast<double>(base_position.y() + y),
+                        static_cast<double>(base_position.z() + z),
+                    };
 
                     double Ni_x = N(p_off.x());
                     double Ni_y = N(p_off.y());
@@ -194,34 +202,30 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
                     double dNi_y = d_N(p_off.y());
                     double dNi_z = d_N(p_off.z());
 
-                    double w_ip = Ni_x * Ni_y * Ni_z;
-
-                    vec3 w_ip_grad = inv_h * vec3(dNi_x * Ni_y * Ni_z, Ni_x * dNi_y * Ni_z, Ni_x * Ni_y * dNi_z);
-
-                    int weight_id = x + y * 4 + z * 4 * 4;
-                    p_weights[i][weight_id] = w_ip;
-                    p_weights_gradient[i][weight_id] = w_ip_grad;
+                    auto weight_id = x + y * 4 + z * 4 * 4;
+                    double w_ip = p_weights[i][weight_id] = Ni_x * Ni_y * Ni_z;
+                    vec3 w_ip_grad = p_weights_gradient[i][weight_id] = inv_h * vec3(dNi_x * Ni_y * Ni_z, Ni_x * dNi_y * Ni_z, Ni_x * Ni_y * dNi_z);
 
                     // m_i = sum( m_p * w_ip )
                     // where w_ip = N_i(x_p)
                     double m_i = p_current_state.p_mass[i] * w_ip;
 
-#pragma omp atomic
-                    node->mass += m_i;
-
 #if USE_APIC
-                    vec3 node_pos = grid.get_node_world_coords(node->local_pos) - p_current_state.p_position[i];
+                    vec3 node_pos = grid.get_node_world_coords(node.local_pos) - p_current_state.p_position[i];
                     vec3 apic = (p_current_state.p_velocity[i] + p_current_state.p_deform_affine[i] * D_inv * node_pos);
                     vec3 momentum = m_i * apic;
 #else
                     vec3 momentum = m_i * p_current_state.p_velocity[i];
 #endif
+
 #pragma omp atomic
-                    node->momentum.x() += momentum.x();
+                    node.mass += m_i;
 #pragma omp atomic
-                    node->momentum.y() += momentum.y();
+                    node.momentum.x() += momentum.x();
 #pragma omp atomic
-                    node->momentum.z() += momentum.z();
+                    node.momentum.y() += momentum.y();
+#pragma omp atomic
+                    node.momentum.z() += momentum.z();
                 }
             }
         }

@@ -105,3 +105,17 @@ Iteration delay: 12.1482 ms, Average: 12.3035 ms
 Iteration delay: 12.1349 ms, Average: 12.3032 ms
 Iteration delay: 12.1026 ms, Average: 12.2805 ms
 Iteration delay: 12.0871 ms, Average: 12.2554 ms
+
+
+## Use register instead of stack for particle weight calculation
+
+Iteration delay: 11.5371 ms, Average: 11.4785 ms
+Iteration delay: 11.5168 ms, Average: 11.4786 ms
+Iteration delay: 11.5512 ms, Average: 11.4788 ms
+Iteration delay: 11.5142 ms, Average: 11.4788 ms
+Iteration delay: 11.508 ms, Average: 11.4789 ms
+Iteration delay: 11.6402 ms, Average: 11.4792 ms
+Iteration delay: 11.6863 ms, Average: 11.4796 ms
+Iteration delay: 11.5702 ms, Average: 11.4798 ms
+Iteration delay: 11.5459 ms, Average: 11.4595 ms
+Iteration delay: 11.5414 ms, Average: 11.4364 ms
