@@ -93,3 +93,15 @@ Iteration delay: 12.9949 ms, Average: 13.2158 ms
 Iteration delay: 13.098 ms, Average: 13.2156 ms
 Iteration delay: 13.1487 ms, Average: 13.1913 ms
 Iteration delay: 13.0595 ms, Average: 13.1646 ms
+
+## Use a reference instead of a copy for particle deformation tensors
+
+Iteration delay: 12.0354 ms, Average: 12.3051 ms
+Iteration delay: 12.1331 ms, Average: 12.3048 ms
+Iteration delay: 12.0799 ms, Average: 12.3044 ms
+Iteration delay: 12.1802 ms, Average: 12.3041 ms
+Iteration delay: 12.137 ms, Average: 12.3038 ms
+Iteration delay: 12.1482 ms, Average: 12.3035 ms
+Iteration delay: 12.1349 ms, Average: 12.3032 ms
+Iteration delay: 12.1026 ms, Average: 12.2805 ms
+Iteration delay: 12.0871 ms, Average: 12.2554 ms

@@ -3,8 +3,6 @@
 #include "../libs/eigen.hpp"
 #include "MpmGridNode.hpp"
 
-#include <iostream>
-
 struct MpmGrid {
     double spacing; // h
     vec3 origin; // world space origin of the grid
@@ -45,8 +43,6 @@ struct MpmGrid {
             node.is_active = false;
         }
 
-        std::cout << nodes.size() <<'/' << nodes.capacity() << '\n';
-        std::cout << active_nodes.size() <<'/' << active_nodes.capacity() << '\n';
         active_nodes.clear();
     }
 
@@ -63,7 +59,7 @@ struct MpmGrid {
     }
 
     MpmGridNode* get_node_from_local(int x, int y, int z) {
-        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= depth) {
+        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= depth) [[unlikely]] {
             return nullptr;
         }
 
@@ -71,7 +67,7 @@ struct MpmGrid {
     }
 
     MpmGridNode const* get_node_from_local(int x, int y, int z) const {
-        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= depth) {
+        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= depth) [[unlikely]] {
             return nullptr;
         }
 
@@ -87,6 +83,9 @@ struct MpmGrid {
     }
 
     const vec3 get_node_world_coords(vec3i local_pos) const {
-        return origin + (vec3(local_pos.array().cast<double>()) * spacing);
+        return vec3(
+            origin.x() + local_pos.x() * spacing,
+            origin.y() + local_pos.y() * spacing,
+            origin.z() + local_pos.z() * spacing);
     }
 };

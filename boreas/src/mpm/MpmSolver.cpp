@@ -24,7 +24,6 @@
 
 MpmSolver::MpmSolver()
     : params {} {
-
 }
 
 void MpmSolver::initialize() {
@@ -291,26 +290,20 @@ void MpmSolver::step3_compute_grid_forces() {
         vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
-        mat3 Fe = p_current_state.p_deform_elastic[i];
-        mat3& Fp = p_current_state.p_deform_plastic[i];
+        const mat3& Fe = p_current_state.p_deform_elastic[i];
+        const mat3& Fp = p_current_state.p_deform_plastic[i];
 
-        mat3 R = fast_polar_decompose_R(Fe, 2);
+        const mat3 R = fast_polar_decompose_R(Fe, 2);
 
-        double Jp = p_current_state.p_deform_plastic[i].determinant();
-        double Je = p_current_state.p_deform_elastic[i].determinant();
-        double J = (p_current_state.p_deform_plastic[i] * p_current_state.p_deform_elastic[i]).determinant();
-
+        double Jp = Fp.determinant();
         double mu = mu_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
         double lambda = lambda_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
 
-        mat3 Fe_T = Fe.transpose();
-        mat3 Fp_T = Fp.transpose();
-        mat3 Fe_invT = Fe.inverse().transpose();
-        mat3 Fp_invT = Fp.inverse().transpose();
+        const mat3 Fe_invT = Fe.inverse().transpose();
 
+        double Je = Fe.determinant();
         mat3 dPsi = 2.0 * mu * (Fe - R) + lambda * (Je - 1.0) * Je * Fe_invT;
-        mat3 sigma = dPsi * Fe_T;
-        mat3 stress_force = p_current_state.p_volume_0[i] * sigma;
+        mat3 stress_force = p_current_state.p_volume_0[i] * (dPsi * Fe.transpose());
 
         // add force to nodes
         for (int x = 0; x < 4; ++x) {
@@ -342,7 +335,7 @@ void MpmSolver::step3_compute_grid_forces() {
 void MpmSolver::step4_update_grid_velocities() {
 #pragma omp parallel for
     for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
-        auto index = grid.active_nodes[i];
+        const auto index = grid.active_nodes[i];
         MpmGridNode& node = grid.nodes[index];
 
         if (node.mass > EPSILON) {
@@ -359,7 +352,7 @@ void MpmSolver::step4_update_grid_velocities() {
 void MpmSolver::step5_grid_based_collisions() {
 #pragma omp parallel for
     for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
-        auto index = grid.active_nodes[i];
+        const auto index = grid.active_nodes[i];
         MpmGridNode& node = grid.nodes[index];
         vec3 node_position_world = grid.get_node_world_coords(node.local_pos);
 
@@ -423,25 +416,23 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         // 3.24 - dFEp
         mat3 dFEp = dt * velocities_grad * p_current_state.p_deform_elastic[i];
 
-        const mat3& Fe = p_current_state.p_deform_elastic[i];
-        double Je = Fe.determinant();
-        const mat3& Fp = p_current_state.p_deform_plastic[i];
-        double Jp = Fp.determinant();
-
         // 3.30 - RTdR
         Eigen::JacobiSVD<mat3> svd { p_current_state.p_deform_elastic[i], Eigen::ComputeFullU | Eigen::ComputeFullV };
-        mat3 U = svd.matrixU();
-        mat3 V = svd.matrixV();
+        mat3 const& U = svd.matrixU();
+        mat3 const& V = svd.matrixV();
         mat3 R = U * V.transpose();
-        if (R.determinant() < 0.0) {
-            U.col(2) *= -1.0;
-            R = U * V.transpose();
+        if (R.determinant() < 0.0) [[unlikely]] {
+            mat3 b = U;
+            b.col(2) *= -1.0; // flip the last column to ensure R is a rotation matrix
+            R = b * V.transpose();
         }
         mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
 
         mat3 RTdF = R.transpose() * dFEp - dFEp.transpose() * R;
 
-        vec3 b = vec3(RTdF(1, 0), RTdF(2, 0), RTdF(2, 1));
+        const double& b_x = RTdF(1, 0);
+        const double& b_y = RTdF(2, 0);
+        const double& b_z = RTdF(2, 1);
 
         const double a00 = S(0, 0) + S(1, 1);
         const double a11 = S(0, 0) + S(2, 2);
@@ -459,18 +450,22 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         const double c22 = a00 * a11 - a01 * a01;
 
         // vec3 xyz = A.inverse() * b;
-        vec3 xyz;
-        xyz.x() = (c00 * b.x() + c01 * b.y() + c02 * b.z()) * det;
-        xyz.y() = (c01 * b.x() + c11 * b.y() + c12 * b.z()) * det;
-        xyz.z() = (c02 * b.x() + c12 * b.y() + c22 * b.z()) * det;
+        const double xyz_x = (c00 * b_x + c01 * b_y + c02 * b_z) * det;
+        const double xyz_y = (c01 * b_x + c11 * b_y + c12 * b_z) * det;
+        const double xyz_z = (c02 * b_x + c12 * b_y + c22 * b_z) * det;
 
         mat3 RTdR;
-        RTdR << 0.0, xyz.x(), xyz.y(),
-            -xyz.x(), 0.0, xyz.z(),
-            -xyz.y(), -xyz.z(), 0.0;
+        RTdR << 0.0, xyz_x, xyz_y,
+            -xyz_x, 0.0, xyz_z,
+            -xyz_y, -xyz_z, 0.0;
 
         // 3.31 - dR
         mat3 dR = R * RTdR;
+
+        const mat3& Fe = p_current_state.p_deform_elastic[i];
+        const mat3& Fp = p_current_state.p_deform_plastic[i];
+        double Je = Fe.determinant();
+        double Jp = Fp.determinant();
 
         // JFinvT
         mat3 Finv = Fe.inverse();
@@ -520,7 +515,7 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
 #pragma omp for
     for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
         Av_next.col(i) = v_next.col(i);
-        auto index = grid.active_nodes[i];
+        const auto index = grid.active_nodes[i];
         double node_mass = grid.nodes[i].mass;
         if (node_mass > 0.0) {
             vec3 df_res = params.beta_integration * dt * df.col(i) / node_mass;
@@ -544,12 +539,10 @@ void MpmSolver::step6_solve_linear_system() {
     mat3n b(3, nb_active_nodes);
     global_to_active_map.assign(grid.nodes.size(), -1);
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        auto index = grid.active_nodes[i];
+        const auto index = grid.active_nodes[i];
         global_to_active_map[index] = i;
         b.col(i) = grid.nodes[index].velocity_star;
     }
-
-    mat3n x = b;
 
     mat3n df(3, nb_active_nodes);
     auto A = [&](const mat3n& v) {
@@ -558,10 +551,11 @@ void MpmSolver::step6_solve_linear_system() {
         return Av;
     };
 
+    mat3n x = b;
     Solver::solve(A, x, b, params.max_iterations_solver, params.tolerance_solver);
 
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        auto index = grid.active_nodes[i];
+        const auto index = grid.active_nodes[i];
         grid.nodes[index].velocity_star = x.col(i);
     }
 }
@@ -583,11 +577,9 @@ void MpmSolver::step6_solve_linear_system_preconditioned() {
 
     mat3n b(3, nb_active_nodes);
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        auto index = grid.active_nodes[i];
+        const auto index = grid.active_nodes[i];
         b.col(i) = grid.nodes[index].velocity_star;
     }
-
-    mat3n x = b;
 
     mat3n df(3, nb_active_nodes);
     auto A = [&](const mat3n& v) {
@@ -596,10 +588,11 @@ void MpmSolver::step6_solve_linear_system_preconditioned() {
         return Av;
     };
 
+    mat3n x = b;
     Solver::solve(A, x, b, M_inv, params.max_iterations_solver, params.tolerance_solver);
 
-    for (int i = 0; i < nb_active_nodes; ++i) {
-        auto index = grid.active_nodes[i];
+    for (size_t i = 0; i < nb_active_nodes; ++i) {
+        const auto index = grid.active_nodes[i];
         grid.nodes[index].velocity_star = x.col(i);
     }
 }
@@ -651,8 +644,8 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
 
     double factor = params.beta_integration * dt * dt;
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        auto index = grid.active_nodes[i];
-        double node_mass = grid.nodes[i].mass;
+        const auto index = grid.active_nodes[i];
+        double const& node_mass = grid.nodes[i].mass;
         if (node_mass > EPSILON) {
             vec3 A_diag = vec3::Ones() + (factor / node_mass) * P.col(i);
             M_inv.col(i) = A_diag.cwiseInverse();
@@ -688,17 +681,15 @@ void MpmSolver::step7_update_deformation_gradient() {
         }
 
         mat3 tmp_FE = (mat3::Identity() + dt * velocities_grad) * p_current_state.p_deform_elastic[i];
-        mat3 tmp_FP = p_current_state.p_deform_plastic[i];
-        mat3 F = tmp_FE * tmp_FP;
+        mat3 const& tmp_FP = p_current_state.p_deform_plastic[i];
 
         Eigen::JacobiSVD<mat3> svd { tmp_FE, Eigen::ComputeFullU | Eigen::ComputeFullV };
-        mat3 V = svd.matrixV();
-        mat3 U = svd.matrixU();
+        mat3 const& V = svd.matrixV();
+        mat3 const& U = svd.matrixU();
 
-        vec3 sigma = svd.singularValues();
-        sigma = sigma.cwiseMin(1.f + params.critical_stretch).cwiseMax(1.f - params.critical_compression);
+        vec3 sigma = svd.singularValues().cwiseMin(1.f + params.critical_stretch).cwiseMax(1.f - params.critical_compression);
 
-        p_current_state.p_deform_plastic[i] = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * F;
+        p_current_state.p_deform_plastic[i] = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * (tmp_FE * tmp_FP);
         p_current_state.p_deform_elastic[i] = U * sigma.asDiagonal() * V.transpose();
     }
 }
