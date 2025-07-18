@@ -24,8 +24,7 @@
 
 MpmSolver::MpmSolver()
     : params {} {
-    p_current_state = &p_states[0];
-    p_next_state = &p_states[1];
+
 }
 
 void MpmSolver::initialize() {
@@ -36,7 +35,7 @@ void MpmSolver::initialize() {
         params.grid_size.x(), params.grid_size.y(), params.grid_size.z(),
         params.grid_spacing);
 
-    const size_t nb_particles = p_current_state->p_position.size();
+    const size_t nb_particles = p_current_state.p_position.size();
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
 
@@ -47,18 +46,13 @@ void MpmSolver::initialize() {
     step2_compute_volumes_and_densities();
 }
 
-void MpmSolver::swap_buffers() {
-    std::lock_guard<std::mutex> lock(p_state_mutex);
-    std::swap(p_current_state, p_next_state);
-}
-
 std::vector<vec3> MpmSolver::get_positions() {
     std::vector<vec3> positions;
-    positions.resize(p_current_state->p_position.size());
+    positions.resize(p_current_state.p_position.size());
 
     {
         std::lock_guard<std::mutex> lock(p_state_mutex);
-        positions = p_current_state->p_position;
+        positions = p_current_state.p_position;
     }
 
     return positions;
@@ -127,8 +121,6 @@ void MpmSolver::iterate(double dt) {
     print_duration("step8_update_particle_velocities", t7, t8);
     print_duration("step9_particle_based_collisions", t8, t9);
     print_duration("step10_update_particle_positions", t9, t10);
-
-    swap_buffers();
 }
 
 void MpmSolver::update_lame_params() {
@@ -140,8 +132,7 @@ void MpmSolver::update_lame_params() {
 
 void MpmSolver::create_particle(vec3 position, vec3 velocity) {
     const double mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
-    p_current_state->create_particle(position, velocity, mass);
-    p_next_state->create_particle(position, velocity, mass);
+    p_current_state.create_particle(position, velocity, mass);
 }
 
 // grid basis function to get weights
@@ -177,9 +168,9 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
 
 #pragma omp parallel
 #pragma omp for
-    for (int i = 0; i < p_current_state->p_position.size(); ++i) {
+    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
         // find the closest bottom-left node to the current cell
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
+        vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         p_weights[i].fill(0.0);
@@ -214,17 +205,17 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
 
                     // m_i = sum( m_p * w_ip )
                     // where w_ip = N_i(x_p)
-                    double m_i = p_current_state->p_mass[i] * w_ip;
+                    double m_i = p_current_state.p_mass[i] * w_ip;
 
 #pragma omp atomic
                     node->mass += m_i;
 
 #if USE_APIC
-                    vec3 node_pos = grid.get_node_world_coords(node->local_pos) - p_current_state->p_position[i];
-                    vec3 apic = (p_current_state->p_velocity[i] + p_current_state->p_deform_affine[i] * D_inv * node_pos);
+                    vec3 node_pos = grid.get_node_world_coords(node->local_pos) - p_current_state.p_position[i];
+                    vec3 apic = (p_current_state.p_velocity[i] + p_current_state.p_deform_affine[i] * D_inv * node_pos);
                     vec3 momentum = m_i * apic;
 #else
-                    vec3 momentum = m_i * p_current_state->p_velocity[i];
+                    vec3 momentum = m_i * p_current_state.p_velocity[i];
 #endif
 #pragma omp atomic
                     node->momentum.x() += momentum.x();
@@ -259,8 +250,8 @@ void MpmSolver::step2_compute_volumes_and_densities() {
     double inv_h3 = inv_h * inv_h * inv_h;
 
 #pragma omp parallel for
-    for (int i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
+    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
+        vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         double rho_p = 0.0;
@@ -281,8 +272,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
 
         // V_p = m_p / rho_p
         if (rho_p > 0.0) {
-            p_current_state->p_volume_0[i] = p_current_state->p_mass[i] / rho_p;
-            p_next_state->p_volume_0[i] = p_current_state->p_mass[i] / rho_p;
+            p_current_state.p_volume_0[i] = p_current_state.p_mass[i] / rho_p;
         }
     }
 }
@@ -297,18 +287,18 @@ void MpmSolver::step3_compute_grid_forces() {
     double inv_h = 1.0 / grid.spacing;
 
 #pragma omp parallel for
-    for (int i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
+    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
+        vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
-        mat3 Fe = p_current_state->p_deform_elastic[i];
-        mat3& Fp = p_current_state->p_deform_plastic[i];
+        mat3 Fe = p_current_state.p_deform_elastic[i];
+        mat3& Fp = p_current_state.p_deform_plastic[i];
 
         mat3 R = fast_polar_decompose_R(Fe, 2);
 
-        double Jp = p_current_state->p_deform_plastic[i].determinant();
-        double Je = p_current_state->p_deform_elastic[i].determinant();
-        double J = (p_current_state->p_deform_plastic[i] * p_current_state->p_deform_elastic[i]).determinant();
+        double Jp = p_current_state.p_deform_plastic[i].determinant();
+        double Je = p_current_state.p_deform_elastic[i].determinant();
+        double J = (p_current_state.p_deform_plastic[i] * p_current_state.p_deform_elastic[i]).determinant();
 
         double mu = mu_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
         double lambda = lambda_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
@@ -320,7 +310,7 @@ void MpmSolver::step3_compute_grid_forces() {
 
         mat3 dPsi = 2.0 * mu * (Fe - R) + lambda * (Je - 1.0) * Je * Fe_invT;
         mat3 sigma = dPsi * Fe_T;
-        mat3 stress_force = p_current_state->p_volume_0[i] * sigma;
+        mat3 stress_force = p_current_state.p_volume_0[i] * sigma;
 
         // add force to nodes
         for (int x = 0; x < 4; ++x) {
@@ -405,12 +395,12 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
     // calculate Ar
 #pragma omp parallel
 #pragma omp for
-    for (int i = 0; i < p_current_state->p_position.size(); ++i) {
+    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
 
         // 3.23 - velocity gradient
         mat3 velocities_grad = mat3::Zero();
 
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
+        vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         for (int x = 0; x < 4; ++x) {
@@ -431,15 +421,15 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         }
 
         // 3.24 - dFEp
-        mat3 dFEp = dt * velocities_grad * p_current_state->p_deform_elastic[i];
+        mat3 dFEp = dt * velocities_grad * p_current_state.p_deform_elastic[i];
 
-        const mat3& Fe = p_current_state->p_deform_elastic[i];
+        const mat3& Fe = p_current_state.p_deform_elastic[i];
         double Je = Fe.determinant();
-        const mat3& Fp = p_current_state->p_deform_plastic[i];
+        const mat3& Fp = p_current_state.p_deform_plastic[i];
         double Jp = Fp.determinant();
 
         // 3.30 - RTdR
-        Eigen::JacobiSVD<mat3> svd { p_current_state->p_deform_elastic[i], Eigen::ComputeFullU | Eigen::ComputeFullV };
+        Eigen::JacobiSVD<mat3> svd { p_current_state.p_deform_elastic[i], Eigen::ComputeFullU | Eigen::ComputeFullV };
         mat3 U = svd.matrixU();
         mat3 V = svd.matrixV();
         mat3 R = U * V.transpose();
@@ -499,7 +489,7 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         double mu = mu_0 * expf(params.hardening_coefficient * (1.0 - Jp));
         double lambda = lambda_0 * expf(params.hardening_coefficient * (1.0 - Jp));
 
-        mat3 Ap = p_current_state->p_volume_0[i] * (2.0 * mu * (dFEp - dR) + lambda * JFinvT * JFinvT_dF + lambda * (Je - 1.0) * dJFinvT) * Fe.transpose();
+        mat3 Ap = p_current_state.p_volume_0[i] * (2.0 * mu * (dFEp - dR) + lambda * JFinvT * JFinvT_dF + lambda * (Je - 1.0) * dJFinvT) * Fe.transpose();
 
         // 3.25 - df
         for (int x = 0; x < 4; ++x) {
@@ -624,15 +614,15 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
     const double h = grid.spacing;
 
 #pragma omp parallel for
-    for (size_t i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) / h;
+    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
+        vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) / h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
-        double Jp = p_current_state->p_deform_plastic[i].determinant();
+        double Jp = p_current_state.p_deform_plastic[i].determinant();
         double mu = mu_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
         double lambda = lambda_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
 
-        double particle_stiffness = p_current_state->p_volume_0[i] * (2.0 * mu + lambda);
+        double particle_stiffness = p_current_state.p_volume_0[i] * (2.0 * mu + lambda);
 
         for (int x = 0; x < 4; ++x) {
             for (int y = 0; y < 4; ++y) {
@@ -676,8 +666,8 @@ void MpmSolver::step7_update_deformation_gradient() {
     double inv_h = 1.0 / grid.spacing;
 
 #pragma omp parallel for
-    for (int i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
+    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
+        vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         // 3.23 - velolity gradient
@@ -697,8 +687,8 @@ void MpmSolver::step7_update_deformation_gradient() {
             }
         }
 
-        mat3 tmp_FE = (mat3::Identity() + dt * velocities_grad) * p_current_state->p_deform_elastic[i];
-        mat3 tmp_FP = p_current_state->p_deform_plastic[i];
+        mat3 tmp_FE = (mat3::Identity() + dt * velocities_grad) * p_current_state.p_deform_elastic[i];
+        mat3 tmp_FP = p_current_state.p_deform_plastic[i];
         mat3 F = tmp_FE * tmp_FP;
 
         Eigen::JacobiSVD<mat3> svd { tmp_FE, Eigen::ComputeFullU | Eigen::ComputeFullV };
@@ -708,8 +698,8 @@ void MpmSolver::step7_update_deformation_gradient() {
         vec3 sigma = svd.singularValues();
         sigma = sigma.cwiseMin(1.f + params.critical_stretch).cwiseMax(1.f - params.critical_compression);
 
-        p_next_state->p_deform_plastic[i] = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * F;
-        p_next_state->p_deform_elastic[i] = U * sigma.asDiagonal() * V.transpose();
+        p_current_state.p_deform_plastic[i] = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * F;
+        p_current_state.p_deform_elastic[i] = U * sigma.asDiagonal() * V.transpose();
     }
 }
 
@@ -717,8 +707,8 @@ void MpmSolver::step8_update_particle_velocities() {
     double inv_h = 1.0 / grid.spacing;
 
 #pragma omp parallel for
-    for (int i = 0; i < p_current_state->p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state->p_position[i] - grid.origin) * inv_h;
+    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
+        vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
         vec3 v_pic = vec3::Zero();
@@ -726,7 +716,7 @@ void MpmSolver::step8_update_particle_velocities() {
 
 #if USE_APIC
         // APIC
-        p_next_state->p_deform_affine[i] = mat3::Zero();
+        p_current_state.p_deform_affine[i] = mat3::Zero();
 #endif
 
         for (int x = 0; x < 4; ++x) {
@@ -736,32 +726,32 @@ void MpmSolver::step8_update_particle_velocities() {
                     MpmGridNode const* node = grid.get_node_from_local(node_position_local);
                     if (!node) continue;
 
-                    vec3 node_pos = grid.get_node_world_coords(node->local_pos) - p_current_state->p_position[i];
+                    vec3 node_pos = grid.get_node_world_coords(node->local_pos) - p_current_state.p_position[i];
                     double w_ip = p_weights[i][x + y * 4 + z * 4 * 4];
                     v_pic += node->velocity_star * w_ip;
                     v_flip += (node->velocity_star - node->velocity) * w_ip;
 
 #if USE_APIC
-                    p_next_state->p_deform_affine[i] += w_ip * node->velocity_star * node_pos.transpose();
+                    p_current_state.p_deform_affine[i] += w_ip * node->velocity_star * node_pos.transpose();
 #endif
                 }
             }
         }
 
-        v_flip += p_current_state->p_velocity[i];
-        p_next_state->p_velocity[i] = (1.0 - params.alpha_blend) * v_pic + params.alpha_blend * v_flip;
+        v_flip += p_current_state.p_velocity[i];
+        p_current_state.p_velocity[i] = (1.0 - params.alpha_blend) * v_pic + params.alpha_blend * v_flip;
     }
 }
 
 void MpmSolver::step9_particle_based_collisions() {
 #pragma omp parallel for
-    for (int i = 0; i < p_current_state->p_position.size(); ++i) {
-        if (p_current_state->p_position[i].y() + dt * p_next_state->p_velocity[i].y() > params.world_floor) {
+    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
+        if (p_current_state.p_position[i].y() + dt * p_current_state.p_velocity[i].y() > params.world_floor) [[unlikely]] {
             continue;
         }
 
         // velocity relative to collider (ground)
-        vec3 v_rel = p_next_state->p_velocity[i] - params.v_co;
+        vec3 v_rel = p_current_state.p_velocity[i] - params.v_co;
         double v_n = v_rel.dot(params.n_co);
 
         // if moving towards collider
@@ -775,14 +765,15 @@ void MpmSolver::step9_particle_based_collisions() {
                 v_rel = v_t + params.mu_surface * v_n * (v_t / v_t_norm);
             }
 
-            p_next_state->p_velocity[i] = v_rel + params.v_co;
+            p_current_state.p_velocity[i] = v_rel + params.v_co;
         }
     }
 }
 
 void MpmSolver::step10_update_particle_positions() {
+    std::lock_guard<std::mutex> lock(p_state_mutex);
 #pragma omp parallel for
-    for (int i = 0; i < p_current_state->p_position.size(); ++i) {
-        p_next_state->p_position[i] = p_current_state->p_position[i] + dt * p_next_state->p_velocity[i];
+    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
+        p_current_state.p_position[i] += dt * p_current_state.p_velocity[i];
     }
 }

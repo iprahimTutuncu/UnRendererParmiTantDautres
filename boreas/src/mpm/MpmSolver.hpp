@@ -69,9 +69,7 @@ public:
     std::vector<int> global_to_active_map;
 
     // Particles
-    MpmParticlesState p_states[2];
-    MpmParticlesState *p_current_state;
-    MpmParticlesState *p_next_state;
+    MpmParticlesState p_current_state;
     std::mutex p_state_mutex;
 
     std::vector<std::array<double, 64>> p_weights;

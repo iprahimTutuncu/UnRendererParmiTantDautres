@@ -63,7 +63,7 @@ void Application::init() {
     init_scene();
     m_mpm_solver.initialize();
 
-    int nb_particles = m_mpm_solver.p_current_state->p_position.size();
+    int nb_particles = m_mpm_solver.p_current_state.p_position.size();
     std::cout << "INFO: Initialized simulation with " << nb_particles << " particles." << std::endl;
 
     if (!m_renderer.init(m_main_window.get_width(), m_main_window.get_height(), nb_particles)) {

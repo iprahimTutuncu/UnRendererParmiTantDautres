@@ -80,3 +80,16 @@ Iteration delay: 12.9518 ms, Average: 13.2495 ms
 Iteration delay: 13.0086 ms, Average: 13.2491 ms
 Iteration delay: 12.9882 ms, Average: 13.2237 ms
 Iteration delay: 12.9706 ms, Average: 13.1964 ms
+
+## Remove the extra copy of ParticlesState
+
+Iteration delay: 13.0407 ms, Average: 13.2183 ms
+Iteration delay: 12.9871 ms, Average: 13.2179 ms
+Iteration delay: 13.0134 ms, Average: 13.2175 ms
+Iteration delay: 13.0144 ms, Average: 13.2171 ms
+Iteration delay: 12.9954 ms, Average: 13.2166 ms
+Iteration delay: 13.0312 ms, Average: 13.2163 ms
+Iteration delay: 12.9949 ms, Average: 13.2158 ms
+Iteration delay: 13.098 ms, Average: 13.2156 ms
+Iteration delay: 13.1487 ms, Average: 13.1913 ms
+Iteration delay: 13.0595 ms, Average: 13.1646 ms
