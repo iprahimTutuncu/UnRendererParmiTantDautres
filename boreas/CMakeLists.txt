@@ -9,7 +9,6 @@ set(OpenGL_GL_PREFERENCE GLVND)
 
 find_package(SDL2 REQUIRED)
 find_package(OpenGL 4.6 REQUIRED)
-find_package(GLEW REQUIRED)
 find_package(OpenMP)
 
 add_compile_options(-march=native -mtune=native -mavx2)

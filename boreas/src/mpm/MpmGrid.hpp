@@ -3,6 +3,8 @@
 #include "../libs/eigen.hpp"
 #include "MpmGridNode.hpp"
 
+#include <iostream>
+
 struct MpmGrid {
     double spacing; // h
     vec3 origin; // world space origin of the grid
@@ -10,7 +12,7 @@ struct MpmGrid {
     int height;
     int depth;
     std::vector<MpmGridNode> nodes;
-    std::vector<MpmGridNode*> active_nodes;
+    std::vector<std::uint32_t> active_nodes;
 
     MpmGrid() = default;
 
@@ -22,13 +24,11 @@ struct MpmGrid {
         , depth { static_cast<int>(std::ceil(size_z / spacing)) + 1 } {
         size_t nb_nodes = width * height * depth;
         nodes.resize(nb_nodes, MpmGridNode());
-        active_nodes.reserve(nb_nodes);
 
         for (int z = 0; z < depth; ++z) {
             for (int y = 0; y < height; ++y) {
                 for (int x = 0; x < width; ++x) {
                     size_t index = get_node_id_from_local({ x, y, z });
-                    nodes[index].index = index;
                     nodes[index].local_pos = vec3i(x, y, z);
                 }
             }
@@ -45,6 +45,8 @@ struct MpmGrid {
             node.is_active = false;
         }
 
+        std::cout << nodes.size() <<'/' << nodes.capacity() << '\n';
+        std::cout << active_nodes.size() <<'/' << active_nodes.capacity() << '\n';
         active_nodes.clear();
     }
 

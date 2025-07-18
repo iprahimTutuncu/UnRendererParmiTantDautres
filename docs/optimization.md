@@ -55,7 +55,6 @@ Iteration delay: 426.264 ms, Average: 427.998 ms
 Iteration delay: 449.687 ms, Average: 430.709 ms
 Iteration delay: 426.129 ms, Average: 430.2 ms
 
-
 ## Fix undefined behavior that caused a bug in the simulation making it super slow
 
 Iteration delay: 23.6469 ms, Average: 27.5998 ms
@@ -69,4 +68,15 @@ Iteration delay: 27.0268 ms, Average: 27.7082 ms
 Iteration delay: 27.0401 ms, Average: 27.6684 ms
 Iteration delay: 27.0363 ms, Average: 27.6065 ms
 
+## Use nodes index instead of pointers for actives nodes
 
+Iteration delay: 12.9377 ms, Average: 13.2529 ms
+Iteration delay: 12.9221 ms, Average: 13.2523 ms
+Iteration delay: 12.9503 ms, Average: 13.2517 ms
+Iteration delay: 12.9523 ms, Average: 13.2511 ms
+Iteration delay: 12.9964 ms, Average: 13.2506 ms
+Iteration delay: 13.0052 ms, Average: 13.2501 ms
+Iteration delay: 12.9518 ms, Average: 13.2495 ms
+Iteration delay: 13.0086 ms, Average: 13.2491 ms
+Iteration delay: 12.9882 ms, Average: 13.2237 ms
+Iteration delay: 12.9706 ms, Average: 13.1964 ms
