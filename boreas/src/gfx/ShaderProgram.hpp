@@ -1,14 +1,16 @@
 #pragma once
+#pragma once
+#ifndef SHADER_H
+#define SHADER_H
 
-#include "../sdl.hpp"
-
-#define GLM_ENABLE_EXPERIMENTAL
+#include "../libs/sdl.hpp"
 #include <glm/glm.hpp>
-#include <glm/gtx/string_cast.hpp>
 
 #include <iostream>
 #include <map>
 #include <string>
+
+#include <glm/gtx/string_cast.hpp>
 
 // Macro for detecting an openGL error.
 // Only works if the program is compiled in debug mode.
@@ -158,3 +160,5 @@ inline std::ostream& operator<<(std::ostream& out, const glm::mat3& g) {
 inline std::ostream& operator<<(std::ostream& out, const glm::mat4& g) {
     return out << glm::to_string(g);
 }
+
+#endif

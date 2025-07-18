@@ -1,20 +1,20 @@
-#include "../eigen.hpp"
+#include "../libs/eigen.hpp"
 #include "MpmGrid.hpp"
 #include "MpmParticle.hpp"
 
+#include <memory>
 #include <mutex>
 #include <vector>
 
 /*
- To simulate different types of snow, we found the following intuition useful.
- θc and θs determine when the material starts breaking (larger = chunky, smaller = powdery).
-
- The hardening coefficient determines how fast the material breaks once it is plastic (larger = brittle, smaller = ductile).
-
- Dry and powdery snow has smaller critical compression and stretch constants,
- while the opposite is true for wet and chunky snow.
-
- Icy snow has a higher hardening coefficient and Young’s modulus, with the opposite producing muddy snow.
+ To simulate different types of snow, we found the following intu-
+ition useful. θc and θs determine when the material starts breaking
+(larger = chunky, smaller = powdery). The hardening coefficient
+determines how fast the material breaks once it is plastic
+(larger = brittle, smaller = ductile). Dry and powdery snow has smaller criti-
+cal compression and stretch constants, while the opposite is true for
+wet and chunky snow. Icy snow has a higher hardening coefficient
+and Young’s modulus, with the opposite producing muddy snow.
 */
 
 struct MpmSolverParams {
@@ -54,23 +54,24 @@ class MpmSolver {
 public:
     MpmSolver();
 
-    void initialize(MpmSolverParams& params);
+    void initialize();
     void iterate(double dt);
+    void update_lame_params();
 
     void swap_buffers();
     std::vector<vec3> get_positions();
 
     void create_particle(vec3 position, vec3 velocity);
 
+
     MpmGrid grid;
     MpmSolverParams params;
-
     std::vector<int> global_to_active_map;
 
     // Particles
     MpmParticlesState p_states[2];
-    MpmParticlesState* p_current_state;
-    MpmParticlesState* p_next_state;
+    MpmParticlesState *p_current_state;
+    MpmParticlesState *p_next_state;
     std::mutex p_state_mutex;
 
     std::vector<std::array<double, 64>> p_weights;
@@ -81,12 +82,9 @@ private:
     double mu_0;
     double lambda_0;
 
-    void calculate_Ar(mat3n& residuals, const mat3n& Ar, mat3n& df) const;
+    void calculate_Ar(mat3n &residuals, const mat3n &Ar, mat3n &df) const;
 
-    void compute_preconditioner(mat3n& M_inv) const;
-
-    double N(const double x);
-    double d_N(const double x);
+    void compute_preconditioner(mat3n &M_inv) const;
 
     void step1_rasterize_particles_to_grid();
     void step2_compute_volumes_and_densities();

@@ -54,3 +54,19 @@ Iteration delay: 426.131 ms, Average: 428.287 ms
 Iteration delay: 426.264 ms, Average: 427.998 ms
 Iteration delay: 449.687 ms, Average: 430.709 ms
 Iteration delay: 426.129 ms, Average: 430.2 ms
+
+
+## Fix undefined behavior that caused a bug in the simulation making it super slow
+
+Iteration delay: 23.6469 ms, Average: 27.5998 ms
+Iteration delay: 23.6548 ms, Average: 27.592 ms
+Iteration delay: 46.8213 ms, Average: 27.63 ms
+Iteration delay: 46.9925 ms, Average: 27.6682 ms
+Iteration delay: 46.8304 ms, Average: 27.7059 ms
+Iteration delay: 30.2807 ms, Average: 27.711 ms
+Iteration delay: 26.9847 ms, Average: 27.7096 ms
+Iteration delay: 27.0268 ms, Average: 27.7082 ms
+Iteration delay: 27.0401 ms, Average: 27.6684 ms
+Iteration delay: 27.0363 ms, Average: 27.6065 ms
+
+

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../eigen.hpp"
+#include "../libs/eigen.hpp"
 
 struct MpmParticlesState {
     std::vector<vec3> p_position; // p

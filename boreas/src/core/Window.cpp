@@ -3,9 +3,14 @@
 #include <format>
 #include <stdexcept>
 
-Window::Window(const char* title, int width, int height, bool vsync) {
+Window::Window(const char* title, int width, int height, bool vsync, bool windowed)
+    : title { title }
+    , m_width { width }
+    , m_height { height }
+    , m_vsync(vsync)
+    , m_windowed(windowed) {
     try {
-        init_sdl(title, width, height, vsync);
+        init_sdl();
         init_opengl();
         m_active = true;
     } catch (std::exception e) {
@@ -23,12 +28,15 @@ Window::~Window() {
     SDL_Quit();
 }
 
+SDL_Window* Window::get_handle() const {
+    return _window;
+}
+
 SDL_GLContext Window::get_gl_context() const {
     return _gl_context;
 }
 
-void Window::init_sdl(const char* title, int width, int height, bool vsync) {
-
+void Window::init_sdl() {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) < 0) {
         throw std::runtime_error(std::format(
             "ERROR: Failed to initialize SDL! SDL_Error: {}\n",
@@ -51,8 +59,8 @@ void Window::init_sdl(const char* title, int width, int height, bool vsync) {
         title,
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        width,
-        height,
+        m_width,
+        m_height,
         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
 
     SDL_SetWindowResizable(_window, SDL_TRUE);
@@ -69,7 +77,7 @@ void Window::init_sdl(const char* title, int width, int height, bool vsync) {
             SDL_GetError()));
     }
 
-    SDL_GL_SetSwapInterval(vsync);
+    SDL_GL_SetSwapInterval(m_vsync);
 
     // Check OpenGL properties
     printf("OpenGL loaded\n");
@@ -94,7 +102,9 @@ void Window::init_opengl() {
 }
 
 void Window::resize(int width, int height) {
-    glViewport(0, 0, width, height);
+    m_width = width;
+    m_height = height;
+    glViewport(0, 0, m_width, m_height);
 }
 
 void Window::close() {

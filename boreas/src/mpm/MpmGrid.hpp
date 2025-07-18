@@ -1,38 +1,33 @@
 #pragma once
 
-#include "../eigen.hpp"
+#include "../libs/eigen.hpp"
 #include "MpmGridNode.hpp"
 
 struct MpmGrid {
     double spacing; // h
     vec3 origin; // world space origin of the grid
-    size_t width;
-    size_t height;
-    size_t depth;
+    int width;
+    int height;
+    int depth;
     std::vector<MpmGridNode> nodes;
     std::vector<MpmGridNode*> active_nodes;
 
-    MpmGrid() {
-        spacing = 0.0;
-        width = 0;
-        height = 0;
-        depth = 0;
-    }
+    MpmGrid() = default;
 
     MpmGrid(vec3 origin, double size_x, double size_y, double size_z, double spacing)
         : origin { origin }
         , spacing { spacing }
-        , width { static_cast<size_t>(std::ceil(size_x / spacing)) + 1 }
-        , height { static_cast<size_t>(std::ceil(size_y / spacing)) + 1 }
-        , depth { static_cast<size_t>(std::ceil(size_z / spacing)) + 1 } {
+        , width { static_cast<int>(std::ceil(size_x / spacing)) + 1 }
+        , height { static_cast<int>(std::ceil(size_y / spacing)) + 1 }
+        , depth { static_cast<int>(std::ceil(size_z / spacing)) + 1 } {
         size_t nb_nodes = width * height * depth;
         nodes.resize(nb_nodes, MpmGridNode());
         active_nodes.reserve(nb_nodes);
 
-        for (size_t z = 0; z < depth; ++z) {
-            for (size_t y = 0; y < height; ++y) {
-                for (size_t x = 0; x < width; ++x) {
-                    size_t index = get_node_id_from_local(x, y, z);
+        for (int z = 0; z < depth; ++z) {
+            for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    size_t index = get_node_id_from_local({ x, y, z });
                     nodes[index].index = index;
                     nodes[index].local_pos = vec3i(x, y, z);
                 }
@@ -53,28 +48,32 @@ struct MpmGrid {
         active_nodes.clear();
     }
 
-    size_t get_node_id_from_local(vec3i pos) const {
+    inline size_t get_node_id_from_local(vec3i pos) const {
         return static_cast<size_t>(pos.x()) + static_cast<size_t>(pos.y()) * width + static_cast<size_t>(pos.z()) * width * height;
     }
 
-    size_t get_node_id_from_local(size_t x, size_t y, size_t z) const {
-        return static_cast<size_t>(x) + static_cast<size_t>(y) * width + static_cast<size_t>(z) * width * height;
-    }
-
-    MpmGridNode& get_node_from_local(vec3i pos) {
+    inline MpmGridNode const* get_node_from_local(vec3i pos) const {
         return get_node_from_local(pos.x(), pos.y(), pos.z());
     }
 
-    MpmGridNode const& get_node_from_local(vec3i pos) const {
+    inline MpmGridNode* get_node_from_local(vec3i pos) {
         return get_node_from_local(pos.x(), pos.y(), pos.z());
     }
 
-    inline MpmGridNode& get_node_from_local(int x, int y, int z) {
-        return nodes[get_node_id_from_local(x, y, z)];
+    MpmGridNode* get_node_from_local(int x, int y, int z) {
+        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= depth) {
+            return nullptr;
+        }
+
+        return &nodes[get_node_id_from_local({ x, y, z })];
     }
 
-    inline MpmGridNode const& get_node_from_local(int x, int y, int z) const {
-        return nodes[get_node_id_from_local(x, y, z)];
+    MpmGridNode const* get_node_from_local(int x, int y, int z) const {
+        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= depth) {
+            return nullptr;
+        }
+
+        return &nodes[get_node_id_from_local({ x, y, z })];
     }
 
     const vec3i get_node_local_coords(const vec3& pos) const {
