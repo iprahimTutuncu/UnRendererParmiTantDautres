@@ -1,35 +1,37 @@
 #version 450
-#extension GL_EXT_scalar_block_layout : enable
 
 layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 struct Particle {
-    vec3 position;
+    vec4 position;
+    vec4 velocity;
+    mat4 deform_elastic;
+    mat4 deform_plastic;
+    mat4 deform_affine;
     float mass;
-    vec3 velocity;
     float volume_0;
-    mat3 deform_elastic;
-    mat3 deform_plastic;
-    mat3 deform_affine;
 };
 
 struct GridNode {
-    vec3 force;
+    vec4 force;
+    vec4 momentum;
+    vec4 velocity_star;
+    vec4 velocity;
     float mass;
-    vec3 momentum;
-    vec3 velocity_star;
-    vec3 velocity;
 };
 
-layout(std430, set = 1, binding = 0) buffer ReadWriteBuffers {
-    GridNode grid[512];
+layout(set = 1, binding = 0) buffer ParticleBuffer {
     Particle particles[];
 };
 
-layout(std430, set = 2, binding = 0) uniform UBO {
-    vec3 u_grid_origin;
+layout(set = 1, binding = 1) buffer GridBuffer {
+    GridNode grid[];
+};
+
+layout(set = 2, binding = 0) uniform UBO {
+    vec4 u_grid_origin;
+    vec4 u_grid_dimension;
     float u_grid_spacing; // h
-    vec3 u_grid_dimension;
     float u_particles_per_cell;
     float u_initial_density;
     float u_mu_0;
@@ -40,14 +42,25 @@ layout(std430, set = 2, binding = 0) uniform UBO {
     float u_poisson_ratio;
     float u_alpha_blend;
 
-    vec3 u_gravity;
+    vec4 u_gravity;
+    vec4 u_co_normal;
     float u_co_floor_y;
-    vec3 u_co_normal;
     float u_co_mu;
 
     float u_D_inv; // 3.0 / h * h
     float time;
+    uint u_nb_particles;
+    uint u_nb_grid_nodes;
 };
+
+#define ATOMIC_ADD_FLOAT(MEM_LOCATION, VALUE_TO_ADD) \
+    { \
+        uint old_val, new_val; \
+        do { \
+            old_val = (MEM_LOCATION); \
+            new_val = floatBitsToUint(uintBitsToFloat(old_val) + (VALUE_TO_ADD)); \
+        } while (old_val != atomicCompSwap((MEM_LOCATION), old_val, new_val)); \
+    }
 
 float N(float x) {
     x = abs(x);
@@ -69,7 +82,7 @@ float d_N(float x) {
 
 void main() {
     uint particle_id = gl_GlobalInvocationID.x;
-    if (particle_id >= particles.length()) {
+    if (particle_id >= u_nb_particles) {
         return;
     }
     Particle p = particles[particle_id];
@@ -77,7 +90,7 @@ void main() {
     float inv_h = 1.0 / u_grid_spacing;
     float inv_h3 = inv_h * inv_h * inv_h;
 
-    vec3 p_pos_rel = (p.position.xyz - u_grid_origin) * inv_h;
+    vec3 p_pos_rel = (p.position.xyz - u_grid_origin.xyz) * inv_h;
     ivec3 base_pos = ivec3(floor(p_pos_rel - 1.0));
     float mass = u_initial_density * u_grid_spacing * u_grid_spacing * u_grid_spacing / u_particles_per_cell;
     float rho_p = 0.0;
@@ -86,18 +99,20 @@ void main() {
     for (int y = 0; y < 4; ++y) {
     for (int z = 0; z < 4; ++z) {
         ivec3 node_pos_local = base_pos + ivec3(x, y, z);
-        if (any(lessThan(node_pos_local, ivec3(0))) || any(greaterThanEqual(node_pos_local, u_grid_dimension))) {
+        ivec3 grid_dimension = ivec3(u_grid_dimension.xyz);
+        uint node_id = uint(node_pos_local.x
+            + node_pos_local.y * grid_dimension.x
+            + node_pos_local.z * grid_dimension.x * grid_dimension.y);
+    
+        if (node_id >= u_nb_grid_nodes) { 
             continue;
         }
 
-        uint node_id = 
-            uint(node_pos_local.x 
-            + node_pos_local.y * u_grid_dimension.x
-            + node_pos_local.z * u_grid_dimension.x * u_grid_dimension.y);
-
-        vec3 node_pos_world = u_grid_origin + vec3(node_pos_local) * u_grid_spacing;
+        vec3 node_pos_world = u_grid_origin.xyz + vec3(node_pos_local) * u_grid_spacing;
         vec3 p_offset = p_pos_rel - vec3(node_pos_local);
         GridNode node = grid[node_id];
+
+        // TODO: Add to node.mass
 
         float w_ip_x = N(p_offset.x);
         float w_ip_y = N(p_offset.y);

@@ -9,25 +9,16 @@ layout(location = 1) out vec3 vNormal;     // world space normal
 layout(location = 2) out vec2 vTexCoord;
 
 struct Particle {
-    vec3 position;
+    vec4 position;
+    vec4 velocity;
+    mat4 deform_elastic;
+    mat4 deform_plastic;
+    mat4 deform_affine;
     float mass;
-    vec3 velocity;
     float volume_0;
-    mat3 deform_elastic;
-    mat3 deform_plastic;
-    mat3 deform_affine;
 };
 
-struct GridNode {
-    vec3 force;
-    float mass;
-    vec3 momentum;
-    vec3 velocity_star;
-    vec3 velocity;
-};
-
-layout(std430, set = 0, binding = 0) buffer ReadWriteBuffers {
-    GridNode grid[512];
+layout(set = 0, binding = 0) buffer ReadWriteBuffers {
     Particle particles[];
 };
 
@@ -40,7 +31,7 @@ layout(set = 1, binding = 0) uniform UBO
 
 void main()
 {
-    vec3 instancePos = particles[gl_InstanceIndex].position;
+    vec3 instancePos = particles[gl_InstanceIndex].position.xyz;
 
     vec4 worldPos = vec4(position*0.2 + instancePos, 1.0);
     vPosition = worldPos.xyz;

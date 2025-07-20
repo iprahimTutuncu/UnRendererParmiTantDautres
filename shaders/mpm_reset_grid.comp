@@ -1,35 +1,37 @@
 #version 450
-#extension GL_EXT_scalar_block_layout : enable
 
-layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
 
 struct Particle {
-    vec3 position;
+    vec4 position;
+    vec4 velocity;
+    mat4 deform_elastic;
+    mat4 deform_plastic;
+    mat4 deform_affine;
     float mass;
-    vec3 velocity;
     float volume_0;
-    mat3 deform_elastic;
-    mat3 deform_plastic;
-    mat3 deform_affine;
 };
 
 struct GridNode {
-    vec3 force;
+    vec4 force;
+    vec4 momentum;
+    vec4 velocity_star;
+    vec4 velocity;
     float mass;
-    vec3 momentum;
-    vec3 velocity_star;
-    vec3 velocity;
 };
 
-layout(std430, set = 1, binding = 0) buffer ReadWriteBuffers {
-    GridNode grid[512];
+layout(set = 1, binding = 0) buffer ParticleBuffer {
     Particle particles[];
 };
 
-layout(std430, set = 2, binding = 0) uniform UBO {
-    vec3 u_grid_origin;
+layout(set = 1, binding = 1) buffer GridBuffer {
+    GridNode grid[];
+};
+
+layout(set = 2, binding = 0) uniform UBO {
+    vec4 u_grid_origin;
+    vec4 u_grid_dimension;
     float u_grid_spacing; // h
-    vec3 u_grid_dimension;
     float u_particles_per_cell;
     float u_initial_density;
     float u_mu_0;
@@ -40,28 +42,36 @@ layout(std430, set = 2, binding = 0) uniform UBO {
     float u_poisson_ratio;
     float u_alpha_blend;
 
-    vec3 u_gravity;
+    vec4 u_gravity;
+    vec4 u_co_normal;
     float u_co_floor_y;
-    vec3 u_co_normal;
     float u_co_mu;
 
     float u_D_inv; // 3.0 / h * h
     float time;
+    uint u_nb_particles;
+    uint u_nb_grid_nodes;
 };
 
 void main() {
     ivec3 node_pos_local = ivec3(gl_GlobalInvocationID.xyz);
-    if (any(lessThan(node_pos_local, ivec3(0))) || any(greaterThanEqual(node_pos_local, u_grid_dimension))) {
+    ivec3 grid_dimension = ivec3(u_grid_dimension.xyz);
+
+    if (any(greaterThanEqual(node_pos_local, grid_dimension))) {
         return;
     }
-    uint node_id = uint(
-            node_pos_local.x 
-            + node_pos_local.y * node_pos_local.x 
-            + node_pos_local.z * node_pos_local.x * node_pos_local.y);
+
+    uint node_id = uint(node_pos_local.x
+        + node_pos_local.y * grid_dimension.x
+        + node_pos_local.z * grid_dimension.x * grid_dimension.y);
+
+    if (node_id >= u_nb_grid_nodes) {
+        return;
+    }
 
     grid[node_id].mass = 0.0;
-    grid[node_id].momentum = vec3(0.0);
-    grid[node_id].force = vec3(0.0);
-    grid[node_id].velocity = vec3(0.0);
-    grid[node_id].velocity_star = vec3(0.0);
+    grid[node_id].momentum = vec4(0.0);
+    grid[node_id].force = vec4(0.0);
+    grid[node_id].velocity = vec4(0.0);
+    grid[node_id].velocity_star = vec4(0.0);
 }

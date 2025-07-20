@@ -1,35 +1,37 @@
 #version 450
-#extension GL_EXT_scalar_block_layout : enable
 
 layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 struct Particle {
-    vec3 position;
+    vec4 position;
+    vec4 velocity;
+    mat4 deform_elastic;
+    mat4 deform_plastic;
+    mat4 deform_affine;
     float mass;
-    vec3 velocity;
     float volume_0;
-    mat3 deform_elastic;
-    mat3 deform_plastic;
-    mat3 deform_affine;
 };
 
 struct GridNode {
-    vec3 force;
+    vec4 force;
+    vec4 momentum;
+    vec4 velocity_star;
+    vec4 velocity;
     float mass;
-    vec3 momentum;
-    vec3 velocity_star;
-    vec3 velocity;
 };
 
-layout(std430, set = 1, binding = 0) buffer ReadWriteBuffers {
-    GridNode grid[512];
+layout(set = 1, binding = 0) buffer ParticleBuffer {
     Particle particles[];
 };
 
-layout(std430, set = 2, binding = 0) uniform UBO {
-    vec3 u_grid_origin;
+layout(set = 1, binding = 1) buffer GridBuffer {
+    GridNode grid[];
+};
+
+layout(set = 2, binding = 0) uniform UBO {
+    vec4 u_grid_origin;
+    vec4 u_grid_dimension;
     float u_grid_spacing; // h
-    vec3 u_grid_dimension;
     float u_particles_per_cell;
     float u_initial_density;
     float u_mu_0;
@@ -40,13 +42,15 @@ layout(std430, set = 2, binding = 0) uniform UBO {
     float u_poisson_ratio;
     float u_alpha_blend;
 
-    vec3 u_gravity;
+    vec4 u_gravity;
+    vec4 u_co_normal;
     float u_co_floor_y;
-    vec3 u_co_normal;
     float u_co_mu;
 
     float u_D_inv; // 3.0 / h * h
     float time;
+    uint u_nb_particles;
+    uint u_nb_grid_nodes;
 };
 
 float N(float x) {
@@ -276,13 +280,13 @@ UP_mats polar_decomp(mat3 A) {
 
 void main() {
     uint particle_id = gl_GlobalInvocationID.x;
-    if (particle_id >= particles.length()) {
+    if (particle_id >= u_nb_particles) {
         return;
     }
     Particle p = particles[particle_id];
 
     float inv_h = 1.0 / u_grid_spacing;
-    vec3 p_pos_rel = (p.position.xyz - u_grid_origin) * inv_h;
+    vec3 p_pos_rel = (p.position.xyz - u_grid_origin.xyz) * inv_h;
     ivec3 base_pos = ivec3(floor(p_pos_rel - 1.0));
 
     mat3 velocity_grad = mat3(0.0);
@@ -293,17 +297,17 @@ void main() {
     for (int x = 0; x < 4; ++x) {
     for (int y = 0; y < 4; ++y) {
     for (int z = 0; z < 4; ++z) {
-        vec3 node_pos_local = base_pos + ivec3(x, y, z);
-        if (any(lessThan(node_pos_local, ivec3(0))) || any(greaterThanEqual(node_pos_local, u_grid_dimension))) {
+        ivec3 node_pos_local = base_pos + ivec3(x, y, z);
+        ivec3 grid_dimension = ivec3(u_grid_dimension.xyz);
+        uint node_id = uint(node_pos_local.x
+            + node_pos_local.y * grid_dimension.x
+            + node_pos_local.z * grid_dimension.x * grid_dimension.y);
+    
+        if (node_id >= u_nb_grid_nodes) { 
             continue;
         }
 
-        uint node_id = 
-            uint(node_pos_local.x 
-            + node_pos_local.y * u_grid_dimension.x
-            + node_pos_local.z * u_grid_dimension.x * u_grid_dimension.y);
-
-        vec3 node_pos_world = u_grid_origin + vec3(node_pos_local) * u_grid_spacing;
+        vec3 node_pos_world = u_grid_origin.xyz + vec3(node_pos_local) * u_grid_spacing;
         vec3 p_offset = p_pos_rel - vec3(node_pos_local);
         GridNode node = grid[node_id];
 
@@ -319,16 +323,16 @@ void main() {
             w_ip_x * w_ip_y * d_N(p_offset.z)
         );
 
-        velocity_grad += outerProduct(node.velocity_star, w_ip_grad);
-        v_pic += node.velocity_star * w_ip;
-        v_flip += (node.velocity_star - node.velocity) * w_ip;
-        affine_term += w_ip * outerProduct(node.velocity_star, node_pos_world - p.position);
+        velocity_grad += outerProduct(node.velocity_star.xyz, w_ip_grad);
+        v_pic += node.velocity_star.xyz * w_ip;
+        v_flip += (node.velocity_star.xyz - node.velocity.xyz) * w_ip;
+        affine_term += w_ip * outerProduct(node.velocity_star.xyz, node_pos_world - p.position.xyz);
     }}}
 
-    v_flip += p.velocity;
+    v_flip += p.velocity.xyz;
 
-    mat3 tmp_FE = (mat3(1.0) + time * velocity_grad) * p.deform_elastic;
-    mat3 tmp_FP = p.deform_plastic;
+    mat3 tmp_FE = (mat3(1.0) + time * velocity_grad) * mat3(p.deform_elastic);
+    mat3 tmp_FP = mat3(p.deform_plastic);
     mat3 F = tmp_FE * tmp_FP;
 
     SVD_mats svd_result = svd(tmp_FE);
@@ -352,17 +356,17 @@ void main() {
     mat3 U = svd_result.U;
     mat3 V = svd_result.V;
 //    p.deform_plastic = V * inverse(sigma_clamped) * transpose(U) * F;
-    p.deform_plastic = V * SigmaInv * transpose(U) * F;
-    p.deform_elastic = U * Sigma * transpose(V);
-    p.velocity = (1.0 - u_alpha_blend) * v_pic + u_alpha_blend * v_flip;
-    p.deform_affine = affine_term;
+    p.deform_plastic = mat4(V * SigmaInv * transpose(U) * F);
+    p.deform_elastic = mat4(U * Sigma * transpose(V));
+    p.velocity.xyz = (1.0 - u_alpha_blend) * v_pic + u_alpha_blend * v_flip;
+    p.deform_affine = mat4(affine_term);
 
     if (p.position.y < u_co_floor_y) {
-        vec3 v_rel = p.velocity;
-        float v_n = dot(v_rel, u_co_normal) ;
+        vec3 v_rel = p.velocity.xyz;
+        float v_n = dot(v_rel, u_co_normal.xyz) ;
 
         if (v_n < 0.0) {
-            vec3 v_t = v_rel - (v_n * u_co_normal);
+            vec3 v_t = v_rel - (v_n * u_co_normal.xyz);
             float v_t_norm = length(v_t);
 
             if (v_t_norm <= -u_co_mu * v_n) {
@@ -372,10 +376,10 @@ void main() {
                 v_rel = v_t + u_co_mu * v_n * (v_t / v_t_norm);
             }
 
-            p.velocity = v_rel;
+            p.velocity.xyz = v_rel;
         }
     }
 
-    p.position += time * p.velocity;
+    p.position.xyz += time * p.velocity.xyz;
     particles[particle_id] = p;
 }

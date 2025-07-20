@@ -39,6 +39,7 @@ enum BufferIndex {
     ParticlesBuffer,
     SphereVertexBuffer,
     SphereIndexBuffer,
+    GridBuffer,
     NumBuffers // must be last
 };
 
@@ -93,21 +94,21 @@ struct Vertex {
 };
 
 struct Particle {
-    vec3 position;
+    vec4 position;
+    vec4 velocity;
+    mat4 deform_elastic;
+    mat4 deform_plastic;
+    mat4 deform_affine;
     float mass;
-    vec3 velocity;
     float volume_0;
-    alignas(16) mat3 deform_elastic;
-    alignas(16) mat3 deform_plastic;
-    alignas(16) mat3 deform_affine;
 };
 
 struct GridNode {
-    vec3 force;
+    vec4 force;
+    vec4 momentum;
+    vec4 velocity_star;
+    vec4 velocity;
     float mass;
-    alignas(16) vec3 momentum;
-    alignas(16) vec3 velocity_star;
-    alignas(16) vec3 velocity;
 };
 
 struct SDL_GPUGraphicsPipeline;
@@ -119,9 +120,9 @@ struct SDL_GPUSampler;
 // c'est le uniform buffer pour le compute
 
 struct ParticleUpdateUniform {
-    vec3 u_grid_origin;
+    vec4 u_grid_origin;
+    vec4 u_grid_dimension;
     float u_grid_spacing; // h
-    vec3 u_grid_dimension;
     float u_particles_per_cell;
     float u_initial_density;
     float u_mu_0;
@@ -132,13 +133,15 @@ struct ParticleUpdateUniform {
     float u_poisson_ratio;
     float u_alpha_blend;
 
-    vec3 u_gravity;
+    vec4 u_gravity;
+    vec4 u_co_normal;
     float u_co_floor_y;
-    vec3 u_co_normal;
     float u_co_mu;
 
     float u_D_inv; // 3.0 / h * h
     float time;
+    unsigned int u_nb_particles;
+    unsigned int u_nb_grid_nodes;
 };
 
 struct GeometryBufferUniform {
