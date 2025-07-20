@@ -1,6 +1,7 @@
 #include "imguisdl.h"
 
 #include "../camera.h"
+#include "graphics.h"
 #include "../controls/controls.h"
 
 #include <imgui.h>
@@ -34,6 +35,9 @@ void imgui_iterate(AppState& state) {
     ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
 
     ImGui::SliderFloat3("Camera", &state.camera->position.x, -100.0f, 100.0f);
+
+    ImGui::Checkbox("Enable SSAO", &state.graphics->ssaoEnabled);
+
     if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_None)) {
         if (ImGui::BeginTabItem("Camera Control")) {
 

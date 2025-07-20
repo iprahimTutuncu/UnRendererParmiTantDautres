@@ -113,6 +113,7 @@ set(SHADERS
     ${SHADER_DIR}/particleUpdate.comp
     ${SHADER_DIR}/PositionColor.vert
     ${SHADER_DIR}/quad.vert
+    ${SHADER_DIR}/ssao.frag
     ${SHADER_DIR}/SolidColor.frag
 )
 set(SPIRV_FILES)

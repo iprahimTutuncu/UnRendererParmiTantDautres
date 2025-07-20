@@ -12,7 +12,7 @@ SDL_AppResult deferred_lighting_init(AppState& state) {
     if (vs == nullptr) [[unlikely]] {
         return SDL_APP_FAILURE;
     }
-    SDL_GPUShader* fsFinal = loadShader(device, SHADER_PATH("deferred_render.frag"), 3, 0, 0, 0);
+    SDL_GPUShader* fsFinal = loadShader(device, SHADER_PATH("deferred_render.frag"), 4, 0, 0, 0);
     if (fsFinal == nullptr) [[unlikely]] {
         return SDL_APP_FAILURE;
     }
@@ -74,13 +74,14 @@ void deferred_lighting_render_to_texture(
 
     SDL_GPUSampler* sampler = gfx.samplersPreset[PointClamp];
 
-    SDL_GPUTextureSamplerBinding gbufferSamplers[3] = {
+    SDL_GPUTextureSamplerBinding gbufferSamplers[4] = {
         { gfx.textures[GeometryPosition], sampler },
         { gfx.textures[GeometryNormal], sampler },
-        { gfx.textures[GeometryAlbedo], sampler }
+        { gfx.textures[GeometryAlbedo], sampler },
+        { gfx.textures[GeometrySSAO], sampler }
     };
 
-    SDL_BindGPUFragmentSamplers(renderPass, 0, gbufferSamplers, 3);
+    SDL_BindGPUFragmentSamplers(renderPass, 0, gbufferSamplers, 4);
 
     int displayMode = static_cast<int>(mode);
     SDL_PushGPUFragmentUniformData(cmdBuf, 0, &displayMode, sizeof(int));

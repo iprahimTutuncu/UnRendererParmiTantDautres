@@ -52,7 +52,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     // enabling debug mode on linux crash the app at SDL_CreateGPUGraphicsPipeline
     // desabling it for now
-    SDL_GPUDevice *device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, "vulkan");
+    SDL_GPUDevice *device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, "vulkan");
     if (device == nullptr) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create SDL GPU Device: %s", SDL_GetError());
         return SDL_APP_FAILURE;

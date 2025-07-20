@@ -12,6 +12,7 @@
 #include <imgui_impl_sdlgpu3.h>
 
 #include <stddef.h>
+#include "ssao_renderer.cpp"
 
 static SDL_AppResult graphics_create_render_targets(AppState& state, std::uint32_t width, std::uint32_t height);
 static SDL_GPUTexture* createSolidColorTextureRGBA8(SDL_GPUDevice* device, std::uint32_t width, std::uint32_t height, const float r, const float g, const float b, const float a);
@@ -81,6 +82,9 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     if (SDL_AppResult result = deferred_gbuffer_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
 
+    if (SDL_AppResult result = deferred_ssao_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+
     return SDL_APP_CONTINUE;
 }
 
@@ -107,6 +111,9 @@ SDL_AppResult graphics_iterate(AppState& state) {
     }
 
     deferred_gbuffer_render(state, cmdbuf);
+    if (state.graphics->ssaoEnabled) {
+        deferred_ssao_render(state, cmdbuf);
+    }
 
     imgui_iterate(state);
     ImDrawData* draw_data = ImGui::GetDrawData();

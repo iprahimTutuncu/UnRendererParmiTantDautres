@@ -20,6 +20,7 @@ enum GraphicPipelineIndex {
     GeometryBufferParticleLinePipeline,
     DeferredLightingPipeline,
     DeferredDebugPipeline,
+    SSAOPipeline,
     NumGraphicPipelines // must be last
 };
 
@@ -44,6 +45,7 @@ enum TextureIndex {
     GeometryNormal,
     GeometryAlbedo,
     GeometryDepth,
+    GeometrySSAO, // <-- Add this line
     NumTextures // must be last
 };
 
@@ -134,4 +136,5 @@ struct GraphicState {
 
     std::vector<Box> boxes;
     std::vector<Particle> particles;
+    bool ssaoEnabled = true;
 };
