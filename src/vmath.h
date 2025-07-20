@@ -134,6 +134,14 @@ struct mat3 {
 #endif
 #endif // __SSE4_1__
     }
+
+    static inline mat3 identity() {
+        mat3 m = {};
+        m.cols[0].x = 1.f;
+        m.cols[1].y = 1.f;
+        m.cols[2].z = 1.f;
+        return m;
+    }
 };
 
 struct alignas(16) vec4 {
@@ -213,6 +221,11 @@ struct mat4 {
         for (std::size_t i = 0; i < 4; i++) {
             m.v4[i][i] = 1.f;
         }
+        return m;
+    }
+
+    static inline mat4 zero() {
+        mat4 m = {0};
         return m;
     }
 };
