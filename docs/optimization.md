@@ -170,3 +170,16 @@ Iteration delay: 10.7938 ms, Average: 10.8113 ms
 Iteration delay: 10.8739 ms, Average: 10.8114 ms
 Iteration delay: 10.8760 ms, Average: 10.7918 ms
 Iteration delay: 10.8053 ms, Average: 10.7700 ms
+
+# Remove unnecessary floor operation in base_position calculation
+
+Iteration delay: 10.9699 ms, Average: 10.7925 ms
+Iteration delay: 10.897 ms, Average: 10.7927 ms
+Iteration delay: 10.9441 ms, Average: 10.793 ms
+Iteration delay: 11.0312 ms, Average: 10.7935 ms
+Iteration delay: 10.929 ms, Average: 10.7937 ms
+Iteration delay: 10.9169 ms, Average: 10.794 ms
+Iteration delay: 10.9866 ms, Average: 10.7944 ms
+Iteration delay: 10.9037 ms, Average: 10.7946 ms
+Iteration delay: 11.0576 ms, Average: 10.7758 ms
+Iteration delay: 10.9785 ms, Average: 10.7546 ms
