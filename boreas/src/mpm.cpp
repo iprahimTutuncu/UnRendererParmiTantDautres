@@ -24,7 +24,7 @@
 
 // https://csmbrannon.net/2013/02/14/illustration-of-polar-decomposition/
 template <typename T, size_t k>
-inline T fast_polar_decompose_R(const T& A) {
+static inline T fast_polar_decompose_R(const T& A) {
     T X = A / std::sqrt((A.transpose() * A).trace());
 
     for (size_t i = 0; i < k; ++i) {
@@ -140,7 +140,7 @@ namespace Solver {
     }
 };
 
-void create_particle_state(MpmParticlesState& state, const vec3& position, const vec3& initial_velocity, const double& mass) {
+static void create_particle_state(MpmParticlesState& state, const vec3& position, const vec3& initial_velocity, const double& mass) {
     state.p_position.emplace_back(position);
     state.p_velocity.emplace_back(initial_velocity);
     state.p_mass.push_back(mass);
@@ -155,7 +155,7 @@ static inline void reset_nodes(MpmGrid& grid) {
     grid.active_nodes.clear();
 }
 
-inline vec3i get_local_pos_from_index(MpmGrid const& grid, size_t index) {
+static inline vec3i get_local_pos_from_index(MpmGrid const& grid, size_t index) {
     return {
         static_cast<int>(index % grid.width),
         static_cast<int>((index / grid.width) % grid.height),
@@ -163,15 +163,15 @@ inline vec3i get_local_pos_from_index(MpmGrid const& grid, size_t index) {
     };
 }
 
-inline size_t get_node_id_from_local(MpmGrid const& grid, vec3i pos) {
+static inline size_t get_node_id_from_local(MpmGrid const& grid, vec3i pos) {
     return static_cast<size_t>(pos.x()) + static_cast<size_t>(pos.y()) * grid.width + static_cast<size_t>(pos.z()) * grid.width * grid.height;
 }
 
-inline size_t get_node_id_from_local(MpmGrid const& grid, int x, int y, int z) {
+static inline size_t get_node_id_from_local(MpmGrid const& grid, int x, int y, int z) {
     return static_cast<size_t>(x + y * grid.width + z * grid.width * grid.height);
 }
 
-MpmGridNode* get_node_from_local(MpmGrid& grid, int x, int y, int z) {
+static inline MpmGridNode* get_node_from_local(MpmGrid& grid, int x, int y, int z) {
     if (x < 0 || x >= grid.width || y < 0 || y >= grid.height || z < 0 || z >= grid.depth) [[unlikely]] {
         return nullptr;
     }
@@ -179,7 +179,7 @@ MpmGridNode* get_node_from_local(MpmGrid& grid, int x, int y, int z) {
     return &grid.nodes[get_node_id_from_local(grid, x, y, z)];
 }
 
-MpmGridNode const* get_node_from_local(MpmGrid const& grid, int x, int y, int z) {
+static inline MpmGridNode const* get_node_from_local(MpmGrid const& grid, int x, int y, int z) {
     if (x < 0 || x >= grid.width || y < 0 || y >= grid.height || z < 0 || z >= grid.depth) [[unlikely]] {
         return nullptr;
     }
@@ -187,20 +187,20 @@ MpmGridNode const* get_node_from_local(MpmGrid const& grid, int x, int y, int z)
     return &grid.nodes[get_node_id_from_local(grid, x, y, z)];
 }
 
-vec3 get_node_world_coords(MpmGrid const& grid, vec3i local_pos) {
+static inline vec3 get_node_world_coords(MpmGrid const& grid, vec3i local_pos) {
     return vec3(
         grid.origin.x() + local_pos.x() * grid.spacing,
         grid.origin.y() + local_pos.y() * grid.spacing,
         grid.origin.z() + local_pos.z() * grid.spacing);
 }
-vec3 get_node_world_coords(MpmGrid const& grid, int x, int y, int z) {
+static inline vec3 get_node_world_coords(MpmGrid const& grid, int x, int y, int z) {
     return vec3(
         grid.origin.x() + x * grid.spacing,
         grid.origin.y() + y * grid.spacing,
         grid.origin.z() + z * grid.spacing);
 }
 
-vec3 get_node_world_coords_from_index(MpmGrid const& grid, size_t index) {
+static inline vec3 get_node_world_coords_from_index(MpmGrid const& grid, size_t index) {
     return vec3(
         grid.origin.x() + static_cast<double>(index % grid.width) * grid.spacing,
         grid.origin.y() + static_cast<double>((index / grid.width) % grid.height) * grid.spacing,
@@ -229,17 +229,6 @@ void MpmSolver::initialize() {
     reset_nodes(grid);
     step1_rasterize_particles_to_grid();
     step2_compute_volumes_and_densities();
-}
-
-std::vector<vec3> MpmSolver::get_positions() {
-    std::vector<vec3> positions;
-
-    {
-        std::lock_guard<std::mutex> lock(p_state_mutex);
-        positions = p_current_state.p_position;
-    }
-
-    return positions;
 }
 
 void MpmSolver::create_particle(vec3 position, vec3 velocity) {

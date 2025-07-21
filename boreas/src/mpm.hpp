@@ -116,7 +116,16 @@ public:
     void iterate(double dt);
     void update_lame_params();
 
-    std::vector<vec3> get_positions();
+    inline std::vector<vec3> get_positions() {
+        std::vector<vec3> positions(p_current_state.p_position.size());
+
+        {
+            std::lock_guard<std::mutex> lock(p_state_mutex);
+            std::memcpy(positions.data(), p_current_state.p_position.data(), p_current_state.p_position.size() * sizeof(decltype(positions[0])));
+        }
+
+        return positions;
+    }
 
     void create_particle(vec3 position, vec3 velocity);
 
