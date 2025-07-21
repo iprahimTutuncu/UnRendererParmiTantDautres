@@ -175,8 +175,8 @@ void create_particle_state(MpmParticlesState& state, const vec3& position, const
     state.p_deform_affine.emplace_back(mat3::Zero());
 }
 
-void reset_nodes(MpmGrid& grid) {
-    grid.nodes.assign(grid.nodes.size(), MpmGridNode());
+static inline void reset_nodes(MpmGrid& grid) {
+    std::memset(grid.nodes.data(), 0, grid.nodes.size() * sizeof(MpmGridNode));
     grid.active_nodes.clear();
 }
 
@@ -248,7 +248,8 @@ void MpmSolver::initialize() {
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
 
-    update_lame_params();
+    mu_0 = params.initial_youngs_modulus / (static_cast<double>(2) * (static_cast<double>(1) + params.poisson_ratio));
+    lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) / ((1.0 + params.poisson_ratio) * (static_cast<double>(1) - static_cast<double>(2) * params.poisson_ratio));
 
     reset_nodes(grid);
     step1_rasterize_particles_to_grid();
@@ -264,13 +265,6 @@ std::vector<vec3> MpmSolver::get_positions() {
     }
 
     return positions;
-}
-
-void MpmSolver::update_lame_params() {
-    mu_0 = params.initial_youngs_modulus
-        / (2.0 * (1.0 + params.poisson_ratio));
-    lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio)
-        / ((1.0 + params.poisson_ratio) * (1.0 - 2.0 * params.poisson_ratio));
 }
 
 void MpmSolver::create_particle(vec3 position, vec3 velocity) {

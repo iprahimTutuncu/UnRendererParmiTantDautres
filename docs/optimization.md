@@ -122,26 +122,40 @@ Iteration delay: 11.5414 ms, Average: 11.4364 ms
 
 ## Inverse loop order from x, y z to z, y, x
 
-Iteration delay: 11.4082 ms, Average: 11.319 ms (count: 504)
-Iteration delay: 11.3453 ms, Average: 11.319 ms (count: 505)
-Iteration delay: 11.362 ms, Average: 11.3191 ms (count: 506)
-Iteration delay: 11.3671 ms, Average: 11.3192 ms (count: 507)
-Iteration delay: 11.3487 ms, Average: 11.3193 ms (count: 508)
-Iteration delay: 11.3771 ms, Average: 11.3194 ms (count: 509)
-Iteration delay: 11.3247 ms, Average: 11.3194 ms (count: 510)
-Iteration delay: 11.3046 ms, Average: 11.3194 ms (count: 511)
-Iteration delay: 11.337 ms, Average: 11.2984 ms (count: 512)
-Iteration delay: 11.3065 ms, Average: 11.2757 ms (count: 513)
+Iteration delay: 11.4082 ms, Average: 11.319 ms
+Iteration delay: 11.3453 ms, Average: 11.319 ms
+Iteration delay: 11.362 ms, Average: 11.3191 ms
+Iteration delay: 11.3671 ms, Average: 11.3192 ms
+Iteration delay: 11.3487 ms, Average: 11.3193 ms
+Iteration delay: 11.3771 ms, Average: 11.3194 ms
+Iteration delay: 11.3247 ms, Average: 11.3194 ms
+Iteration delay: 11.3046 ms, Average: 11.3194 ms
+Iteration delay: 11.337 ms, Average: 11.2984 ms
+Iteration delay: 11.3065 ms, Average: 11.2757 ms
 
 # Merge src/mpm/* into src/mpm.cpp and mpm.hpp
 
-Iteration delay: 11.7025 ms, Average: 11.1599 ms (count: 504)
-Iteration delay: 11.3748 ms, Average: 11.1604 ms (count: 505)
-Iteration delay: 11.1969 ms, Average: 11.1604 ms (count: 506)
-Iteration delay: 11.2084 ms, Average: 11.1605 ms (count: 507)
-Iteration delay: 11.2093 ms, Average: 11.1606 ms (count: 508)
-Iteration delay: 11.2189 ms, Average: 11.1607 ms (count: 509)
-Iteration delay: 11.2498 ms, Average: 11.1609 ms (count: 510)
-Iteration delay: 11.1916 ms, Average: 11.161 ms (count: 511)
-Iteration delay: 11.2369 ms, Average: 11.117 ms (count: 512)
-Iteration delay: 11.1526 ms, Average: 11.0946 ms (count: 513)
+Iteration delay: 11.7025 ms, Average: 11.1599 ms
+Iteration delay: 11.3748 ms, Average: 11.1604 ms
+Iteration delay: 11.1969 ms, Average: 11.1604 ms
+Iteration delay: 11.2084 ms, Average: 11.1605 ms
+Iteration delay: 11.2093 ms, Average: 11.1606 ms
+Iteration delay: 11.2189 ms, Average: 11.1607 ms
+Iteration delay: 11.2498 ms, Average: 11.1609 ms
+Iteration delay: 11.1916 ms, Average: 11.161 ms
+Iteration delay: 11.2369 ms, Average: 11.117 ms
+Iteration delay: 11.1526 ms, Average: 11.0946 ms
+
+
+# use memset instead of std::fill for zeroing out grid.nodes
+
+Iteration delay: 10.9061 ms, Average: 10.9387 ms
+Iteration delay: 10.9791 ms, Average: 10.9387 ms
+Iteration delay: 10.9664 ms, Average: 10.9388 ms
+Iteration delay: 10.9995 ms, Average: 10.9389 ms
+Iteration delay: 10.9471 ms, Average: 10.9389 ms
+Iteration delay: 10.9387 ms, Average: 10.9389 ms
+Iteration delay: 11.0182 ms, Average: 10.9391 ms
+Iteration delay: 10.9534 ms, Average: 10.9391 ms
+Iteration delay: 11.0553 ms, Average: 10.9181 ms
+Iteration delay: 10.9953 ms, Average: 10.8963 ms
