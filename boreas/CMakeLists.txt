@@ -13,6 +13,7 @@ find_package(OpenMP)
 
 add_compile_options(-march=native -mtune=native -mavx2)
 add_executable(boreas
+    ./libs/glad/glad.c
     ./src/core/ActionManager.cpp
     ./src/core/Application.cpp
     ./src/core/Window.cpp
@@ -23,8 +24,7 @@ add_executable(boreas
     ./src/gfx/Renderer.cpp
     ./src/gfx/ShaderProgram.cpp
     ./src/Main.cpp
-    ./src/mpm/MpmSolver.cpp
-    ./libs/glad/glad.c
+    ./src/mpm.cpp
 )
 target_include_directories(boreas PRIVATE libs/)
 

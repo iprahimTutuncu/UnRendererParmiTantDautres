@@ -133,3 +133,15 @@ Iteration delay: 11.3046 ms, Average: 11.3194 ms (count: 511)
 Iteration delay: 11.337 ms, Average: 11.2984 ms (count: 512)
 Iteration delay: 11.3065 ms, Average: 11.2757 ms (count: 513)
 
+# Merge src/mpm/* into src/mpm.cpp and mpm.hpp
+
+Iteration delay: 11.7025 ms, Average: 11.1599 ms (count: 504)
+Iteration delay: 11.3748 ms, Average: 11.1604 ms (count: 505)
+Iteration delay: 11.1969 ms, Average: 11.1604 ms (count: 506)
+Iteration delay: 11.2084 ms, Average: 11.1605 ms (count: 507)
+Iteration delay: 11.2093 ms, Average: 11.1606 ms (count: 508)
+Iteration delay: 11.2189 ms, Average: 11.1607 ms (count: 509)
+Iteration delay: 11.2498 ms, Average: 11.1609 ms (count: 510)
+Iteration delay: 11.1916 ms, Average: 11.161 ms (count: 511)
+Iteration delay: 11.2369 ms, Average: 11.117 ms (count: 512)
+Iteration delay: 11.1526 ms, Average: 11.0946 ms (count: 513)

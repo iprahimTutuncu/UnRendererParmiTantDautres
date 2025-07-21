@@ -15,10 +15,10 @@
 // Analysis of a Material Point Method for Snow
 // https://studenttheses.uu.nl/bitstream/handle/20.500.12932/25872/ICA-4037324.pdf
 
-#include "MpmSolver.hpp"
-#include "MpmMath.hpp"
+#include "mpm.hpp"
+
+#include <chrono>
 #include <iostream>
-#include <mutex>
 
 #define USE_APIC 1
 
@@ -47,7 +47,6 @@ void MpmSolver::initialize() {
 
 std::vector<vec3> MpmSolver::get_positions() {
     std::vector<vec3> positions;
-    positions.resize(p_current_state.p_position.size());
 
     {
         std::lock_guard<std::mutex> lock(p_state_mutex);
@@ -231,7 +230,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         // v_i = sum( v_p * m_p * w_ip / m_i )
         // p = mv -> v = p/m
         MpmGridNode& node = grid.nodes[i];
-        if (node.mass > EPSILON) [[unlikely]]{
+        if (node.mass > EPSILON) [[unlikely]] {
             node.velocity = node.momentum / node.mass;
             grid.active_nodes.push_back(i);
         }

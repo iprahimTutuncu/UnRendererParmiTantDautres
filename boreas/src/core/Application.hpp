@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../gfx/Renderer.hpp"
-#include "../mpm/MpmSolver.hpp"
+#include "../mpm.hpp"
 #include "ActionManager.hpp"
 #include "Window.hpp"
 
