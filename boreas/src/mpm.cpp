@@ -145,26 +145,6 @@ struct SolverPCR {
     }
 };
 
-void resize(MpmParticlesState& state, size_t size) {
-    state.p_position.resize(size);
-    state.p_velocity.resize(size);
-    state.p_mass.resize(size);
-    state.p_volume_0.resize(size);
-    state.p_deform_elastic.resize(size);
-    state.p_deform_plastic.resize(size);
-    state.p_deform_affine.resize(size);
-}
-
-void clear(MpmParticlesState& state) {
-    state.p_position.clear();
-    state.p_velocity.clear();
-    state.p_mass.clear();
-    state.p_volume_0.clear();
-    state.p_deform_elastic.clear();
-    state.p_deform_plastic.clear();
-    state.p_deform_affine.clear();
-}
-
 void create_particle_state(MpmParticlesState& state, const vec3& position, const vec3& initial_velocity, const double& mass) {
     state.p_position.emplace_back(position);
     state.p_velocity.emplace_back(initial_velocity);
@@ -499,13 +479,11 @@ void MpmSolver::step5_grid_based_collisions() {
             vec3 v_t = v_rel - (v_n * params.n_co);
             double v_t_norm = v_t.norm();
 
-            if (v_t_norm <= (-params.mu_surface * v_n)) {
-                v_rel = vec3::Zero();
+            if (v_t_norm > params.mu_surface * v_n) {
+                node.velocity_star = params.v_co;
             } else {
-                v_rel = v_t + params.mu_surface * v_n * (v_t / v_t_norm);
+                node.velocity_star = params.v_co + v_t + params.mu_surface * v_n * (v_t / v_t_norm);
             }
-
-            node.velocity_star = v_rel + params.v_co;
         }
     }
 }
@@ -513,7 +491,7 @@ void MpmSolver::step5_grid_based_collisions() {
 // see https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
 void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) const {
     df.setZero();
-    double inv_h = 1.0 / grid.spacing;
+    const double inv_h = 1.0 / grid.spacing;
 
     // calculate Ar
 #pragma omp parallel
@@ -551,9 +529,9 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         mat3 const& V = svd.matrixV();
         mat3 R = U * V.transpose();
         if (R.determinant() < 0.0) [[unlikely]] {
-            mat3 b = U;
-            b.col(2) *= -1.0; // flip the last column to ensure R is a rotation matrix
-            R = b * V.transpose();
+            R = U;
+            R.col(2) *= -1.0; // flip the last column to ensure R is a rotation matrix
+            R = R * V.transpose();
         }
         mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
 
@@ -645,7 +623,7 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         Av_next.col(i) = v_next.col(i);
         const auto index = grid.active_nodes[i];
         double node_mass = grid.nodes[i].mass;
-        if (node_mass > 0.0) {
+        if (node_mass > EPSILON) [[likely]] {
             vec3 df_res = params.beta_integration * dt * df.col(i) / node_mass;
 #pragma omp atomic
             Av_next.col(i).x() -= df_res.x();
@@ -739,11 +717,7 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
         vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) / h;
         vec3i base_position = (p_position_rel.array() - 1.0).cast<int>();
 
-        double Jp = p_current_state.p_deform_plastic[i].determinant();
-        double mu = mu_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
-        double lambda = lambda_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
-
-        double particle_stiffness = p_current_state.p_volume_0[i] * (2.0 * mu + lambda);
+        const double particle_stiffness = p_current_state.p_volume_0[i] * (2.0 * mu_0 + lambda_0) * std::exp(params.hardening_coefficient * (1.0 - p_current_state.p_deform_plastic[i].determinant()));
 
         for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
@@ -783,7 +757,7 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
 }
 
 void MpmSolver::step7_update_deformation_gradient() {
-    double inv_h = 1.0 / grid.spacing;
+    const double inv_h = 1.0 / grid.spacing;
 
 #pragma omp parallel for
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
@@ -878,13 +852,11 @@ void MpmSolver::step9_particle_based_collisions() {
             vec3 v_t = v_rel - (v_n * params.n_co);
             double v_t_norm = v_t.norm();
 
-            if (v_t_norm <= (-params.mu_surface * v_n)) {
-                v_rel = vec3::Zero();
+            if (v_t_norm > (params.mu_surface * v_n)) {
+                p_current_state.p_velocity[i] = params.v_co;
             } else {
-                v_rel = v_t + params.mu_surface * v_n * (v_t / v_t_norm);
+                p_current_state.p_velocity[i] = v_t + params.mu_surface * v_n * (v_t / v_t_norm) + params.v_co;
             }
-
-            p_current_state.p_velocity[i] = v_rel + params.v_co;
         }
     }
 }
