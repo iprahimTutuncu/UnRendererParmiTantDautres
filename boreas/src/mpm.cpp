@@ -310,9 +310,6 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
-        p_weights[i].fill(0.0);
-        p_weights_gradient[i].fill(vec3::Zero());
-
         // look at the neighbor 4x4 grid
         for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {

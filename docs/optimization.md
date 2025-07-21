@@ -146,7 +146,6 @@ Iteration delay: 11.1916 ms, Average: 11.161 ms
 Iteration delay: 11.2369 ms, Average: 11.117 ms
 Iteration delay: 11.1526 ms, Average: 11.0946 ms
 
-
 # use memset instead of std::fill for zeroing out grid.nodes
 
 Iteration delay: 10.9061 ms, Average: 10.9387 ms
@@ -159,3 +158,15 @@ Iteration delay: 11.0182 ms, Average: 10.9391 ms
 Iteration delay: 10.9534 ms, Average: 10.9391 ms
 Iteration delay: 11.0553 ms, Average: 10.9181 ms
 Iteration delay: 10.9953 ms, Average: 10.8963 ms
+
+# do not zero out p_weights and p_weights_gradient at each iteration
+
+Iteration delay: 10.8427 ms, Average: 10.8111 ms
+Iteration delay: 10.8185 ms, Average: 10.8111 ms
+Iteration delay: 10.8516 ms, Average: 10.8112 ms
+Iteration delay: 10.8722 ms, Average: 10.8113 ms
+Iteration delay: 10.8340 ms, Average: 10.8113 ms
+Iteration delay: 10.7938 ms, Average: 10.8113 ms
+Iteration delay: 10.8739 ms, Average: 10.8114 ms
+Iteration delay: 10.8760 ms, Average: 10.7918 ms
+Iteration delay: 10.8053 ms, Average: 10.7700 ms
