@@ -1,13 +1,8 @@
 #pragma once
 
 #include <cmath>
-#include <cstdlib>
 
 const double EPSILON = 1E-12;
-
-inline double get_random(double min, double max, unsigned int* seed) {
-    return min + (rand_r(seed) / (double)RAND_MAX) * (max - min);
-}
 
 // https://csmbrannon.net/2013/02/14/illustration-of-polar-decomposition/
 template <typename T>
