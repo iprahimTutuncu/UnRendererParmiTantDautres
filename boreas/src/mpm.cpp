@@ -266,71 +266,6 @@ std::vector<vec3> MpmSolver::get_positions() {
     return positions;
 }
 
-void MpmSolver::iterate(double dt) {
-    this->dt = dt;
-
-    auto t0 = std::chrono::high_resolution_clock::now();
-
-    auto t1 = t0;
-    auto t2 = t0;
-    auto t3 = t0;
-    auto t4 = t0;
-    auto t5 = t0;
-    auto t6 = t0;
-    auto t7 = t0;
-    auto t8 = t0;
-    auto t9 = t0;
-    auto t10 = t0;
-
-    reset_nodes(grid);
-    t1 = std::chrono::high_resolution_clock::now();
-
-    step1_rasterize_particles_to_grid();
-    t2 = std::chrono::high_resolution_clock::now();
-
-    step3_compute_grid_forces();
-    t3 = std::chrono::high_resolution_clock::now();
-
-    step4_update_grid_velocities();
-    t4 = std::chrono::high_resolution_clock::now();
-
-    step5_grid_based_collisions();
-    t5 = std::chrono::high_resolution_clock::now();
-
-    step6_solve_linear_system<SolverCR>();
-    t6 = std::chrono::high_resolution_clock::now();
-
-    //    step6_solve_linear_system_preconditioned<SolverPCR>();
-    step7_update_deformation_gradient();
-    t7 = std::chrono::high_resolution_clock::now();
-
-    step8_update_particle_velocities();
-    t8 = std::chrono::high_resolution_clock::now();
-
-    step9_particle_based_collisions();
-    t9 = std::chrono::high_resolution_clock::now();
-
-    step10_update_particle_positions();
-    t10 = std::chrono::high_resolution_clock::now();
-
-    const auto print_duration = [](const char* name, auto t_start, auto t_end) {
-        std::cout << name << ": "
-                  << std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count()
-                  << " us\n";
-    };
-
-    print_duration("grid.reset_nodes", t0, t1);
-    print_duration("step1_rasterize_particles_to_grid", t1, t2);
-    print_duration("step3_compute_grid_forces", t2, t3);
-    print_duration("step4_update_grid_velocities", t3, t4);
-    print_duration("step5_grid_based_collisions", t4, t5);
-    print_duration("step6_solve_linear_system", t5, t6);
-    print_duration("step7_update_deformation_gradient", t6, t7);
-    print_duration("step8_update_particle_velocities", t7, t8);
-    print_duration("step9_particle_based_collisions", t8, t9);
-    print_duration("step10_update_particle_positions", t9, t10);
-}
-
 void MpmSolver::update_lame_params() {
     mu_0 = params.initial_youngs_modulus
         / (2.0 * (1.0 + params.poisson_ratio));
@@ -971,4 +906,69 @@ void MpmSolver::step10_update_particle_positions() {
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
         p_current_state.p_position[i] += dt * p_current_state.p_velocity[i];
     }
+}
+
+void MpmSolver::iterate(double dt) {
+    this->dt = dt;
+
+    auto t0 = std::chrono::high_resolution_clock::now();
+
+    auto t1 = t0;
+    auto t2 = t0;
+    auto t3 = t0;
+    auto t4 = t0;
+    auto t5 = t0;
+    auto t6 = t0;
+    auto t7 = t0;
+    auto t8 = t0;
+    auto t9 = t0;
+    auto t10 = t0;
+
+    reset_nodes(grid);
+    t1 = std::chrono::high_resolution_clock::now();
+
+    step1_rasterize_particles_to_grid();
+    t2 = std::chrono::high_resolution_clock::now();
+
+    step3_compute_grid_forces();
+    t3 = std::chrono::high_resolution_clock::now();
+
+    step4_update_grid_velocities();
+    t4 = std::chrono::high_resolution_clock::now();
+
+    step5_grid_based_collisions();
+    t5 = std::chrono::high_resolution_clock::now();
+
+    step6_solve_linear_system<SolverCR>();
+    t6 = std::chrono::high_resolution_clock::now();
+
+    //    step6_solve_linear_system_preconditioned<SolverPCR>();
+    step7_update_deformation_gradient();
+    t7 = std::chrono::high_resolution_clock::now();
+
+    step8_update_particle_velocities();
+    t8 = std::chrono::high_resolution_clock::now();
+
+    step9_particle_based_collisions();
+    t9 = std::chrono::high_resolution_clock::now();
+
+    step10_update_particle_positions();
+    t10 = std::chrono::high_resolution_clock::now();
+
+    const auto print_duration = [](const char* name, auto t_start, auto t_end) {
+        std::cout << name << ": "
+                  << std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count()
+                  << " us\n";
+    };
+
+    print_duration("grid.reset_nodes", t0, t1);
+    print_duration("step1_rasterize_particles_to_grid", t1, t2);
+    print_duration("step3_compute_grid_forces", t2, t3);
+    print_duration("step4_update_grid_velocities", t3, t4);
+    print_duration("step5_grid_based_collisions", t4, t5);
+    print_duration("step6_solve_linear_system", t5, t6);
+    print_duration("step7_update_deformation_gradient", t6, t7);
+    print_duration("step8_update_particle_velocities", t7, t8);
+    print_duration("step9_particle_based_collisions", t8, t9);
+    print_duration("step10_update_particle_positions", t9, t10);
 }

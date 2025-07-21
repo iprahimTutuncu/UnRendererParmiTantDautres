@@ -14,7 +14,6 @@ using mat3 = Eigen::Matrix3d;
 
 const double EPSILON = 1E-12;
 
-
 struct MpmGridNode {
     double mass { 0.0 }; // m
     vec3 velocity_star = vec3::Zero(); // v
@@ -31,7 +30,6 @@ struct MpmParticlesState {
     std::vector<mat3> p_deform_elastic; // F_E
     std::vector<mat3> p_deform_plastic; // F_P
     std::vector<mat3> p_deform_affine; // B
-
 };
 
 struct MpmGrid {
@@ -102,16 +100,6 @@ struct MpmSolverParams {
 
 class MpmSolver {
 public:
-    MpmSolver();
-
-    void initialize();
-    void iterate(double dt);
-    void update_lame_params();
-
-    std::vector<vec3> get_positions();
-
-    void create_particle(vec3 position, vec3 velocity);
-
     MpmGrid grid;
     MpmSolverParams params;
     std::vector<int> global_to_active_map;
@@ -122,6 +110,15 @@ public:
 
     std::vector<std::array<double, 64>> p_weights;
     std::vector<std::array<vec3, 64>> p_weights_gradient;
+    MpmSolver();
+
+    void initialize();
+    void iterate(double dt);
+    void update_lame_params();
+
+    std::vector<vec3> get_positions();
+
+    void create_particle(vec3 position, vec3 velocity);
 
 private:
     double dt;
