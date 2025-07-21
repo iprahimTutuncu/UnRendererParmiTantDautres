@@ -22,6 +22,216 @@
 
 #define USE_APIC 1
 
+// https://csmbrannon.net/2013/02/14/illustration-of-polar-decomposition/
+template <typename T>
+inline T fast_polar_decompose_R(const T& A, const int k) {
+    double alpha = (A.transpose() * A).trace();
+    T X = A / std::sqrt(alpha);
+
+    for (int i = 0; i < k; ++i) {
+        X = 0.5 * (X + X.inverse().transpose());
+    }
+
+    return X;
+}
+
+struct SolverCG {
+    template <class Vec, class CalculateA>
+    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
+        Vec r = b - A(x);
+        Vec p = r;
+
+        double rs_old = r.squaredNorm();
+        const double b_norm = b.norm();
+        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
+        const double t_sq = tolerance * tolerance;
+
+        for (int k = 0; k < max_iterations; ++k) {
+            if (rs_old / b_sn < t_sq) {
+                break;
+            }
+
+            Vec Ap = A(p);
+            double alpha = rs_old / p.cwiseProduct(Ap).sum();
+
+            x += alpha * p;
+            r -= alpha * Ap;
+
+            double rs_new = r.squaredNorm();
+
+            if (rs_new / b_sn < t_sq) {
+                break;
+            }
+
+            double beta = rs_new / rs_old;
+            p = r + beta * p;
+            rs_old = rs_new;
+        }
+    }
+};
+
+struct SolverCR {
+    template <class Vec, class CalculateA>
+    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
+        Vec r = b - A(x);
+        Vec p = r;
+        Vec Ap = A(p);
+
+        double rAr_old = r.cwiseProduct(Ap).sum();
+        const double b_norm = b.norm();
+        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
+        const double t_sq = tolerance * tolerance;
+
+        for (int k = 0; k < max_iterations; ++k) {
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            double alpha = rAr_old / Ap.squaredNorm();
+
+            x += alpha * p;
+            r -= alpha * Ap;
+
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            Vec Ar = A(r);
+            double rAr_new = (r.cwiseProduct(Ar)).sum();
+            double beta = rAr_new / rAr_old;
+
+            p = r + beta * p;
+            Ap = Ar + beta * Ap;
+            rAr_old = rAr_new;
+        }
+    }
+};
+
+struct SolverPCR {
+    template <class Vec, class CalculateA>
+    static void solve(CalculateA A, Vec& x, const Vec& b, const Vec& M_inv, int max_iterations, double tolerance) {
+        Vec r = b - A(x);
+        Vec z = r.cwiseProduct(M_inv);
+        Vec p = z;
+
+        double rz_old = r.cwiseProduct(z).sum();
+        const double b_norm = b.norm();
+        const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
+        const double t_sq = tolerance * tolerance;
+
+        for (int k = 0; k < max_iterations; ++k) {
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            Vec Ap = A(p);
+            double alpha = rz_old / Ap.squaredNorm();
+
+            x += alpha * p;
+            r -= alpha * Ap;
+
+            if (r.squaredNorm() / b_sn < t_sq) {
+                break;
+            }
+
+            z = r.cwiseProduct(M_inv);
+
+            double rz_new = (r.cwiseProduct(z)).sum();
+            double beta = rz_new / rz_old;
+
+            p = z + beta * p;
+            rz_old = rz_new;
+        }
+    }
+};
+
+void resize(MpmParticlesState& state, size_t size) {
+    state.p_position.resize(size);
+    state.p_velocity.resize(size);
+    state.p_mass.resize(size);
+    state.p_volume_0.resize(size);
+    state.p_deform_elastic.resize(size);
+    state.p_deform_plastic.resize(size);
+    state.p_deform_affine.resize(size);
+}
+
+void clear(MpmParticlesState& state) {
+    state.p_position.clear();
+    state.p_velocity.clear();
+    state.p_mass.clear();
+    state.p_volume_0.clear();
+    state.p_deform_elastic.clear();
+    state.p_deform_plastic.clear();
+    state.p_deform_affine.clear();
+}
+
+void create_particle_state(MpmParticlesState& state, const vec3& position, const vec3& initial_velocity, const double& mass) {
+    state.p_position.emplace_back(position);
+    state.p_velocity.emplace_back(initial_velocity);
+    state.p_mass.push_back(mass);
+    state.p_volume_0.push_back(0.0);
+    state.p_deform_elastic.emplace_back(mat3::Identity());
+    state.p_deform_plastic.emplace_back(mat3::Identity());
+    state.p_deform_affine.emplace_back(mat3::Zero());
+}
+
+void reset_nodes(MpmGrid& grid) {
+    grid.nodes.assign(grid.nodes.size(), MpmGridNode());
+    grid.active_nodes.clear();
+}
+
+inline vec3i get_local_pos_from_index(MpmGrid const& grid, size_t index) {
+    return {
+        static_cast<int>(index % grid.width),
+        static_cast<int>((index / grid.width) % grid.height),
+        static_cast<int>(index / (grid.width * grid.height)),
+    };
+}
+
+inline size_t get_node_id_from_local(MpmGrid const& grid, vec3i pos) {
+    return static_cast<size_t>(pos.x()) + static_cast<size_t>(pos.y()) * grid.width + static_cast<size_t>(pos.z()) * grid.width * grid.height;
+}
+
+inline size_t get_node_id_from_local(MpmGrid const& grid, int x, int y, int z) {
+    return static_cast<size_t>(x + y * grid.width + z * grid.width * grid.height);
+}
+
+MpmGridNode* get_node_from_local(MpmGrid& grid, int x, int y, int z) {
+    if (x < 0 || x >= grid.width || y < 0 || y >= grid.height || z < 0 || z >= grid.depth) [[unlikely]] {
+        return nullptr;
+    }
+
+    return &grid.nodes[get_node_id_from_local(grid, x, y, z)];
+}
+
+MpmGridNode const* get_node_from_local(MpmGrid const& grid, int x, int y, int z) {
+    if (x < 0 || x >= grid.width || y < 0 || y >= grid.height || z < 0 || z >= grid.depth) [[unlikely]] {
+        return nullptr;
+    }
+
+    return &grid.nodes[get_node_id_from_local(grid, x, y, z)];
+}
+
+vec3 get_node_world_coords(MpmGrid const& grid, vec3i local_pos) {
+    return vec3(
+        grid.origin.x() + local_pos.x() * grid.spacing,
+        grid.origin.y() + local_pos.y() * grid.spacing,
+        grid.origin.z() + local_pos.z() * grid.spacing);
+}
+vec3 get_node_world_coords(MpmGrid const& grid, int x, int y, int z) {
+    return vec3(
+        grid.origin.x() + x * grid.spacing,
+        grid.origin.y() + y * grid.spacing,
+        grid.origin.z() + z * grid.spacing);
+}
+
+vec3 get_node_world_coords_from_index(MpmGrid const& grid, size_t index) {
+    return vec3(
+        grid.origin.x() + static_cast<double>(index % grid.width) * grid.spacing,
+        grid.origin.y() + static_cast<double>((index / grid.width) % grid.height) * grid.spacing,
+        grid.origin.z() + static_cast<double>(index / (grid.width * grid.height)) * grid.spacing);
+}
+
 MpmSolver::MpmSolver()
     : params {} {
 }
@@ -40,7 +250,7 @@ void MpmSolver::initialize() {
 
     update_lame_params();
 
-    grid.reset_nodes();
+    reset_nodes(grid);
     step1_rasterize_particles_to_grid();
     step2_compute_volumes_and_densities();
 }
@@ -56,71 +266,6 @@ std::vector<vec3> MpmSolver::get_positions() {
     return positions;
 }
 
-void MpmSolver::iterate(double dt) {
-    this->dt = dt;
-
-    auto t0 = std::chrono::high_resolution_clock::now();
-
-    auto t1 = t0;
-    auto t2 = t0;
-    auto t3 = t0;
-    auto t4 = t0;
-    auto t5 = t0;
-    auto t6 = t0;
-    auto t7 = t0;
-    auto t8 = t0;
-    auto t9 = t0;
-    auto t10 = t0;
-
-    grid.reset_nodes();
-    t1 = std::chrono::high_resolution_clock::now();
-
-    step1_rasterize_particles_to_grid();
-    t2 = std::chrono::high_resolution_clock::now();
-
-    step3_compute_grid_forces();
-    t3 = std::chrono::high_resolution_clock::now();
-
-    step4_update_grid_velocities();
-    t4 = std::chrono::high_resolution_clock::now();
-
-    step5_grid_based_collisions();
-    t5 = std::chrono::high_resolution_clock::now();
-
-    step6_solve_linear_system<SolverCR>();
-    t6 = std::chrono::high_resolution_clock::now();
-
-    //    step6_solve_linear_system_preconditioned<SolverPCR>();
-    step7_update_deformation_gradient();
-    t7 = std::chrono::high_resolution_clock::now();
-
-    step8_update_particle_velocities();
-    t8 = std::chrono::high_resolution_clock::now();
-
-    step9_particle_based_collisions();
-    t9 = std::chrono::high_resolution_clock::now();
-
-    step10_update_particle_positions();
-    t10 = std::chrono::high_resolution_clock::now();
-
-    auto print_duration = [](const char* name, auto t_start, auto t_end) {
-        std::cout << name << ": "
-                  << std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count()
-                  << " us\n";
-    };
-
-    print_duration("grid.reset_nodes", t0, t1);
-    print_duration("step1_rasterize_particles_to_grid", t1, t2);
-    print_duration("step3_compute_grid_forces", t2, t3);
-    print_duration("step4_update_grid_velocities", t3, t4);
-    print_duration("step5_grid_based_collisions", t4, t5);
-    print_duration("step6_solve_linear_system", t5, t6);
-    print_duration("step7_update_deformation_gradient", t6, t7);
-    print_duration("step8_update_particle_velocities", t7, t8);
-    print_duration("step9_particle_based_collisions", t8, t9);
-    print_duration("step10_update_particle_positions", t9, t10);
-}
-
 void MpmSolver::update_lame_params() {
     mu_0 = params.initial_youngs_modulus
         / (2.0 * (1.0 + params.poisson_ratio));
@@ -130,7 +275,7 @@ void MpmSolver::update_lame_params() {
 
 void MpmSolver::create_particle(vec3 position, vec3 velocity) {
     const double mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
-    p_current_state.create_particle(position, velocity, mass);
+    create_particle_state(p_current_state, position, velocity, mass);
 }
 
 // grid basis function to get weights
@@ -179,7 +324,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
             for (int y = 0; y < 4; ++y) {
                 for (int x = 0; x < 4; ++x) {
                     // calculate particle offset
-                    size_t node_index = grid.get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    size_t node_index = get_node_id_from_local(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     MpmGridNode& node = grid.nodes[node_index];
 
                     const vec3 p_off = p_position_rel - vec3 {
@@ -205,7 +350,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
                     double m_i = p_current_state.p_mass[i] * w_ip;
 
 #if USE_APIC
-                    vec3 node_pos = grid.get_node_world_coords(base_position.x() + x, base_position.y() + y, base_position.z() + z) - p_current_state.p_position[i];
+                    vec3 node_pos = get_node_world_coords(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z) - p_current_state.p_position[i];
                     vec3 apic = (p_current_state.p_velocity[i] + p_current_state.p_deform_affine[i] * D_inv * node_pos);
                     vec3 momentum = m_i * apic;
 #else
@@ -254,7 +399,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
                 for (int x = 0; x < 4; ++x) {
                     if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]]
                         continue;
-                    MpmGridNode* node = grid.get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    MpmGridNode* node = get_node_from_local(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     [[assume(node != nullptr)]];
 
                     // rho_p = sum(w_ip * (m_i * / h^3))
@@ -306,7 +451,7 @@ void MpmSolver::step3_compute_grid_forces() {
                 for (int x = 0; x < 4; ++x) {
                     if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]]
                         continue;
-                    MpmGridNode* node = grid.get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    MpmGridNode* node = get_node_from_local(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     [[assume(node != nullptr)]];
 
                     vec3 w_ip_grad = p_weights_gradient[i][x + y * 4 + z * 4 * 4];
@@ -349,7 +494,7 @@ void MpmSolver::step5_grid_based_collisions() {
 #pragma omp parallel for
     for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
         const auto index = grid.active_nodes[i];
-        vec3 node_position_world = grid.get_node_world_coords_from_index(index);
+        vec3 node_position_world = get_node_world_coords_from_index(grid, index);
 
         if (node_position_world.y() > params.world_floor) {
             continue;
@@ -398,7 +543,7 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
                     if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]]
                         continue;
 
-                    size_t index = grid.get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    size_t index = get_node_id_from_local(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     int active_id = global_to_active_map[index];
                     if (active_id < 0) continue;
 
@@ -485,7 +630,7 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
                 for (int x = 0; x < 4; ++x) {
-                    const size_t index = grid.get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    const size_t index = get_node_id_from_local(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     if (index >= global_to_active_map.size()) [[unlikely]]
                         continue;
 
@@ -614,7 +759,7 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
         for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
                 for (int x = 0; x < 4; ++x) {
-                    const size_t index = grid.get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    const size_t index = get_node_id_from_local(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     if (index >= global_to_active_map.size()) [[unlikely]]
                         continue;
 
@@ -663,7 +808,7 @@ void MpmSolver::step7_update_deformation_gradient() {
         for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
                 for (int x = 0; x < 4; ++x) {
-                    MpmGridNode* node = grid.get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    MpmGridNode* node = get_node_from_local(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     if (!node) continue;
 
                     vec3 w_ip_grad = p_weights_gradient[i][x + y * 4 + z * 4 * 4];
@@ -708,10 +853,10 @@ void MpmSolver::step8_update_particle_velocities() {
                     if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]]
                         continue;
 
-                    MpmGridNode const* node = grid.get_node_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    MpmGridNode const* node = get_node_from_local(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     [[assume(node != nullptr)]]; // assume node is not null, as we check bounds above
 
-                    vec3 node_pos = grid.get_node_world_coords(base_position.x() + x, base_position.y() + y, base_position.z() + z) - p_current_state.p_position[i];
+                    vec3 node_pos = get_node_world_coords(grid, base_position.x() + x, base_position.y() + y, base_position.z() + z) - p_current_state.p_position[i];
                     double w_ip = p_weights[i][x + y * 4 + z * 4 * 4];
                     v_pic += node->velocity_star * w_ip;
                     v_flip += (node->velocity_star - node->velocity) * w_ip;
@@ -761,4 +906,69 @@ void MpmSolver::step10_update_particle_positions() {
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
         p_current_state.p_position[i] += dt * p_current_state.p_velocity[i];
     }
+}
+
+void MpmSolver::iterate(double dt) {
+    this->dt = dt;
+
+    auto t0 = std::chrono::high_resolution_clock::now();
+
+    auto t1 = t0;
+    auto t2 = t0;
+    auto t3 = t0;
+    auto t4 = t0;
+    auto t5 = t0;
+    auto t6 = t0;
+    auto t7 = t0;
+    auto t8 = t0;
+    auto t9 = t0;
+    auto t10 = t0;
+
+    reset_nodes(grid);
+    t1 = std::chrono::high_resolution_clock::now();
+
+    step1_rasterize_particles_to_grid();
+    t2 = std::chrono::high_resolution_clock::now();
+
+    step3_compute_grid_forces();
+    t3 = std::chrono::high_resolution_clock::now();
+
+    step4_update_grid_velocities();
+    t4 = std::chrono::high_resolution_clock::now();
+
+    step5_grid_based_collisions();
+    t5 = std::chrono::high_resolution_clock::now();
+
+    step6_solve_linear_system<SolverCR>();
+    t6 = std::chrono::high_resolution_clock::now();
+
+    //    step6_solve_linear_system_preconditioned<SolverPCR>();
+    step7_update_deformation_gradient();
+    t7 = std::chrono::high_resolution_clock::now();
+
+    step8_update_particle_velocities();
+    t8 = std::chrono::high_resolution_clock::now();
+
+    step9_particle_based_collisions();
+    t9 = std::chrono::high_resolution_clock::now();
+
+    step10_update_particle_positions();
+    t10 = std::chrono::high_resolution_clock::now();
+
+    const auto print_duration = [](const char* name, auto t_start, auto t_end) {
+        std::cout << name << ": "
+                  << std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count()
+                  << " us\n";
+    };
+
+    print_duration("grid.reset_nodes", t0, t1);
+    print_duration("step1_rasterize_particles_to_grid", t1, t2);
+    print_duration("step3_compute_grid_forces", t2, t3);
+    print_duration("step4_update_grid_velocities", t3, t4);
+    print_duration("step5_grid_based_collisions", t4, t5);
+    print_duration("step6_solve_linear_system", t5, t6);
+    print_duration("step7_update_deformation_gradient", t6, t7);
+    print_duration("step8_update_particle_velocities", t7, t8);
+    print_duration("step9_particle_based_collisions", t8, t9);
+    print_duration("step10_update_particle_positions", t9, t10);
 }
