@@ -145,11 +145,6 @@ static inline constexpr double N(double x) {
     return (std::abs(x) < static_cast<double>(2)) * a;
 }
 
-static inline constexpr double weight_i_p(vec3 p, vec3 i, double one_over_h){
-    return N((p.x() - i.x()) * one_over_h) * N((p.y() - i.y()) * one_over_h) *
-           N((p.z() - i.z()) * one_over_h);
-}
-
 // derivative of the grid basis function
 // see [Zhuo Lu 2019] at https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
 static inline constexpr double d_N(double x) {
@@ -181,11 +176,11 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         p_weights_gradient[i].fill(vec3::Zero());
 
         // look at the neighbor 4x4 grid
-        for (int x = 0; x < 4; ++x) {
+        for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
-                for (int z = 0; z < 4; ++z) {
+                for (int x = 0; x < 4; ++x) {
                     // calculate particle offset
-                    size_t node_index  = grid.get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
+                    size_t node_index = grid.get_node_id_from_local(base_position.x() + x, base_position.y() + y, base_position.z() + z);
                     MpmGridNode& node = grid.nodes[node_index];
 
                     const vec3 p_off = p_position_rel - vec3 {
@@ -259,9 +254,9 @@ void MpmSolver::step2_compute_volumes_and_densities() {
 
         double rho_p = 0.0;
 
-        for (int x = 0; x < 4; ++x) {
+        for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
-                for (int z = 0; z < 4; ++z) {
+                for (int x = 0; x < 4; ++x) {
                     vec3i node_position_local = base_position + vec3i(x, y, z);
                     MpmGridNode* node = grid.get_node_from_local(node_position_local);
                     if (!node) continue;
@@ -310,9 +305,9 @@ void MpmSolver::step3_compute_grid_forces() {
         mat3 stress_force = p_current_state.p_volume_0[i] * (dPsi * Fe.transpose());
 
         // add force to nodes
-        for (int x = 0; x < 4; ++x) {
+        for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
-                for (int z = 0; z < 4; ++z) {
+                for (int x = 0; x < 4; ++x) {
                     vec3i node_position_local = base_position + vec3i(x, y, z);
                     MpmGridNode* node = grid.get_node_from_local(node_position_local);
                     if (!node) continue;
@@ -400,9 +395,9 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * inv_h;
         vec3i base_position = (p_position_rel.array() - 1.0).floor().cast<int>();
 
-        for (int x = 0; x < 4; ++x) {
+        for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
-                for (int z = 0; z < 4; ++z) {
+                for (int x = 0; x < 4; ++x) {
                     vec3i node_position_local = base_position + vec3i(x, y, z);
                     size_t index = grid.get_node_id_from_local(node_position_local);
                     if (index >= global_to_active_map.size()) [[unlikely]]
@@ -491,9 +486,9 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
         mat3 Ap = p_current_state.p_volume_0[i] * (2.0 * mu * (dFEp - dR) + lambda * JFinvT * JFinvT_dF + lambda * (Je - 1.0) * dJFinvT) * Fe.transpose();
 
         // 3.25 - df
-        for (int x = 0; x < 4; ++x) {
+        for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
-                for (int z = 0; z < 4; ++z) {
+                for (int x = 0; x < 4; ++x) {
                     vec3i node_position_local = base_position + vec3i(x, y, z);
                     size_t index = grid.get_node_id_from_local(node_position_local);
                     if (index >= global_to_active_map.size()) [[unlikely]]
@@ -621,9 +616,9 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
 
         double particle_stiffness = p_current_state.p_volume_0[i] * (2.0 * mu + lambda);
 
-        for (int x = 0; x < 4; ++x) {
+        for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
-                for (int z = 0; z < 4; ++z) {
+                for (int x = 0; x < 4; ++x) {
                     vec3i node_position_local = base_position + vec3i(x, y, z);
                     size_t index = grid.get_node_id_from_local(node_position_local);
                     if (index >= global_to_active_map.size()) [[unlikely]]
@@ -671,9 +666,9 @@ void MpmSolver::step7_update_deformation_gradient() {
         mat3 velocities_grad = mat3::Zero();
 
         // look at the neighbor 4x4 grid
-        for (int x = 0; x < 4; ++x) {
+        for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
-                for (int z = 0; z < 4; ++z) {
+                for (int x = 0; x < 4; ++x) {
                     vec3i node_position_local = base_position + vec3i(x, y, z);
                     MpmGridNode* node = grid.get_node_from_local(node_position_local);
                     if (!node) continue;
@@ -714,9 +709,9 @@ void MpmSolver::step8_update_particle_velocities() {
         p_current_state.p_deform_affine[i] = mat3::Zero();
 #endif
 
-        for (int x = 0; x < 4; ++x) {
+        for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
-                for (int z = 0; z < 4; ++z) {
+                for (int x = 0; x < 4; ++x) {
                     vec3i node_position_local = base_position + vec3i(x, y, z);
                     MpmGridNode const* node = grid.get_node_from_local(node_position_local);
                     if (!node) continue;

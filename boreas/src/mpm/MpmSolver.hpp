@@ -2,7 +2,6 @@
 #include "MpmGrid.hpp"
 #include "MpmParticle.hpp"
 
-#include <memory>
 #include <mutex>
 #include <vector>
 

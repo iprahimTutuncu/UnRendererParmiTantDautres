@@ -119,3 +119,17 @@ Iteration delay: 11.6863 ms, Average: 11.4796 ms
 Iteration delay: 11.5702 ms, Average: 11.4798 ms
 Iteration delay: 11.5459 ms, Average: 11.4595 ms
 Iteration delay: 11.5414 ms, Average: 11.4364 ms
+
+## Inverse loop order from x, y z to z, y, x
+
+Iteration delay: 11.4082 ms, Average: 11.319 ms (count: 504)
+Iteration delay: 11.3453 ms, Average: 11.319 ms (count: 505)
+Iteration delay: 11.362 ms, Average: 11.3191 ms (count: 506)
+Iteration delay: 11.3671 ms, Average: 11.3192 ms (count: 507)
+Iteration delay: 11.3487 ms, Average: 11.3193 ms (count: 508)
+Iteration delay: 11.3771 ms, Average: 11.3194 ms (count: 509)
+Iteration delay: 11.3247 ms, Average: 11.3194 ms (count: 510)
+Iteration delay: 11.3046 ms, Average: 11.3194 ms (count: 511)
+Iteration delay: 11.337 ms, Average: 11.2984 ms (count: 512)
+Iteration delay: 11.3065 ms, Average: 11.2757 ms (count: 513)
+

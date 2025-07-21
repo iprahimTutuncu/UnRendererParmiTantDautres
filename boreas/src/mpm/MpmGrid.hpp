@@ -78,15 +78,8 @@ struct MpmGrid {
         return &nodes[get_node_id_from_local({ x, y, z })];
     }
 
-    const vec3i get_node_local_coords(const vec3& pos) const {
-        vec3 relative_pos = pos - origin;
-        return vec3i(
-            static_cast<int>(std::floor(relative_pos.x() / spacing)),
-            static_cast<int>(std::floor(relative_pos.y() / spacing)),
-            static_cast<int>(std::floor(relative_pos.z() / spacing)));
-    }
 
-    const vec3 get_node_world_coords(vec3i const& local_pos) const {
+    vec3 get_node_world_coords(vec3i const& local_pos) const {
         return vec3(
             origin.x() + local_pos.x() * spacing,
             origin.y() + local_pos.y() * spacing,
