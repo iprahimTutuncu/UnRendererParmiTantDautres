@@ -8,6 +8,4 @@ struct MpmGridNode {
     vec3 velocity = vec3::Zero(); // v*
     vec3 momentum = vec3::Zero(); // v*
     vec3 force = vec3::Zero(); // F (stress)
-    vec3i local_pos = vec3i::Zero();
-    bool is_active = false;
 };

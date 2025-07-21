@@ -10,7 +10,4 @@ using mat3n = Eigen::Matrix<double, 3, Eigen::Dynamic, Eigen::ColMajor>;
 using vec3 = Eigen::Vector3d;
 using mat3 = Eigen::Matrix3d;
 
-using vec4 = Eigen::Vector4f;
-using mat4 = Eigen::Vector4f;
-
 using quat = Eigen::Quaternion<double>;
