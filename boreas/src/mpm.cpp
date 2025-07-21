@@ -23,21 +23,20 @@
 #define USE_APIC 1
 
 // https://csmbrannon.net/2013/02/14/illustration-of-polar-decomposition/
-template <typename T>
-inline T fast_polar_decompose_R(const T& A, const int k) {
-    double alpha = (A.transpose() * A).trace();
-    T X = A / std::sqrt(alpha);
+template <typename T, size_t k>
+inline T fast_polar_decompose_R(const T& A) {
+    T X = A / std::sqrt((A.transpose() * A).trace());
 
-    for (int i = 0; i < k; ++i) {
-        X = 0.5 * (X + X.inverse().transpose());
+    for (size_t i = 0; i < k; ++i) {
+        X = (X + X.inverse().transpose()) / 2;
     }
 
     return X;
 }
 
-struct SolverCG {
+namespace Solver {
     template <class Vec, class CalculateA>
-    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
+    static void solveCG(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
         Vec r = b - A(x);
         Vec p = r;
 
@@ -68,11 +67,9 @@ struct SolverCG {
             rs_old = rs_new;
         }
     }
-};
 
-struct SolverCR {
     template <class Vec, class CalculateA>
-    static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
+    static void solveCR(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
         Vec r = b - A(x);
         Vec p = r;
         Vec Ap = A(p);
@@ -105,11 +102,9 @@ struct SolverCR {
             rAr_old = rAr_new;
         }
     }
-};
 
-struct SolverPCR {
     template <class Vec, class CalculateA>
-    static void solve(CalculateA A, Vec& x, const Vec& b, const Vec& M_inv, int max_iterations, double tolerance) {
+    static void solvePCR(CalculateA A, Vec& x, const Vec& b, const Vec& M_inv, int max_iterations, double tolerance) {
         Vec r = b - A(x);
         Vec z = r.cwiseProduct(M_inv);
         Vec p = z;
@@ -404,7 +399,7 @@ void MpmSolver::step3_compute_grid_forces() {
         const mat3& Fe = p_current_state.p_deform_elastic[i];
         const mat3& Fp = p_current_state.p_deform_plastic[i];
 
-        const mat3 R = fast_polar_decompose_R(Fe, 2);
+        const mat3 R = fast_polar_decompose_R<mat3, 2>(Fe);
 
         double Jp = Fp.determinant();
         double mu = mu_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
@@ -635,7 +630,6 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
     }
 }
 
-template <class Solver>
 void MpmSolver::step6_solve_linear_system() {
     if (params.beta_integration == 0.0 || grid.active_nodes.empty()) [[unlikely]] {
         return;
@@ -658,7 +652,7 @@ void MpmSolver::step6_solve_linear_system() {
     };
 
     mat3n x = b;
-    Solver::solve(A, x, b, params.max_iterations_solver, params.tolerance_solver);
+    Solver::solveCR(A, x, b, params.max_iterations_solver, params.tolerance_solver);
 
     for (size_t i = 0; i < nb_active_nodes; ++i) {
         const auto& index = grid.active_nodes[i];
@@ -666,7 +660,6 @@ void MpmSolver::step6_solve_linear_system() {
     }
 }
 
-template <class Solver>
 void MpmSolver::step6_solve_linear_system_preconditioned() {
     if (params.beta_integration == 0.0 || grid.active_nodes.empty()) [[unlikely]] {
         return;
@@ -695,7 +688,7 @@ void MpmSolver::step6_solve_linear_system_preconditioned() {
     };
 
     mat3n x = b;
-    Solver::solve(A, x, b, M_inv, params.max_iterations_solver, params.tolerance_solver);
+    Solver::solvePCR(A, x, b, M_inv, params.max_iterations_solver, params.tolerance_solver);
 
     for (size_t i = 0; i < nb_active_nodes; ++i) {
         const auto index = grid.active_nodes[i];
@@ -900,7 +893,7 @@ void MpmSolver::iterate(double dt) {
     step5_grid_based_collisions();
     t5 = std::chrono::high_resolution_clock::now();
 
-    step6_solve_linear_system<SolverCR>();
+    step6_solve_linear_system();
     t6 = std::chrono::high_resolution_clock::now();
 
     //    step6_solve_linear_system_preconditioned<SolverPCR>();
