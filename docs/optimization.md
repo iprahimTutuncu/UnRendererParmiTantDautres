@@ -196,3 +196,30 @@ Iteration delay: 10.953 ms, Average: 10.7682 ms
 Iteration delay: 10.8722 ms, Average: 10.7684 ms
 Iteration delay: 10.8908 ms, Average: 10.7495 ms
 Iteration delay: 10.9158 ms, Average: 10.7283 ms
+
+## with openmp
+
+Iteration delay: 3.13608 ms, Average: 3.55187 ms
+Iteration delay: 3.12304 ms, Average: 3.55102 ms
+Iteration delay: 3.59357 ms, Average: 3.5511 ms
+Iteration delay: 3.4213 ms, Average: 3.55084 ms
+Iteration delay: 3.36184 ms, Average: 3.55047 ms
+Iteration delay: 3.0133 ms, Average: 3.54942 ms
+Iteration delay: 3.30971 ms, Average: 3.54895 ms
+Iteration delay: 3.31892 ms, Average: 3.5485 ms
+Iteration delay: 3.22997 ms, Average: 3.53582 ms
+Iteration delay: 3.02522 ms, Average: 3.52547 ms
+
+## Slightly better use of openmp
+
+Iteration delay: 2.75509 ms, Average: 3.26363 ms (count: 504)
+Iteration delay: 2.72212 ms, Average: 3.26255 ms (count: 505)
+Iteration delay: 3.63953 ms, Average: 3.2633 ms (count: 506)
+Iteration delay: 2.91627 ms, Average: 3.26261 ms (count: 507)
+Iteration delay: 3.48165 ms, Average: 3.26304 ms (count: 508)
+Iteration delay: 3.00815 ms, Average: 3.26254 ms (count: 509)
+Iteration delay: 2.9812 ms, Average: 3.26199 ms (count: 510)
+Iteration delay: 2.99216 ms, Average: 3.26146 ms (count: 511)
+Iteration delay: 2.77213 ms, Average: 3.24683 ms (count: 512)
+Iteration delay: 2.83802 ms, Average: 3.23786 ms (count: 513)
+
