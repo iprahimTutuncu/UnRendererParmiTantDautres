@@ -352,7 +352,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
 
                     // rho_p = sum(w_ip * (m_i * / h^3))
                     const double& w_ip = p_weights[i][x + y * 4 + z * 4 * 4];
-                    rho_p += w_ip * node.mass * grid.one_over_h * grid.one_over_h * grid.one_over_h;
+                    rho_p += node.mass * grid.one_over_h * grid.one_over_h * grid.one_over_h * w_ip;
                 }
             }
         }
@@ -443,7 +443,6 @@ void MpmSolver::step4_update_grid_velocities() {
 // collisions are processed twice each time step, once here, and again before
 // updating positions see section 8 of Stomakhin
 void MpmSolver::step5_grid_based_collisions() {
-#pragma omp parallel for
     for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
         const auto index = grid.active_nodes[i];
         if (grid.origin.y() + static_cast<double>((index / grid.width) % grid.height) * grid.spacing > params.world_floor) {
@@ -633,11 +632,16 @@ void MpmSolver::step6_solve_linear_system() {
 
     Solver::solveCR<params.max_iterations_solver, params.tolerance_solver>(*this, b, nb_active_nodes);
 
+#pragma omp parallel
+#pragma omp for nowait
+    for (size_t i = 0; i < grid.nodes.size(); ++i) {
+        global_to_active_map[i] = -1; // reset the map
+    }
+
 #pragma omp for nowait
     for (size_t i = 0; i < nb_active_nodes; ++i) {
         const auto& index = active_nodes[i];
         grid.nodes[index].velocity_star = b.col(i);
-        global_to_active_map[index] = -1;
     }
 }
 
