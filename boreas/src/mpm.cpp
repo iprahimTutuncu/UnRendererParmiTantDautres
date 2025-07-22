@@ -235,9 +235,6 @@ void MpmSolver::initialize() {
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
 
-    mu_0 = params.initial_youngs_modulus / (static_cast<double>(2) * (static_cast<double>(1) + params.poisson_ratio));
-    lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) / ((1.0 + params.poisson_ratio) * (static_cast<double>(1) - static_cast<double>(2) * params.poisson_ratio));
-
     reset_nodes(grid);
     step1_rasterize_particles_to_grid();
     step2_compute_volumes_and_densities();
@@ -359,8 +356,8 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
 
 // First time step only - initial configuration
 void MpmSolver::step2_compute_volumes_and_densities() {
-    double inv_h = 1.0 / grid.spacing;
-    double inv_h3 = inv_h * inv_h * inv_h;
+    const double inv_h = 1.0 / grid.spacing;
+    const double inv_h3 = inv_h * inv_h * inv_h;
 
 #pragma omp parallel for
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
@@ -402,7 +399,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
 // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
 // for more on the equations
 void MpmSolver::step3_compute_grid_forces() {
-    double inv_h = 1.0 / grid.spacing;
+    const double inv_h = 1.0 / grid.spacing;
 
 #pragma omp parallel for
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
@@ -747,7 +744,7 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
                     if (active_id < 0) continue;
 
                     const vec3& w_ip_grad = p_weights_gradient[i][x + y * 4 + z * 4 * 4];
-                    double diag_contrib = particle_stiffness * w_ip_grad.squaredNorm();
+                    const double diag_contrib = particle_stiffness * w_ip_grad.squaredNorm();
 
 #pragma omp atomic
                     P(0, active_id) += diag_contrib;
@@ -760,7 +757,7 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
         }
     }
 
-    double factor = params.beta_integration * simulation_dt * simulation_dt;
+    const double factor = params.beta_integration * simulation_dt * simulation_dt;
     for (size_t i = 0; i < nb_active_nodes; ++i) {
         const auto index = grid.active_nodes[i];
         double const& node_mass = grid.nodes[i].mass;
@@ -819,7 +816,7 @@ void MpmSolver::step7_update_deformation_gradient() {
 }
 
 void MpmSolver::step8_update_particle_velocities() {
-    double inv_h = 1.0 / grid.spacing;
+    const double inv_h = 1.0 / grid.spacing;
 
 #pragma omp parallel for
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {

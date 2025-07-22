@@ -145,6 +145,9 @@ static constexpr MpmSolverParams params {
     .alpha_blend = 0.95,
 };
 
+static constexpr double mu_0 = params.initial_youngs_modulus / (static_cast<double>(2) * (static_cast<double>(1) + params.poisson_ratio));
+static constexpr double lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) / ((1.0 + params.poisson_ratio) * (static_cast<double>(1) - static_cast<double>(2) * params.poisson_ratio));
+
 struct MpmSolver {
     MpmGrid grid;
     std::vector<int> global_to_active_map;
@@ -172,9 +175,6 @@ struct MpmSolver {
     }
 
     void create_particle(vec3 position, vec3 velocity);
-
-    double mu_0;
-    double lambda_0;
 
     void calculate_Ar(mat3n& residuals, const mat3n& Ar, mat3n& df) const;
 
