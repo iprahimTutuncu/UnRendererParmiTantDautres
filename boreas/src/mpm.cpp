@@ -70,9 +70,8 @@ namespace Solver {
     };
     // see
     // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-    void calculate_Ar(MpmSolver const& solver, mat3n& Av_next, const mat3n& v_next, const std::vector<std::vector<solveCR_params>>& data) {
+    void calculate_Ar(MpmSolver const& solver, mat3n& Av_next, const mat3n& v_next, const std::vector<std::vector<solveCR_params>>& data, mat3n& master_df) {
 
-        mat3n master_df(3, v_next.cols());
         master_df.setZero();
 #pragma omp parallel
         {
@@ -227,7 +226,7 @@ namespace Solver {
     static void solveCR(MpmSolver const& solver, mat3n& x, size_t nb_active_nodes) {
 
         std::vector<std::vector<solveCR_params>> w_ip_gradient(solver.p_current_state.p_position.size());
-
+#pragma omp parallel for
         for (size_t i = 0; i < solver.p_current_state.p_position.size(); i++) {
             vec3i base_position = (((solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h).array() - 1.0).cast<int>();
 
@@ -253,10 +252,11 @@ namespace Solver {
         }
 
         mat3n Ap(3, nb_active_nodes);
-        calculate_Ar(solver, Ap, x, w_ip_gradient);
+        mat3n df(3, nb_active_nodes);
+        calculate_Ar(solver, Ap, x, w_ip_gradient, df);
         mat3n r = x - Ap;
 
-        calculate_Ar(solver, Ap, r, w_ip_gradient);
+        calculate_Ar(solver, Ap, r, w_ip_gradient, df);
 
         double rAr_old = r.cwiseProduct(Ap).sum();
         const double b_norm = x.norm();
@@ -280,7 +280,7 @@ namespace Solver {
                 break;
             }
 
-            calculate_Ar(solver, Ar, r, w_ip_gradient);
+            calculate_Ar(solver, Ar, r, w_ip_gradient, df);
             double rAr_new = (r.cwiseProduct(Ar)).sum();
             double beta = rAr_new / rAr_old;
 
@@ -326,7 +326,7 @@ namespace Solver {
             rz_old = rz_new;
         }
     }
-}; // namespace Solver
+} // namespace Solver
 
 static void create_particle_state(MpmParticlesState& state,
     const vec3& position,
