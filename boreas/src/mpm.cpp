@@ -186,31 +186,9 @@ static inline vec3i get_local_pos_from_index(MpmGrid const& grid,
     };
 }
 
-static inline size_t get_node_id_from_local(MpmGrid const& grid, vec3i pos) {
-    return static_cast<size_t>(pos.x()) + static_cast<size_t>(pos.y()) * grid.width + static_cast<size_t>(pos.z()) * grid.width * grid.height;
-}
-
 static inline size_t get_node_id_from_local(MpmGrid const& grid, int x, int y,
     int z) {
     return static_cast<size_t>(x + y * grid.width + z * grid.width * grid.height);
-}
-
-static inline MpmGridNode* get_node_from_local(MpmGrid& grid, int x, int y,
-    int z) {
-    if (x < 0 || x >= grid.width || y < 0 || y >= grid.height || z < 0 || z >= grid.depth) [[unlikely]] {
-        return nullptr;
-    }
-
-    return &grid.nodes[get_node_id_from_local(grid, x, y, z)];
-}
-
-static inline MpmGridNode const* get_node_from_local(MpmGrid const& grid, int x,
-    int y, int z) {
-    if (x < 0 || x >= grid.width || y < 0 || y >= grid.height || z < 0 || z >= grid.depth) [[unlikely]] {
-        return nullptr;
-    }
-
-    return &grid.nodes[get_node_id_from_local(grid, x, y, z)];
 }
 
 static inline vec3 get_node_world_coords(MpmGrid const& grid, int x, int y,
