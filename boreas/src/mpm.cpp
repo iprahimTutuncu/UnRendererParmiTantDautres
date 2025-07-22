@@ -213,11 +213,6 @@ static inline MpmGridNode const* get_node_from_local(MpmGrid const& grid, int x,
     return &grid.nodes[get_node_id_from_local(grid, x, y, z)];
 }
 
-static inline vec3 get_node_world_coords(MpmGrid const& grid, vec3i local_pos) {
-    return vec3(grid.origin.x() + local_pos.x() * grid.spacing,
-        grid.origin.y() + local_pos.y() * grid.spacing,
-        grid.origin.z() + local_pos.z() * grid.spacing);
-}
 static inline vec3 get_node_world_coords(MpmGrid const& grid, int x, int y,
     int z) {
     return vec3(grid.origin.x() + x * grid.spacing,
