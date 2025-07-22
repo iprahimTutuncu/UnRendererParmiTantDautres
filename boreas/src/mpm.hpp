@@ -80,37 +80,37 @@ and Young’s modulus, with the opposite producing muddy snow.
 */
 
 struct MpmSolverParams {
-    unsigned int particles_per_cell;
-    double particle_spacing;
-    double grid_spacing;
-    float grid_origin[3];
-    float grid_size[3];
+    const unsigned int particles_per_cell;
+    const double particle_spacing;
+    const double grid_spacing;
+    const float grid_origin[3];
+    const float grid_size[3];
 
-    double critical_compression; // theta_c
-    double critical_stretch; // theta_s
-    double hardening_coefficient; // xi
-    double initial_density; // rho_0
-    double initial_youngs_modulus; // E_0
-    double poisson_ratio; // nu
-    float gravity[3]; // g
+    const double critical_compression; // theta_c
+    const double critical_stretch; // theta_s
+    const double hardening_coefficient; // xi
+    const double initial_density; // rho_0
+    const double initial_youngs_modulus; // E_0
+    const double poisson_ratio; // nu
+    const float gravity[3]; // g
 
-    double world_floor;
-    float v_co[3]; // collider velocity
-    float n_co[3]; // collider normal
-    double mu_surface; // Coulomb friction coefficient
+    const double world_floor;
+    const float v_co[3]; // collider velocity
+    const float n_co[3]; // collider normal
+    const double mu_surface; // Coulomb friction coefficient
 
-    size_t max_iterations_solver;
-    double tolerance_solver;
+    const size_t max_iterations_solver;
+    const double tolerance_solver;
 
-    int max_iterations_newton;
-    int max_iterations_line_search;
-    double tolerance_newton;
-    double line_search_constant; // armijo constant
-    double line_search_shrink; // alpha shrink
+    const int max_iterations_newton;
+    const int max_iterations_line_search;
+    const double tolerance_newton;
+    const double line_search_constant; // armijo constant
+    const double line_search_shrink; // alpha shrink
 
-    double beta_integration; // 0 for explicit, 1/2 for trapezoidal, 1 for
+    const double beta_integration; // 0 for explicit, 1/2 for trapezoidal, 1 for
                              // backward euler
-    double alpha_blend; // PIC/FLIP blend
+    const double alpha_blend; // PIC/FLIP blend
 };
 
 static constexpr MpmSolverParams params {
