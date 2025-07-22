@@ -68,22 +68,22 @@ namespace Solver {
         }
     }
 
-    static void solveCR(MpmSolver const& solver, mat3n& df, mat3n& x,
-        const mat3n& b, size_t max_iterations, double tolerance) {
+    template <size_t max_iterations, double tolerance>
+    static void solveCR(MpmSolver const& solver, mat3n& x, size_t nb_active_nodes) {
         // const auto A = [&](const mat3n& v) {
         //     mat3n Av(3, v.cols());
         //     solver.calculate_Ar(Av, v, df);
         //     return Av;
         // };
-
-        mat3n Ap(3, x.cols());
+        mat3n df(3, nb_active_nodes);
+        mat3n Ap(3, nb_active_nodes);
         solver.calculate_Ar(Ap, x, df);
-        mat3n r = b - Ap;
+        mat3n r = x - Ap;
 
         solver.calculate_Ar(Ap, r, df);
 
         double rAr_old = r.cwiseProduct(Ap).sum();
-        const double b_norm = b.norm();
+        const double b_norm = x.norm();
         const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
         const double t_sq = tolerance * tolerance;
 
@@ -236,6 +236,7 @@ void MpmSolver::initialize() {
     const size_t nb_particles = p_current_state.p_position.size();
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
+    global_to_active_map.assign(grid.nodes.size(), -1);
 
     reset_nodes(grid);
     step1_rasterize_particles_to_grid();
@@ -345,7 +346,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         }
     }
 
-#pragma omp single
+#pragma omp for nowait
     for (size_t i = 0; i < grid.nodes.size(); ++i) {
         // v_i = sum( v_p * m_p * w_ip / m_i )
         // p = mv -> v = p/m
@@ -501,8 +502,7 @@ void MpmSolver::step5_grid_based_collisions() {
 
 // see
 // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next,
-    mat3n& df) const {
+void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) const {
     df.setZero();
 
     // calculate Ar
@@ -633,7 +633,7 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next,
         }
     }
 
-#pragma omp for
+#pragma omp for nowait
     for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
         Av_next.col(i) = v_next.col(i);
         const auto index = grid.active_nodes[i];
@@ -656,24 +656,24 @@ void MpmSolver::step6_solve_linear_system() {
         return;
     }
 
-    size_t nb_active_nodes = grid.active_nodes.size();
+    const auto& active_nodes = grid.active_nodes;
+
+    const size_t nb_active_nodes = active_nodes.size();
     mat3n b(3, nb_active_nodes);
-    global_to_active_map.assign(grid.nodes.size(), -1);
+
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto index = grid.active_nodes[i];
+        const auto index = active_nodes[i];
         global_to_active_map[index] = i;
         b.col(i) = grid.nodes[index].velocity_star;
     }
 
-    mat3n df(3, nb_active_nodes);
+    Solver::solveCR<params.max_iterations_solver, params.tolerance_solver>(*this, b, nb_active_nodes);
 
-    mat3n x = b;
-    Solver::solveCR(*this, df, x, b, params.max_iterations_solver,
-        params.tolerance_solver);
-
+#pragma omp for nowait
     for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto& index = grid.active_nodes[i];
-        grid.nodes[index].velocity_star = x.col(i);
+        const auto& index = active_nodes[i];
+        grid.nodes[index].velocity_star = b.col(i);
+        global_to_active_map[index] = -1;
     }
 }
 
