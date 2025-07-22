@@ -2,24 +2,13 @@
 #include "../libs/eigen.hpp"
 #include "../libs/sdl.hpp"
 #include <iostream>
-#include <thread>
 #include <random>
+#include <thread>
 
 const char* title = "Boreas";
 
 const int width = 640;
 const int height = 480;
-
-// Explicit:            dt ~= 10e-5
-// Semi-implicit:       dt ~= 0.5e-3
-const double simulation_dt = 0.5e-3;
-
-const double DEFAULT_COMPRESSION = 2.5e-2;
-const double DEFAULT_STRETCH = 7.5e-3;
-const double DEFAULT_HARDENING = 10.0;
-const double DEFAULT_DENSITY = 4.0e2;
-const double DEFAULT_YOUNGS_MODULUS = 1.4e5;
-const double DEFAULT_POISSON_RATIO = 0.2;
 
 Application::Application()
     : m_action_man {}
@@ -29,36 +18,6 @@ Application::Application()
 
 void Application::init() {
     init_keymap();
-
-    m_mpm_solver.params.particles_per_cell = 32;
-    m_mpm_solver.params.grid_spacing = 0.080;
-    m_mpm_solver.params.grid_origin = vec3(-2.5, 0.0, -2.5);
-    m_mpm_solver.params.grid_size = vec3(5.0, 3.0, 5.0);
-
-    m_mpm_solver.params.critical_compression = DEFAULT_COMPRESSION;
-    m_mpm_solver.params.critical_stretch = DEFAULT_STRETCH;
-    m_mpm_solver.params.hardening_coefficient = DEFAULT_HARDENING * 1.0;
-    m_mpm_solver.params.initial_density = DEFAULT_DENSITY;
-    m_mpm_solver.params.initial_youngs_modulus = DEFAULT_YOUNGS_MODULUS * 1.0;
-    m_mpm_solver.params.poisson_ratio = DEFAULT_POISSON_RATIO * 1.0;
-    m_mpm_solver.params.gravity = vec3(0.0, -20.0, 0.0);
-
-    m_mpm_solver.params.world_floor = 0.0;
-    m_mpm_solver.params.v_co = vec3::Zero();
-    m_mpm_solver.params.n_co = vec3(0.0, 1.0, 0.0);
-    m_mpm_solver.params.mu_surface = 0.5;
-
-    m_mpm_solver.params.max_iterations_solver = 20;
-    m_mpm_solver.params.tolerance_solver = 1E-5;
-
-    m_mpm_solver.params.max_iterations_newton = 20;
-    m_mpm_solver.params.max_iterations_line_search = 8;
-    m_mpm_solver.params.tolerance_newton = 1E-4;
-    m_mpm_solver.params.line_search_constant = 1E-4; // armijo constant
-    m_mpm_solver.params.line_search_shrink = 0.5; // alpha shrink
-
-    m_mpm_solver.params.beta_integration = 1.0;
-    m_mpm_solver.params.alpha_blend = 0.95;
 
     init_scene();
     m_mpm_solver.initialize();
@@ -188,7 +147,7 @@ void Application::iterate_particles() {
     while (m_main_window.is_active()) {
         auto start_time = clock::now();
 
-        m_mpm_solver.iterate(simulation_dt);
+        m_mpm_solver.iterate();
         auto end_time = clock::now();
         this->iteration_count++;
 
