@@ -68,11 +68,17 @@ namespace Solver {
         }
     }
 
-    template <class Vec, class CalculateA>
-    static void solveCR(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
-        Vec r = b - A(x);
-        Vec p = r;
-        Vec Ap = A(p);
+    static void solveCR(MpmSolver const& solver, mat3n& df, mat3n& x, const mat3n& b, int max_iterations, double tolerance) {
+
+        const auto A = [&](const mat3n& v) {
+            mat3n Av(3, v.cols());
+            solver.calculate_Ar(Av, v, df);
+            return Av;
+        };
+
+        mat3n r = b - A(x);
+        mat3n p = r;
+        mat3n Ap = A(p);
 
         double rAr_old = r.cwiseProduct(Ap).sum();
         const double b_norm = b.norm();
@@ -93,7 +99,7 @@ namespace Solver {
                 break;
             }
 
-            Vec Ar = A(r);
+            mat3n Ar = A(r);
             double rAr_new = (r.cwiseProduct(Ar)).sum();
             double beta = rAr_new / rAr_old;
 
@@ -390,13 +396,13 @@ void MpmSolver::step3_compute_grid_forces() {
 
         const mat3 R = fast_polar_decompose_R<mat3, 2>(Fe);
 
-        double Jp = Fp.determinant();
-        double mu = mu_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
-        double lambda = lambda_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
+        const double Jp = Fp.determinant();
+        const double mu = mu_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
+        const double lambda = lambda_0 * std::exp(params.hardening_coefficient * (1.0 - Jp));
 
         const mat3 Fe_invT = Fe.inverse().transpose();
 
-        double Je = Fe.determinant();
+        const double Je = Fe.determinant();
         mat3 dPsi = 2.0 * mu * (Fe - R) + lambda * (Je - 1.0) * Je * Fe_invT;
         mat3 stress_force = p_current_state.p_volume_0[i] * (dPsi * Fe.transpose());
 
@@ -634,14 +640,9 @@ void MpmSolver::step6_solve_linear_system() {
     }
 
     mat3n df(3, nb_active_nodes);
-    auto A = [&](const mat3n& v) {
-        mat3n Av(3, v.cols());
-        calculate_Ar(Av, v, df);
-        return Av;
-    };
 
     mat3n x = b;
-    Solver::solveCR(A, x, b, params.max_iterations_solver, params.tolerance_solver);
+    Solver::solveCR(*this, df, x, b, params.max_iterations_solver, params.tolerance_solver);
 
     for (size_t i = 0; i < nb_active_nodes; ++i) {
         const auto& index = grid.active_nodes[i];

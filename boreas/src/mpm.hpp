@@ -98,8 +98,7 @@ struct MpmSolverParams {
     double alpha_blend; // PIC/FLIP blend
 };
 
-class MpmSolver {
-public:
+struct MpmSolver {
     MpmGrid grid;
     MpmSolverParams params;
     std::vector<int> global_to_active_map;
@@ -129,7 +128,6 @@ public:
 
     void create_particle(vec3 position, vec3 velocity);
 
-private:
     double dt;
     double mu_0;
     double lambda_0;
