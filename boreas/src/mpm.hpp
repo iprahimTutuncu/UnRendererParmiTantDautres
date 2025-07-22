@@ -12,6 +12,8 @@ using mat3 = Eigen::Matrix3d;
 #include <mutex>
 #include <vector>
 
+#define STEP6_PRECONDITIONED 0
+
 const double EPSILON = 1E-12;
 
 // Explicit:            dt ~= 10e-5
@@ -176,15 +178,17 @@ struct MpmSolver {
 
     void calculate_Ar(mat3n& residuals, const mat3n& Ar, mat3n& df) const;
 
-    void compute_preconditioner(mat3n& M_inv) const;
-
     void step1_rasterize_particles_to_grid();
     void step2_compute_volumes_and_densities();
     void step3_compute_grid_forces();
     void step4_update_grid_velocities();
     void step5_grid_based_collisions();
+#if not STEP6_PRECONDITIONED
     void step6_solve_linear_system();
+    void compute_preconditioner(mat3n& M_inv) const;
+#else
     void step6_solve_linear_system_preconditioned();
+#endif
     void step7_update_deformation_gradient();
     void step8_update_particle_velocities();
     void step9_particle_based_collisions();

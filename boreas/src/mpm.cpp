@@ -621,7 +621,6 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next,
                     if (active_id < 0) continue;
 
                     const auto& w_ip_grad = p_weights_gradient[i][x + y * 4 + z * 4 * 4];
-
                     vec3 Ap_w = Ap * w_ip_grad;
 #pragma omp atomic
                     df.col(active_id).x() -= Ap_w.x();
@@ -677,6 +676,8 @@ void MpmSolver::step6_solve_linear_system() {
         grid.nodes[index].velocity_star = x.col(i);
     }
 }
+
+#if STEP6_PRECONDITIONED
 
 void MpmSolver::step6_solve_linear_system_preconditioned() {
     if (params.beta_integration == 0.0 || grid.active_nodes.empty())
@@ -770,6 +771,8 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
         }
     }
 }
+
+#endif // STEP6_PRECONDITIONED
 
 void MpmSolver::step7_update_deformation_gradient() {
     const double inv_h = 1.0 / grid.spacing;
