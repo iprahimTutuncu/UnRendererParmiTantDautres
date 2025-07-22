@@ -461,7 +461,8 @@ void MpmSolver::step4_update_grid_velocities() {
         const auto index = grid.active_nodes[i];
         MpmGridNode& node = grid.nodes[index];
 
-        if (node.mass > EPSILON) [[likely]] {
+        // Directly comparing against 0 will not produce any unstable behaviour or overflow
+        if (node.mass > 0.f) [[likely]] {
             node.velocity_star = node.velocity + simulation_dt * (node.force + (node.mass * vec3(params.gravity[0], params.gravity[1], params.gravity[2]))) / node.mass;
         }
     }
