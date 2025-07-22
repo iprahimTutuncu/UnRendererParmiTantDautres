@@ -43,6 +43,16 @@ struct MpmParticlesState {
     std::vector<mat3> p_deform_elastic; // F_E
     std::vector<mat3> p_deform_plastic; // F_P
     std::vector<mat3> p_deform_affine; // B
+
+    void ensure_capacity(size_t new_size) {
+        p_position.reserve(new_size);
+        p_velocity.reserve(new_size);
+        p_mass.reserve(new_size);
+        p_volume_0.reserve(new_size);
+        p_deform_elastic.reserve(new_size);
+        p_deform_plastic.reserve(new_size);
+        p_deform_affine.reserve(new_size);
+    }
 };
 
 struct MpmGrid {
@@ -150,7 +160,7 @@ static constexpr double lambda_0 = (params.initial_youngs_modulus * params.poiss
 
 struct MpmSolver {
     MpmGrid grid = MpmGrid(vec3(params.grid_origin[0], params.grid_origin[1],
-        params.grid_origin[2]),
+                               params.grid_origin[2]),
         params.grid_size[0], params.grid_size[1],
         params.grid_size[2], params.grid_spacing);
     std::vector<int> global_to_active_map;
@@ -179,8 +189,6 @@ struct MpmSolver {
 
     void create_particle(vec3 position, vec3 velocity);
 
-    void calculate_Ar(mat3n& residuals, const mat3n& Ar, mat3n& df) const;
-
     void step1_rasterize_particles_to_grid();
     void step2_compute_volumes_and_densities();
     void step3_compute_grid_forces();
@@ -188,9 +196,9 @@ struct MpmSolver {
     void step5_grid_based_collisions();
 #if not STEP6_PRECONDITIONED
     void step6_solve_linear_system();
-    void compute_preconditioner(mat3n& M_inv) const;
 #else
     void step6_solve_linear_system_preconditioned();
+    void compute_preconditioner(mat3n& M_inv) const;
 #endif
     void step7_update_deformation_gradient();
     void step8_update_particle_velocities();

@@ -43,6 +43,8 @@ void Application::init_scene() {
     std::mt19937 generator(rd());
     std::uniform_real_distribution<double> dist6(-radius, radius);
 
+    m_mpm_solver.p_current_state.ensure_capacity(nb_particles);
+
     generator.seed(seed);
     size_t particle_created = 0;
     do {

@@ -197,45 +197,29 @@ Iteration delay: 10.8722 ms, Average: 10.7684 ms
 Iteration delay: 10.8908 ms, Average: 10.7495 ms
 Iteration delay: 10.9158 ms, Average: 10.7283 ms
 
-## wihout openmp
-grid.reset_nodes: 368 us
-step1_rasterize_particles_to_grid: 3772 us
-step3_compute_grid_forces: 325 us
-step4_update_grid_velocities: 39 us
-step5_grid_based_collisions: 14 us
-step6_solve_linear_system: 3339 us
-step7_update_deformation_gradient: 1564 us
-step8_update_particle_velocities: 1638 us
-step9_particle_based_collisions: 1 us
-step10_update_particle_positions: 12 us
-Iteration delay: 11.0814 ms, Average: 10.8454 ms (count: 513)
-
 ## with openmp
 
-grid.reset_nodes: 321 us
-step1_rasterize_particles_to_grid: 662 us
-step3_compute_grid_forces: 204 us
-step4_update_grid_velocities: 13 us
-step5_grid_based_collisions: 13 us
-step6_solve_linear_system: 690 us
-step7_update_deformation_gradient: 129 us
-step8_update_particle_velocities: 67 us
-step9_particle_based_collisions: 13 us
-step10_update_particle_positions: 13 us
-Iteration delay: 2.13844 ms, Average: 2.17539 ms (count: 513)
+Iteration delay: 3.13608 ms, Average: 3.55187 ms
+Iteration delay: 3.12304 ms, Average: 3.55102 ms
+Iteration delay: 3.59357 ms, Average: 3.5511 ms
+Iteration delay: 3.4213 ms, Average: 3.55084 ms
+Iteration delay: 3.36184 ms, Average: 3.55047 ms
+Iteration delay: 3.0133 ms, Average: 3.54942 ms
+Iteration delay: 3.30971 ms, Average: 3.54895 ms
+Iteration delay: 3.31892 ms, Average: 3.5485 ms
+Iteration delay: 3.22997 ms, Average: 3.53582 ms
+Iteration delay: 3.02522 ms, Average: 3.52547 ms
 
-## parallelize reset nodes, and other minor optimizations
+## Slightly better use of openmp
 
-grid.reset_nodes: 72 us
-step1_rasterize_particles_to_grid: 852 us
-step3_compute_grid_forces: 206 us
-step4_update_grid_velocities: 18 us
-step5_grid_based_collisions: 16 us
-step6_solve_linear_system: 708 us
-step7_update_deformation_gradient: 161 us
-step8_update_particle_velocities: 99 us
-step9_particle_based_collisions: 20 us
-step10_update_particle_positions: 27 us
-Iteration delay: 2.19985 ms, Average: 1.92458 ms (count: 513)
-
+Iteration delay: 2.75509 ms, Average: 3.26363 ms (count: 504)
+Iteration delay: 2.72212 ms, Average: 3.26255 ms (count: 505)
+Iteration delay: 3.63953 ms, Average: 3.2633 ms (count: 506)
+Iteration delay: 2.91627 ms, Average: 3.26261 ms (count: 507)
+Iteration delay: 3.48165 ms, Average: 3.26304 ms (count: 508)
+Iteration delay: 3.00815 ms, Average: 3.26254 ms (count: 509)
+Iteration delay: 2.9812 ms, Average: 3.26199 ms (count: 510)
+Iteration delay: 2.99216 ms, Average: 3.26146 ms (count: 511)
+Iteration delay: 2.77213 ms, Average: 3.24683 ms (count: 512)
+Iteration delay: 2.83802 ms, Average: 3.23786 ms (count: 513)
 
