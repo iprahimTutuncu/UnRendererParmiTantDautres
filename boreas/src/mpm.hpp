@@ -46,7 +46,8 @@ struct MpmParticlesState {
 };
 
 struct MpmGrid {
-    double spacing; // h
+    const double spacing; // h
+    const double one_over_h; // 1 / h
     int width;
     int height;
     int depth;
@@ -54,12 +55,11 @@ struct MpmGrid {
     std::vector<MpmGridNode> nodes;
     std::vector<std::uint32_t> active_nodes;
 
-    MpmGrid() = default;
-
     MpmGrid(vec3 origin, double size_x, double size_y, double size_z,
         double spacing)
         : origin { origin }
         , spacing { spacing }
+        , one_over_h { 1.0 / spacing }
         , width { static_cast<int>(std::ceil(size_x / spacing)) + 1 }
         , height { static_cast<int>(std::ceil(size_y / spacing)) + 1 }
         , depth { static_cast<int>(std::ceil(size_z / spacing)) + 1 } {
@@ -109,7 +109,7 @@ struct MpmSolverParams {
     const double line_search_shrink; // alpha shrink
 
     const double beta_integration; // 0 for explicit, 1/2 for trapezoidal, 1 for
-                             // backward euler
+                                   // backward euler
     const double alpha_blend; // PIC/FLIP blend
 };
 
@@ -149,7 +149,10 @@ static constexpr double mu_0 = params.initial_youngs_modulus / (static_cast<doub
 static constexpr double lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) / ((1.0 + params.poisson_ratio) * (static_cast<double>(1) - static_cast<double>(2) * params.poisson_ratio));
 
 struct MpmSolver {
-    MpmGrid grid;
+    MpmGrid grid = MpmGrid(vec3(params.grid_origin[0], params.grid_origin[1],
+        params.grid_origin[2]),
+        params.grid_size[0], params.grid_size[1],
+        params.grid_size[2], params.grid_spacing);
     std::vector<int> global_to_active_map;
 
     // Particles
