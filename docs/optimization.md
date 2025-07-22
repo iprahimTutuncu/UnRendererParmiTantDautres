@@ -196,3 +196,46 @@ Iteration delay: 10.953 ms, Average: 10.7682 ms
 Iteration delay: 10.8722 ms, Average: 10.7684 ms
 Iteration delay: 10.8908 ms, Average: 10.7495 ms
 Iteration delay: 10.9158 ms, Average: 10.7283 ms
+
+## wihout openmp
+grid.reset_nodes: 368 us
+step1_rasterize_particles_to_grid: 3772 us
+step3_compute_grid_forces: 325 us
+step4_update_grid_velocities: 39 us
+step5_grid_based_collisions: 14 us
+step6_solve_linear_system: 3339 us
+step7_update_deformation_gradient: 1564 us
+step8_update_particle_velocities: 1638 us
+step9_particle_based_collisions: 1 us
+step10_update_particle_positions: 12 us
+Iteration delay: 11.0814 ms, Average: 10.8454 ms (count: 513)
+
+## with openmp
+
+grid.reset_nodes: 321 us
+step1_rasterize_particles_to_grid: 662 us
+step3_compute_grid_forces: 204 us
+step4_update_grid_velocities: 13 us
+step5_grid_based_collisions: 13 us
+step6_solve_linear_system: 690 us
+step7_update_deformation_gradient: 129 us
+step8_update_particle_velocities: 67 us
+step9_particle_based_collisions: 13 us
+step10_update_particle_positions: 13 us
+Iteration delay: 2.13844 ms, Average: 2.17539 ms (count: 513)
+
+## parallelize reset nodes, and other minor optimizations
+
+grid.reset_nodes: 72 us
+step1_rasterize_particles_to_grid: 852 us
+step3_compute_grid_forces: 206 us
+step4_update_grid_velocities: 18 us
+step5_grid_based_collisions: 16 us
+step6_solve_linear_system: 708 us
+step7_update_deformation_gradient: 161 us
+step8_update_particle_velocities: 99 us
+step9_particle_based_collisions: 20 us
+step10_update_particle_positions: 27 us
+Iteration delay: 2.19985 ms, Average: 1.92458 ms (count: 513)
+
+
