@@ -88,7 +88,7 @@ namespace Solver {
         const double t_sq = tolerance * tolerance;
 
         mat3n p = r;
-        mat3n Ar;
+        mat3n Ar(3, nb_active_nodes);
 
         for (size_t k = 0; k < max_iterations; ++k) {
             if (r.squaredNorm() / b_sn < t_sq) [[unlikely]] {
@@ -603,7 +603,7 @@ void MpmSolver::calculate_Ar(mat3n& Av_next, const mat3n& v_next, mat3n& df) con
     for (size_t i = 0; i < grid.active_nodes.size(); ++i) {
         Av_next.col(i) = v_next.col(i);
         const auto index = grid.active_nodes[i];
-        const double& node_mass = grid.nodes[i].mass;
+        const double& node_mass = grid.nodes[index].mass;
         if (node_mass > EPSILON) [[likely]] {
             vec3 df_res = params.beta_integration * simulation_dt * df.col(i) / node_mass;
 #pragma omp atomic
@@ -818,8 +818,7 @@ void MpmSolver::step8_update_particle_velocities() {
             }
         }
 
-        v_flip += p_current_state.p_velocity[i];
-        p_current_state.p_velocity[i] = (1.0 - params.alpha_blend) * v_pic + params.alpha_blend * v_flip;
+        p_current_state.p_velocity[i] = (1.0 - params.alpha_blend) * v_pic + params.alpha_blend * (v_flip + p_current_state.p_velocity[i]);
     }
 }
 
