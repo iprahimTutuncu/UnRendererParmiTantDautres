@@ -343,15 +343,8 @@ static void create_particle_state(MpmParticlesState& state,
 }
 
 static inline void reset_nodes(MpmGrid& grid) {
+    memset(static_cast<void*>(grid.nodes.data()), 0, grid.nodes.size() * sizeof(MpmGridNode));
     grid.active_nodes.clear();
-#pragma omp parallel for
-    for (size_t i = 0; i < grid.nodes.size(); ++i) {
-        grid.nodes[i].mass = 0.0;
-        grid.nodes[i].velocity_star.setZero();
-        grid.nodes[i].velocity.setZero();
-        grid.nodes[i].momentum.setZero();
-        grid.nodes[i].force.setZero();
-    }
 }
 
 void MpmSolver::initialize() {
