@@ -73,6 +73,7 @@ namespace Solver {
         float Fe_det;
         float mu_2x;
         float lambda;
+        float volume;
         mat3 Fe_inverse;
         mat3 R;
         mat3 U;
@@ -150,7 +151,7 @@ namespace Solver {
                       -xyz_x,      0, xyz_z,
                       -xyz_y, -xyz_z,     0;
                 // clang-format on
-                mat3 Ap = solver.p_current_state.p_volume_0[i] * (mu * (dFEp - param.R * RTdR) + lambda * JFinvT * JFinvT_dF + lambda * (Je - static_cast<float>(1)) * dJFinvT) * Fe.transpose();
+                mat3 Ap = param.volume * (mu * (dFEp - param.R * RTdR) + lambda * JFinvT * JFinvT_dF + lambda * (Je - static_cast<float>(1)) * dJFinvT) * Fe.transpose();
 
                 // 3.25 - df
                 for (const auto& d : param.gradient) {
@@ -218,6 +219,7 @@ namespace Solver {
 #pragma omp parallel for
         for (size_t i = 0; i < nb_particles; i++) {
             auto& param = w_ip_gradient[i];
+            param.volume = solver.p_current_state.p_volume_0[i];
 
             {
                 Eigen::JacobiSVD<mat3> svd { solver.p_current_state.p_deform_elastic[i],
