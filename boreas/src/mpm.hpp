@@ -6,10 +6,11 @@
 using vec3i = Eigen::Vector3i;
 
 using mat3n = Eigen::Matrix<float, 3, Eigen::Dynamic, Eigen::ColMajor>;
-using vec3 = Eigen::Vector3f;
+using vec3 = Eigen::aligned_allocator<Eigen::Vector3f>::value_type;
 using mat3 = Eigen::Matrix3f;
 
 #include <mutex>
+#include <new>
 #include <vector>
 
 #define STEP6_PRECONDITIONED 0
@@ -27,12 +28,12 @@ static inline constexpr float DEFAULT_DENSITY = 4.0e2f;
 static inline constexpr float DEFAULT_YOUNGS_MODULUS = 1.4e5f;
 static inline constexpr float DEFAULT_POISSON_RATIO = 0.2f;
 
-struct MpmGridNode {
+struct alignas(std::hardware_destructive_interference_size) MpmGridNode {
     float mass { 0.0f }; // m
-    vec3 velocity_star = vec3::Zero(); // v
-    vec3 velocity = vec3::Zero(); // v*
     vec3 momentum = vec3::Zero(); // v*
-    vec3 force = vec3::Zero(); // F (stress)
+    alignas(16) vec3 velocity_star = vec3::Zero(); // v
+    alignas(16) vec3 velocity = vec3::Zero(); // v*
+    alignas(16) vec3 force = vec3::Zero(); // F (stress)
 };
 
 struct MpmParticlesState {
@@ -119,7 +120,7 @@ struct MpmSolverParams {
     const float line_search_shrink; // alpha shrink
 
     const float beta_integration; // 0 for explicit, 1/2 for trapezoidal, 1 for
-                                   // backward euler
+                                  // backward euler
     const float alpha_blend; // PIC/FLIP blend
 };
 
