@@ -228,7 +228,8 @@ namespace Solver {
         std::vector<std::vector<solveCR_params>> w_ip_gradient(solver.p_current_state.p_position.size());
 #pragma omp parallel for
         for (size_t i = 0; i < solver.p_current_state.p_position.size(); i++) {
-            vec3i base_position = (((solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h).array() - static_cast<float>(1)).cast<int>();
+            vec3 p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
+            vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
             auto& ref = w_ip_gradient[i];
             ref.reserve(64); // reserve space for 4x4x4 nodes
@@ -420,7 +421,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
 
         // find the closest bottom-left node to the current cell
         vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * grid.one_over_h;
-        vec3i base_position = (p_position_rel.array() - static_cast<float>(1)).cast<int>();
+        vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
         // look at the neighbor 4x4 grid
         for (int z = 0; z < 4; ++z) {
@@ -527,7 +528,7 @@ void MpmSolver::step2_compute_volumes_and_densities() {
 #pragma omp parallel for
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
         vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * grid.one_over_h;
-        vec3i base_position = (p_position_rel.array() - static_cast<float>(1)).cast<int>();
+        vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
         float rho_p = static_cast<float>(0.0);
 
@@ -555,8 +556,6 @@ void MpmSolver::step2_compute_volumes_and_densities() {
     }
 }
 
-
-
 void MpmSolver::step6_solve_linear_system() {
     if (params.beta_integration == static_cast<float>(0.0) || grid.active_nodes.empty()) [[unlikely]] {
         return;
@@ -575,7 +574,7 @@ void MpmSolver::step6_solve_linear_system() {
     Solver::solveCR<params.max_iterations_solver, params.tolerance_solver>(*this, b, nb_active_nodes);
 
 #pragma omp parallel
-#pragma omp for nowait
+#pragma omp for schedule(static) nowait
     for (size_t i = 0; i < grid.nodes.size(); ++i) {
         global_to_active_map[i] = -1; // reset the map
     }
@@ -637,7 +636,7 @@ void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
 #pragma omp parallel for
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
         vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * grid.one_over_h;
-        vec3i base_position = (p_position_rel.array() - static_cast<float>(1.0)).cast<int>();
+        vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
         const float particle_stiffness = p_current_state.p_volume_0[i] * (static_cast<float>(2.0) * mu_0 + lambda_0) * std::exp(params.hardening_coefficient * (static_cast<float>(1.0) - p_current_state.p_deform_plastic[i].determinant()));
 
@@ -687,7 +686,7 @@ void MpmSolver::step7_update_deformation_gradient() {
 #pragma omp parallel for
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
         vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * grid.one_over_h;
-        vec3i base_position = (p_position_rel.array() - static_cast<float>(1.0)).cast<int>();
+        vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
         // 3.23 - velolity gradient
         mat3 velocities_grad = mat3::Zero();
@@ -730,7 +729,7 @@ void MpmSolver::step8_update_particle_velocities() {
 #pragma omp parallel for
     for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
         vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * grid.one_over_h;
-        vec3i base_position = (p_position_rel.array() - static_cast<float>(1.0)).cast<int>();
+        vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
         vec3 v_pic = vec3::Zero();
         vec3 v_flip = vec3::Zero();
