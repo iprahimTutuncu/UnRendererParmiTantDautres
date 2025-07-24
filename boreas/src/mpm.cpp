@@ -224,6 +224,7 @@ namespace Solver {
             {
                 Eigen::JacobiSVD<mat3> svd { solver.p_current_state.p_deform_elastic[i],
                     Eigen::ComputeFullU | Eigen::ComputeFullV };
+
                 mat3 tmp;
 
                 mat3 const& U = svd.matrixU();
@@ -256,12 +257,16 @@ namespace Solver {
 #define c12 (a01 * a02 - a00 * a12)
 #define c22 (a00 * a11 - a01 * a01)
 
-                // clang-format off
-                param.A_inverse << c00*det, c01*det, c02*det,
-                                  c01*det, c11*det, c12*det,
-                                  c02*det, c12*det, c22*det;
-
-                // clang-format on
+                float* p = param.A_inverse.data();
+                p[0] = c00 * det;
+                p[1] = c01 * det;
+                p[2] = c02 * det;
+                p[3] = c01 * det;
+                p[4] = c11 * det;
+                p[5] = c12 * det;
+                p[6] = c02 * det;
+                p[7] = c12 * det;
+                p[8] = c22 * det;
 
 #undef a00
 #undef a11
@@ -321,13 +326,13 @@ namespace Solver {
 
         float rAr_old = r.cwiseProduct(Ap).sum();
         const float b_norm = x.norm();
-        const float b_sn = b_norm < EPSILON ? static_cast<float>(1) : b_norm * b_norm;
-        const float t_sq = tolerance * tolerance;
+        const float b_sn = b_norm < EPSILON ? static_cast<float>(1) : 1/(b_norm * b_norm);
+        constexpr float t_sq = tolerance * tolerance;
 
         mat3n Ar;
 
         for (size_t k = 0; k < max_iterations; ++k) {
-            if (r.squaredNorm() / b_sn < t_sq) [[unlikely]] {
+            if (r.squaredNorm() * b_sn < t_sq) [[unlikely]] {
                 break;
             }
 
