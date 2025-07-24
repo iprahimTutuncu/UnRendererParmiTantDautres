@@ -70,9 +70,9 @@ namespace Solver {
     };
     // see
     // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-    void calculate_Ar(MpmSolver const& solver, mat3n& Av_next, const mat3n& v_next, const std::vector<std::vector<solveCR_params>>& data, mat3n& master_df) {
+    void calculate_Ar(MpmSolver const& solver, mat3n& Av_next, const mat3n& v_next, const std::vector<std::vector<solveCR_params>>& data) {
+        const size_t actives_nodes_size = solver.grid.active_nodes.size();
 
-        master_df.setZero();
 #pragma omp parallel
         {
             mat3n df(3, v_next.cols());
@@ -159,21 +159,13 @@ namespace Solver {
 
                 // 3.25 - df
                 for (const auto& d : data[i]) {
-                    vec3 Ap_w = Ap * d.wip_grad;
-                    df.col(d.active_id).x() -= Ap_w.x();
-                    df.col(d.active_id).y() -= Ap_w.y();
-                    df.col(d.active_id).z() -= Ap_w.z();
+                    df.col(d.active_id) -= Ap * d.wip_grad;
                 }
             }
 
-#pragma omp critical
-            {
-                master_df += df;
-            }
+            for (size_t i = 0; i < actives_nodes_size; ++i) {
+                if (df == vec3::Zero()) continue;
 
-#pragma omp for
-            for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
-                Av_next.col(i) = v_next.col(i);
                 const auto index = solver.grid.active_nodes[i];
                 const float& node_mass = solver.grid.nodes[index].mass;
                 if (node_mass > EPSILON) [[likely]] {
@@ -252,19 +244,18 @@ namespace Solver {
             }
         }
 
-        mat3n Ap(3, nb_active_nodes);
-        mat3n df(3, nb_active_nodes);
-        calculate_Ar(solver, Ap, x, w_ip_gradient, df);
+        mat3n Ap = x;
+        calculate_Ar(solver, Ap, x, w_ip_gradient);
         mat3n r = x - Ap;
+        mat3n p = Ap = r;
 
-        calculate_Ar(solver, Ap, r, w_ip_gradient, df);
+        calculate_Ar(solver, Ap, r, w_ip_gradient);
 
         float rAr_old = r.cwiseProduct(Ap).sum();
         const float b_norm = x.norm();
         const float b_sn = b_norm < EPSILON ? static_cast<float>(1) : b_norm * b_norm;
         const float t_sq = tolerance * tolerance;
 
-        mat3n p = r;
         mat3n Ar(3, nb_active_nodes);
 
         for (size_t k = 0; k < max_iterations; ++k) {
@@ -280,8 +271,9 @@ namespace Solver {
             if (r.squaredNorm() / b_sn < t_sq) [[unlikely]] {
                 break;
             }
+            Ar = r;
 
-            calculate_Ar(solver, Ar, r, w_ip_gradient, df);
+            calculate_Ar(solver, Ar, r, w_ip_gradient);
             float rAr_new = (r.cwiseProduct(Ar)).sum();
             float beta = rAr_new / rAr_old;
 
