@@ -78,7 +78,7 @@ namespace Solver {
             mat3n df(3, v_next.cols());
             df.setZero();
 
-#pragma omp for
+#pragma omp for nowait
             for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
                 // 3.23 - velocity gradient
                 mat3 velocities_grad = mat3::Zero();
@@ -171,13 +171,14 @@ namespace Solver {
                 master_df += df;
             }
 
+#pragma omp barrier
 #pragma omp for
             for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
                 Av_next.col(i) = v_next.col(i);
                 const auto index = solver.grid.active_nodes[i];
                 const double& node_mass = solver.grid.nodes[index].mass;
                 if (node_mass > EPSILON) [[likely]] {
-                    vec3 df_res = params.beta_integration * simulation_dt * df.col(i) / node_mass;
+                    vec3 df_res = params.beta_integration * simulation_dt * master_df.col(i) / node_mass;
 #pragma omp atomic
                     Av_next.col(i).x() -= df_res.x();
 #pragma omp atomic
