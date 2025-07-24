@@ -449,11 +449,11 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
 #pragma omp atomic
                     node.mass += m_i;
 #pragma omp atomic
-                    node.momentum.x() += momentum.x();
+                    node.velocity.x() += momentum.x();
 #pragma omp atomic
-                    node.momentum.y() += momentum.y();
+                    node.velocity.y() += momentum.y();
 #pragma omp atomic
-                    node.momentum.z() += momentum.z();
+                    node.velocity.z() += momentum.z();
                 }
             }
         }
@@ -464,7 +464,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         // p = mv -> v = p/m
         MpmGridNode& node = grid.nodes[i];
         if (node.mass > EPSILON) [[unlikely]] {
-            node.velocity = node.momentum / node.mass;
+            node.velocity = node.velocity / node.mass;
             grid.active_nodes.push_back(i);
         }
     }
