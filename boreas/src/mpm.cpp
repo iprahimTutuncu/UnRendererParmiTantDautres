@@ -404,8 +404,11 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
                 for (int x = 0; x < 4; ++x) {
-                    if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]]
-                        continue;
+                    auto weight_id = x + y * 4 + z * 4 * 4;
+                    if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]] {
+                        p_weights[i][weight_id] = 0.0f;
+                        p_weights_gradient[i][weight_id] = vec3::Zero();
+                    }
 
                     // calculate particle offset
                     size_t node_index = get_node_id_from_local(
@@ -427,7 +430,6 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
                     double dNi_y = d_N(p_off.y());
                     double dNi_z = d_N(p_off.z());
 
-                    auto weight_id = x + y * 4 + z * 4 * 4;
                     double w_ip = p_weights[i][weight_id] = Ni_x * Ni_y * Ni_z;
                     p_weights_gradient[i][weight_id] = grid.one_over_h * vec3(dNi_x * Ni_y * Ni_z, Ni_x * dNi_y * Ni_z, Ni_x * Ni_y * dNi_z);
 
