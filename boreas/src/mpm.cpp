@@ -68,9 +68,22 @@ namespace Solver {
         int active_id;
         vec3 wip_grad;
     };
+    struct calculate_ar_params {
+        float svd_det_invt;
+        float Fe_det;
+        float mu_2x;
+        float lambda;
+        mat3 Fe_inverse;
+        mat3 R;
+        mat3 U;
+        mat3 V;
+        mat3 A_inverse;
+        std::array<solveCR_params, 64> gradient;
+    };
+
     // see
     // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-    void calculate_Ar(MpmSolver const& solver, mat3n& Av_next, const mat3n& v_next, const std::vector<std::vector<solveCR_params>>& data) {
+    void calculate_Ar(MpmSolver const& solver, mat3n& Av_next, const mat3n& v_next, const std::vector<calculate_ar_params>& _params) {
         const size_t actives_nodes_size = solver.grid.active_nodes.size();
 
 #pragma omp parallel
@@ -80,9 +93,12 @@ namespace Solver {
 
 #pragma omp for
             for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+
+                const auto& param = _params[i];
+
                 // 3.23 - velocity gradient
                 mat3 velocities_grad = mat3::Zero();
-                for (const auto& d : data[i]) {
+                for (const auto& d : param.gradient) {
                     velocities_grad += v_next.col(d.active_id) * d.wip_grad.transpose();
                 }
 
@@ -90,54 +106,29 @@ namespace Solver {
                 mat3 dFEp = simulation_dt * velocities_grad * solver.p_current_state.p_deform_elastic[i];
 
                 // 3.30 - RTdR
-                Eigen::JacobiSVD<mat3> svd { solver.p_current_state.p_deform_elastic[i],
-                    Eigen::ComputeFullU | Eigen::ComputeFullV };
-                mat3 const& U = svd.matrixU();
-                mat3 const& V = svd.matrixV();
-                mat3 R = U * V.transpose();
-                if (R.determinant() < static_cast<float>(0)) [[unlikely]] {
-                    R = U;
-                    R.col(2) *= -1; // flip the last column to ensure R is a rotation matrix
-                    R = R * V.transpose();
-                }
-                const mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
 
-                mat3 RTdF = R.transpose() * dFEp - dFEp.transpose() * R;
+                mat3 RTdF = param.R.transpose() * dFEp - dFEp.transpose() * param.R;
 
                 const float& b_x = RTdF(1, 0);
                 const float& b_y = RTdF(2, 0);
                 const float& b_z = RTdF(2, 1);
 
-#define a00 (S(0, 0) + S(1, 1))
-#define a11 (S(0, 0) + S(2, 2))
-#define a22 (S(1, 1) + S(2, 2))
-#define a01 (S(1, 2))
-#define a02 (-S(2, 0))
-#define a12 (S(1, 0))
-
-                const float det = (a00 * a11 * a22 + static_cast<float>(2) * a01 * a02 * a12 - a00 * a12 * a12 - a11 * a02 * a02 - a22 * a01 * a01);
-#define c00 (a11 * a22 - a12 * a12)
-#define c01 (a02 * a12 - a01 * a22)
-#define c02 (a01 * a12 - a02 * a11)
-#define c11 (a00 * a22 - a02 * a02)
-#define c12 (a01 * a02 - a00 * a12)
-#define c22 (a00 * a11 - a01 * a01)
-
                 // vec3 xyz = A.inverse() * b;
-                const float xyz_x = (c00 * b_x + c01 * b_y + c02 * b_z) / det;
-                const float xyz_y = (c01 * b_x + c11 * b_y + c12 * b_z) / det;
-                const float xyz_z = (c02 * b_x + c12 * b_y + c22 * b_z) / det;
+                vec3 xyz = param.A_inverse * vec3(b_x, b_y, b_z);
+
+                const float& xyz_x = xyz.x();
+                const float& xyz_y = xyz.y();
+                const float& xyz_z = xyz.z();
 
                 // 3.31 - dR
 
                 const mat3& Fe = solver.p_current_state.p_deform_elastic[i];
                 const mat3& Fp = solver.p_current_state.p_deform_plastic[i];
-                float Je = Fe.determinant();
-                float Jp = Fp.determinant();
+                float const& Je = param.Fe_det;
 
                 // JFinvT
-                mat3 Finv = Fe.inverse();
-                mat3 FinvT = Finv.transpose();
+                mat3 const& Finv = param.Fe_inverse;
+                auto FinvT = Finv.transpose();
                 mat3 JFinvT = Je * FinvT;
 
                 // Frobenius inner product
@@ -150,15 +141,19 @@ namespace Solver {
                 mat3 dJFinvT = tr_Finv_dF * JFinvT + Je * dFinvT;
 
                 // 3.26 - Ap
-                float mu = mu_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1) - Jp));
-                float lambda = lambda_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1) - Jp));
+                float const& mu = param.mu_2x;
+                float const& lambda = param.lambda;
 
                 mat3& RTdR = RTdF;
-                RTdR << static_cast<float>(0), xyz_x, xyz_y, -xyz_x, static_cast<float>(0), xyz_z, -xyz_y, -xyz_z, static_cast<float>(0);
-                mat3 Ap = solver.p_current_state.p_volume_0[i] * (static_cast<float>(2) * mu * (dFEp - R * RTdR) + lambda * JFinvT * JFinvT_dF + lambda * (Je - static_cast<float>(1)) * dJFinvT) * Fe.transpose();
+                // clang-format off
+                RTdR <<    0,  xyz_x, xyz_y,
+                      -xyz_x,      0, xyz_z,
+                      -xyz_y, -xyz_z,     0;
+                // clang-format on
+                mat3 Ap = solver.p_current_state.p_volume_0[i] * (mu * (dFEp - param.R * RTdR) + lambda * JFinvT * JFinvT_dF + lambda * (Je - static_cast<float>(1)) * dJFinvT) * Fe.transpose();
 
                 // 3.25 - df
-                for (const auto& d : data[i]) {
+                for (const auto& d : param.gradient) {
                     df.col(d.active_id) -= Ap * d.wip_grad;
                 }
             }
@@ -216,16 +211,85 @@ namespace Solver {
 
     template <size_t max_iterations, float tolerance>
     static void solveCR(MpmSolver const& solver, mat3n& x, size_t nb_active_nodes) {
+        std::vector<calculate_ar_params> w_ip_gradient(solver.p_current_state.p_position.size());
 
-        std::vector<std::vector<solveCR_params>> w_ip_gradient(solver.p_current_state.p_position.size());
+        const size_t nb_particles = solver.p_current_state.p_position.size();
+
 #pragma omp parallel for
-        for (size_t i = 0; i < solver.p_current_state.p_position.size(); i++) {
+        for (size_t i = 0; i < nb_particles; i++) {
+            auto& param = w_ip_gradient[i];
+
+            {
+                Eigen::JacobiSVD<mat3> svd { solver.p_current_state.p_deform_elastic[i],
+                    Eigen::ComputeFullU | Eigen::ComputeFullV };
+                mat3 tmp;
+
+                mat3 const& U = svd.matrixU();
+                mat3 const& V = svd.matrixV();
+
+                mat3& R = tmp;
+                R = U * V.transpose();
+                if (R.determinant() < static_cast<float>(0)) [[unlikely]] {
+                    R = U;
+                    R.col(2) *= -1; // flip the last column to ensure R is a rotation matrix
+                    R = R * V.transpose();
+                }
+                param.R = R;
+                param.U = U;
+                param.V = V;
+                mat3& S = tmp;
+                S = V * svd.singularValues().asDiagonal() * V.transpose();
+
+#define a00 (S(0, 0) + S(1, 1))
+#define a11 (S(0, 0) + S(2, 2))
+#define a22 (S(1, 1) + S(2, 2))
+#define a01 (S(1, 2))
+#define a02 (-S(2, 0))
+#define a12 (S(1, 0))
+                const float det = 1 / (a00 * a11 * a22 + 2 * a01 * a02 * a12 - a00 * a12 * a12 - a11 * a02 * a02 - a22 * a01 * a01);
+#define c00 (a11 * a22 - a12 * a12)
+#define c01 (a02 * a12 - a01 * a22)
+#define c02 (a01 * a12 - a02 * a11)
+#define c11 (a00 * a22 - a02 * a02)
+#define c12 (a01 * a02 - a00 * a12)
+#define c22 (a00 * a11 - a01 * a01)
+
+                // clang-format off
+                param.A_inverse << c00*det, c01*det, c02*det,
+                                  c01*det, c11*det, c12*det,
+                                  c02*det, c12*det, c22*det;
+
+                // clang-format on
+
+#undef a00
+#undef a11
+#undef a22
+#undef a01
+#undef a02
+#undef a12
+#undef c00
+#undef c01
+#undef c02
+#undef c11
+#undef c12
+#undef c22
+            } // END compute SVD
+
+            const mat3& Fe = solver.p_current_state.p_deform_elastic[i];
+            const mat3& Fp = solver.p_current_state.p_deform_plastic[i];
+
+            param.Fe_det = Fe.determinant();
+            param.Fe_inverse = Fe.inverse();
+
+            {
+                const float Jp = Fp.determinant();
+                param.mu_2x = 2 * mu_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1) - Jp));
+                param.lambda = lambda_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1) - Jp));
+            }
+
             vec3 p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
             vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
-
-            auto& ref = w_ip_gradient[i];
-            ref.reserve(64); // reserve space for 4x4x4 nodes
-
+            size_t count = 0;
             for (int z = 0; z < 4; ++z) {
                 for (int y = 0; y < 4; ++y) {
                     for (int x = 0; x < 4; ++x) {
@@ -238,7 +302,9 @@ namespace Solver {
                         int active_id = solver.global_to_active_map[index];
                         if (active_id < 0) continue;
 
-                        ref.emplace_back(active_id, solver.p_weights_gradient[i][x + y * 4 + z * 4 * 4]);
+                        param.gradient[count].active_id = active_id;
+                        param.gradient[count].wip_grad = solver.p_weights_gradient[i][x + y * 4 + z * 4 * 4];
+                        count += 1;
                     }
                 }
             }
@@ -256,7 +322,7 @@ namespace Solver {
         const float b_sn = b_norm < EPSILON ? static_cast<float>(1) : b_norm * b_norm;
         const float t_sq = tolerance * tolerance;
 
-        mat3n Ar(3, nb_active_nodes);
+        mat3n Ar;
 
         for (size_t k = 0; k < max_iterations; ++k) {
             if (r.squaredNorm() / b_sn < t_sq) [[unlikely]] {
