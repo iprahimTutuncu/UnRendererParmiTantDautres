@@ -5,30 +5,30 @@
 
 using vec3i = Eigen::Vector3i;
 
-using mat3n = Eigen::Matrix<double, 3, Eigen::Dynamic, Eigen::ColMajor>;
-using vec3 = Eigen::Vector3d;
-using mat3 = Eigen::Matrix3d;
+using mat3n = Eigen::Matrix<float, 3, Eigen::Dynamic, Eigen::ColMajor>;
+using vec3 = Eigen::Vector3f;
+using mat3 = Eigen::Matrix3f;
 
 #include <mutex>
 #include <vector>
 
 #define STEP6_PRECONDITIONED 0
 
-const double EPSILON = 1E-12;
+const float EPSILON = 1E-12;
 
 // Explicit:            dt ~= 10e-5
 // Semi-implicit:       dt ~= 0.5e-3
-static inline constexpr double simulation_dt = 0.5e-3;
+static inline constexpr float simulation_dt = 0.5e-3f;
 
-static inline constexpr double DEFAULT_COMPRESSION = 2.5e-2;
-static inline constexpr double DEFAULT_STRETCH = 7.5e-3;
-static inline constexpr double DEFAULT_HARDENING = 10.0;
-static inline constexpr double DEFAULT_DENSITY = 4.0e2;
-static inline constexpr double DEFAULT_YOUNGS_MODULUS = 1.4e5;
-static inline constexpr double DEFAULT_POISSON_RATIO = 0.2;
+static inline constexpr float DEFAULT_COMPRESSION = 2.5e-2f;
+static inline constexpr float DEFAULT_STRETCH = 7.5e-3f;
+static inline constexpr float DEFAULT_HARDENING = 10.0f;
+static inline constexpr float DEFAULT_DENSITY = 4.0e2f;
+static inline constexpr float DEFAULT_YOUNGS_MODULUS = 1.4e5f;
+static inline constexpr float DEFAULT_POISSON_RATIO = 0.2f;
 
 struct MpmGridNode {
-    double mass { 0.0 }; // m
+    float mass { 0.0f }; // m
     vec3 velocity_star = vec3::Zero(); // v
     vec3 velocity = vec3::Zero(); // v*
     vec3 momentum = vec3::Zero(); // v*
@@ -38,8 +38,8 @@ struct MpmGridNode {
 struct MpmParticlesState {
     std::vector<vec3> p_position; // p
     std::vector<vec3> p_velocity; // v
-    std::vector<double> p_mass; // m
-    std::vector<double> p_volume_0; // V
+    std::vector<float> p_mass; // m
+    std::vector<float> p_volume_0; // V
     std::vector<mat3> p_deform_elastic; // F_E
     std::vector<mat3> p_deform_plastic; // F_P
     std::vector<mat3> p_deform_affine; // B
@@ -56,8 +56,8 @@ struct MpmParticlesState {
 };
 
 struct MpmGrid {
-    const double spacing; // h
-    const double one_over_h; // 1 / h
+    const float spacing; // h
+    const float one_over_h; // 1 / h
     int width;
     int height;
     int depth;
@@ -65,11 +65,11 @@ struct MpmGrid {
     std::vector<MpmGridNode> nodes;
     std::vector<std::uint32_t> active_nodes;
 
-    MpmGrid(vec3 origin, double size_x, double size_y, double size_z,
-        double spacing)
+    MpmGrid(vec3 origin, float size_x, float size_y, float size_z,
+        float spacing)
         : origin { origin }
         , spacing { spacing }
-        , one_over_h { 1.0 / spacing }
+        , one_over_h { 1 / spacing }
         , width { static_cast<int>(std::ceil(size_x / spacing)) + 1 }
         , height { static_cast<int>(std::ceil(size_y / spacing)) + 1 }
         , depth { static_cast<int>(std::ceil(size_z / spacing)) + 1 } {
@@ -91,36 +91,36 @@ and Young’s modulus, with the opposite producing muddy snow.
 
 struct MpmSolverParams {
     const unsigned int particles_per_cell;
-    const double particle_spacing;
-    const double grid_spacing;
+    const float particle_spacing;
+    const float grid_spacing;
     const float grid_origin[3];
     const float grid_size[3];
 
-    const double critical_compression; // theta_c
-    const double critical_stretch; // theta_s
-    const double hardening_coefficient; // xi
-    const double initial_density; // rho_0
-    const double initial_youngs_modulus; // E_0
-    const double poisson_ratio; // nu
+    const float critical_compression; // theta_c
+    const float critical_stretch; // theta_s
+    const float hardening_coefficient; // xi
+    const float initial_density; // rho_0
+    const float initial_youngs_modulus; // E_0
+    const float poisson_ratio; // nu
     const float gravity[3]; // g
 
-    const double world_floor;
+    const float world_floor;
     const float v_co[3]; // collider velocity
     const float n_co[3]; // collider normal
-    const double mu_surface; // Coulomb friction coefficient
+    const float mu_surface; // Coulomb friction coefficient
 
     const size_t max_iterations_solver;
-    const double tolerance_solver;
+    const float tolerance_solver;
 
     const int max_iterations_newton;
     const int max_iterations_line_search;
-    const double tolerance_newton;
-    const double line_search_constant; // armijo constant
-    const double line_search_shrink; // alpha shrink
+    const float tolerance_newton;
+    const float line_search_constant; // armijo constant
+    const float line_search_shrink; // alpha shrink
 
-    const double beta_integration; // 0 for explicit, 1/2 for trapezoidal, 1 for
+    const float beta_integration; // 0 for explicit, 1/2 for trapezoidal, 1 for
                                    // backward euler
-    const double alpha_blend; // PIC/FLIP blend
+    const float alpha_blend; // PIC/FLIP blend
 };
 
 static constexpr MpmSolverParams params {
@@ -155,8 +155,8 @@ static constexpr MpmSolverParams params {
     .alpha_blend = 0.95,
 };
 
-static constexpr double mu_0 = params.initial_youngs_modulus / (static_cast<double>(2) * (static_cast<double>(1) + params.poisson_ratio));
-static constexpr double lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) / ((1.0 + params.poisson_ratio) * (static_cast<double>(1) - static_cast<double>(2) * params.poisson_ratio));
+static constexpr float mu_0 = params.initial_youngs_modulus / (static_cast<float>(2) * (static_cast<float>(1) + params.poisson_ratio));
+static constexpr float lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) / ((1.0 + params.poisson_ratio) * (static_cast<float>(1) - static_cast<float>(2) * params.poisson_ratio));
 
 struct MpmSolver {
     MpmGrid grid = MpmGrid(vec3(params.grid_origin[0], params.grid_origin[1],
@@ -169,7 +169,7 @@ struct MpmSolver {
     MpmParticlesState p_current_state;
     std::mutex p_state_mutex;
 
-    std::vector<std::array<double, 64>> p_weights;
+    std::vector<std::array<float, 64>> p_weights;
     std::vector<std::array<vec3, 64>> p_weights_gradient;
 
     void initialize();
