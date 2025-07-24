@@ -523,7 +523,7 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
                                         base_position.y() + y,
                                         base_position.z() + z)
                         - p_current_state.p_position[i];
-                    vec3 apic = (p_current_state.p_velocity[i] + static_cast<float>(3) * grid.one_over_h * grid.one_over_h * p_current_state.p_deform_affine[i] * node_pos);
+                    vec3 apic = (p_current_state.p_velocity[i] + p_current_state.p_deform_affine[i] * (3 * grid.one_over_h * grid.one_over_h * node_pos));
                     vec3 momentum = m_i * apic;
 #else
                     vec3 momentum = m_i * p_current_state.p_velocity[i];
@@ -795,7 +795,8 @@ void MpmSolver::step8_update_particle_velocities() {
         vec3 v_flip = vec3::Zero();
 
 #if USE_APIC
-        p_current_state.p_deform_affine[i] = mat3::Zero();
+        mat3 deform_affine = mat3::Zero();
+        // p_current_state.p_deform_affine[i] = mat3::Zero();
 #endif
 
         for (int z = 0; z < 4; ++z) {
@@ -818,12 +819,15 @@ void MpmSolver::step8_update_particle_velocities() {
                     v_flip += (node.velocity_star - node.velocity) * w_ip;
 
 #if USE_APIC
-                    p_current_state.p_deform_affine[i] += w_ip * node.velocity_star * node_pos.transpose();
+                    deform_affine += w_ip * node.velocity_star * node_pos.transpose();
 #endif
                 }
             }
         }
 
+#if USE_APIC
+        p_current_state.p_deform_affine[i] = deform_affine;
+#endif
         p_current_state.p_velocity[i] = (static_cast<float>(1.0) - params.alpha_blend) * v_pic + params.alpha_blend * (v_flip + p_current_state.p_velocity[i]);
     }
 }
