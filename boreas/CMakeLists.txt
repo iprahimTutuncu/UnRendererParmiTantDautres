@@ -11,7 +11,7 @@ find_package(SDL2 REQUIRED)
 find_package(OpenGL 4.6 REQUIRED)
 find_package(OpenMP)
 
-add_compile_options(-march=native -mtune=native -mavx2)
+add_compile_options(-march=native -mtune=native -mavx2 -O3)
 add_executable(boreas
     ./libs/glad/glad.c
     ./src/core/ActionManager.cpp
