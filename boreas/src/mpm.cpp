@@ -19,8 +19,90 @@
 
 #include <chrono>
 #include <iostream>
+#include <omp.h>
 
 #define USE_APIC 1
+
+struct solveCR_params {
+    int active_id;
+    vec3 wip_grad;
+};
+struct calculate_ar_params {
+    float svd_det_invt;
+    float Fe_det;
+    float mu_2x;
+    float lambda;
+    float volume;
+    mat3 Fe_inverse;
+    mat3 R;
+    mat3 U;
+    mat3 V;
+    mat3 A_inverse;
+    std::array<solveCR_params, 64> gradient;
+};
+
+struct alignas(16) vec3a {
+    float x;
+    float y;
+    float z;
+
+    float sum() const {
+        return x + y + z;
+    }
+
+    bool operator==(const vec3a& other) const {
+        return x == other.x && y == other.y && z == other.z;
+    }
+
+    vec3a operator-(const vec3a& other) const {
+        return { x - other.x, y - other.y, z - other.z };
+    }
+    vec3a operator+(const vec3a& other) const {
+        return { x + other.x, y + other.y, z + other.z };
+    }
+    vec3a operator*(float scalar) const {
+        return { x * scalar, y * scalar, z * scalar };
+    }
+
+    vec3a operator*(const vec3a& other) const {
+        return { x * other.x, y * other.y, z * other.z };
+    }
+    vec3a& operator+=(const vec3a& other) {
+        x += other.x;
+        y += other.y;
+        z += other.z;
+        return *this;
+    }
+    vec3a& operator-=(const vec3a& other) {
+        x -= other.x;
+        y -= other.y;
+        z -= other.z;
+        return *this;
+    }
+    vec3a operator/(float scalar) const {
+        return { x / scalar, y / scalar, z / scalar };
+    }
+};
+
+vec3a operator*(float scalar, const vec3a& vec) {
+    return { scalar * vec.x, scalar * vec.y, scalar * vec.z };
+}
+
+struct alignas(HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE) ThreadSharedData {
+    float acc_sum;
+    float b_norm_square;
+    calculate_ar_params* ar_params;
+    vec3a* cached_velocity; // step6: b
+    vec3a* b; // step6: v*
+    vec3a* Ap;
+    vec3a* Ar;
+    vec3a* r;
+    vec3a* p;
+};
+
+struct ThreadLocalData {
+    vec3a* cached_velocity; // step6::calculate_Ar: df
+};
 
 // https://csmbrannon.net/2013/02/14/illustration-of-polar-decomposition/
 template <typename T, size_t k>
@@ -64,115 +146,99 @@ static inline vec3 get_node_world_coords_from_index(MpmGrid const& grid,
 
 namespace Solver {
 
-    struct solveCR_params {
-        int active_id;
-        vec3 wip_grad;
-    };
-    struct calculate_ar_params {
-        float svd_det_invt;
-        float Fe_det;
-        float mu_2x;
-        float lambda;
-        float volume;
-        mat3 Fe_inverse;
-        mat3 R;
-        mat3 U;
-        mat3 V;
-        mat3 A_inverse;
-        std::array<solveCR_params, 64> gradient;
-    };
-
     // see
     // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-    void calculate_Ar(MpmSolver const& solver, mat3n& Av_next, const mat3n& v_next, const std::vector<calculate_ar_params>& _params) {
-        const size_t actives_nodes_size = solver.grid.active_nodes.size();
+    void calculate_Ar(MpmSolver const& solver, vec3a* Av_next, const vec3a* v_next, const ThreadSharedData& shared_data, ThreadLocalData& local_data) {
 
-#pragma omp parallel
-        {
-            mat3n df(3, v_next.cols());
-            df.setZero();
+        for (size_t i = 0; i < solver.grid.active_nodes.size(); i++) {
+            local_data.cached_velocity[i].x = 0.0f;
+            local_data.cached_velocity[i].y = 0.0f;
+            local_data.cached_velocity[i].z = 0.0f;
+        }
 
 #pragma omp for
-            for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+        for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
 
-                const auto& param = _params[i];
+            const auto& param = shared_data.ar_params[i];
 
-                // 3.23 - velocity gradient
-                mat3 velocities_grad = mat3::Zero();
-                for (const auto& d : param.gradient) {
-                    velocities_grad += v_next.col(d.active_id) * d.wip_grad.transpose();
-                }
+            // 3.23 - velocity gradient
+            mat3 velocities_grad = mat3::Zero();
+            for (const auto& d : param.gradient) {
+                velocities_grad += vec3(v_next[d.active_id].x, v_next[d.active_id].y, v_next[d.active_id].z) * d.wip_grad.transpose();
+            }
 
-                // 3.24 - dFEp
-                mat3 dFEp = simulation_dt * velocities_grad * solver.p_current_state.p_deform_elastic[i];
+            // 3.24 - dFEp
+            mat3 dFEp = simulation_dt * velocities_grad * solver.p_current_state.p_deform_elastic[i];
 
-                // 3.30 - RTdR
+            // 3.30 - RTdR
 
-                mat3 RTdF = param.R.transpose() * dFEp - dFEp.transpose() * param.R;
+            mat3 RTdF = param.R.transpose() * dFEp - dFEp.transpose() * param.R;
 
-                const float& b_x = RTdF(1, 0);
-                const float& b_y = RTdF(2, 0);
-                const float& b_z = RTdF(2, 1);
+            const float& b_x = RTdF(1, 0);
+            const float& b_y = RTdF(2, 0);
+            const float& b_z = RTdF(2, 1);
 
-                // vec3 xyz = A.inverse() * b;
-                vec3 xyz = param.A_inverse * vec3(b_x, b_y, b_z);
+            // vec3 xyz = A.inverse() * b;
+            vec3 xyz = param.A_inverse * vec3(b_x, b_y, b_z);
 
-                const float& xyz_x = xyz.x();
-                const float& xyz_y = xyz.y();
-                const float& xyz_z = xyz.z();
+            const float& xyz_x = xyz.x();
+            const float& xyz_y = xyz.y();
+            const float& xyz_z = xyz.z();
 
-                // 3.31 - dR
+            // 3.31 - dR
 
-                const mat3& Fe = solver.p_current_state.p_deform_elastic[i];
-                const mat3& Fp = solver.p_current_state.p_deform_plastic[i];
-                float const& Je = param.Fe_det;
+            const mat3& Fe = solver.p_current_state.p_deform_elastic[i];
+            const mat3& Fp = solver.p_current_state.p_deform_plastic[i];
+            float const& Je = param.Fe_det;
 
-                // JFinvT
-                mat3 const& Finv = param.Fe_inverse;
-                auto FinvT = Finv.transpose();
-                mat3 JFinvT = Je * FinvT;
+            // JFinvT
+            mat3 const& Finv = param.Fe_inverse;
+            auto FinvT = Finv.transpose();
+            mat3 JFinvT = Je * FinvT;
 
-                // Frobenius inner product
-                float JFinvT_dF = (JFinvT.array() * dFEp.array()).sum();
+            // Frobenius inner product
+            float JFinvT_dF = (JFinvT.array() * dFEp.array()).sum();
 
-                // using Jacobi's formula for the derivative of the inverse and
-                // determinant
-                float tr_Finv_dF = (Finv * dFEp).trace();
-                mat3 dFinvT = -FinvT * dFEp.transpose() * FinvT;
-                mat3 dJFinvT = tr_Finv_dF * JFinvT + Je * dFinvT;
+            // using Jacobi's formula for the derivative of the inverse and
+            // determinant
+            float tr_Finv_dF = (Finv * dFEp).trace();
+            mat3 dFinvT = -FinvT * dFEp.transpose() * FinvT;
+            mat3 dJFinvT = tr_Finv_dF * JFinvT + Je * dFinvT;
 
-                // 3.26 - Ap
-                float const& mu = param.mu_2x;
-                float const& lambda = param.lambda;
+            // 3.26 - Ap
+            float const& mu = param.mu_2x;
+            float const& lambda = param.lambda;
 
-                mat3& RTdR = RTdF;
-                // clang-format off
+            mat3& RTdR = RTdF;
+            // clang-format off
                 RTdR <<    0,  xyz_x, xyz_y,
                       -xyz_x,      0, xyz_z,
                       -xyz_y, -xyz_z,     0;
-                // clang-format on
-                mat3 Ap = param.volume * (mu * (dFEp - param.R * RTdR) + lambda * JFinvT * JFinvT_dF + lambda * (Je - static_cast<float>(1)) * dJFinvT) * Fe.transpose();
+            // clang-format on
+            mat3 Ap = param.volume * (mu * (dFEp - param.R * RTdR) + lambda * JFinvT * JFinvT_dF + lambda * (Je - static_cast<float>(1)) * dJFinvT) * Fe.transpose();
 
-                // 3.25 - df
-                for (const auto& d : param.gradient) {
-                    df.col(d.active_id) -= Ap * d.wip_grad;
-                }
+            // 3.25 - df
+            for (const auto& d : param.gradient) {
+                vec3 df = Ap * d.wip_grad;
+                local_data.cached_velocity[d.active_id].x -= df.x();
+                local_data.cached_velocity[d.active_id].y -= df.y();
+                local_data.cached_velocity[d.active_id].z -= df.z();
             }
+        }
 
-            for (size_t i = 0; i < actives_nodes_size; ++i) {
-                if (df == vec3::Zero()) continue;
+        for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
+            if (local_data.cached_velocity[i] == vec3a { 0, 0, 0 }) continue;
 
-                const auto index = solver.grid.active_nodes[i];
-                const float& node_mass = solver.grid.nodes[index].mass;
-                if (node_mass > EPSILON) [[likely]] {
-                    vec3 df_res = params.beta_integration * simulation_dt * df.col(i) / node_mass;
+            const auto index = solver.grid.active_nodes[i];
+            const float& node_mass = solver.grid.nodes[index].mass;
+            if (node_mass > EPSILON) [[likely]] {
+                vec3a df_res = local_data.cached_velocity[i] * (params.beta_integration * simulation_dt / node_mass);
 #pragma omp atomic
-                    Av_next.col(i).x() -= df_res.x();
+                Av_next[i].x -= df_res.x;
 #pragma omp atomic
-                    Av_next.col(i).y() -= df_res.y();
+                Av_next[i].y -= df_res.y;
 #pragma omp atomic
-                    Av_next.col(i).z() -= df_res.z();
-                }
+                Av_next[i].z -= df_res.z;
             }
         }
     }
@@ -207,152 +273,6 @@ namespace Solver {
             float beta = rs_new / rs_old;
             p = r + beta * p;
             rs_old = rs_new;
-        }
-    }
-
-    template <size_t max_iterations, float tolerance>
-    static void solveCR(MpmSolver const& solver, mat3n& x, size_t nb_active_nodes) {
-        std::vector<calculate_ar_params> w_ip_gradient(solver.p_current_state.p_position.size());
-
-        const size_t nb_particles = solver.p_current_state.p_position.size();
-
-#pragma omp parallel for
-        for (size_t i = 0; i < nb_particles; i++) {
-            auto& param = w_ip_gradient[i];
-            param.volume = solver.p_current_state.p_volume_0[i];
-
-            {
-                Eigen::JacobiSVD<mat3> svd { solver.p_current_state.p_deform_elastic[i],
-                    Eigen::ComputeFullU | Eigen::ComputeFullV };
-
-                mat3 tmp;
-
-                mat3 const& U = svd.matrixU();
-                mat3 const& V = svd.matrixV();
-
-                mat3& R = tmp;
-                R = U * V.transpose();
-                if (R.determinant() < static_cast<float>(0)) [[unlikely]] {
-                    R = U;
-                    R.col(2) *= -1; // flip the last column to ensure R is a rotation matrix
-                    R = R * V.transpose();
-                }
-                param.R = R;
-                param.U = U;
-                param.V = V;
-                mat3& S = tmp;
-                S = V * svd.singularValues().asDiagonal() * V.transpose();
-
-#define a00 (S(0, 0) + S(1, 1))
-#define a11 (S(0, 0) + S(2, 2))
-#define a22 (S(1, 1) + S(2, 2))
-#define a01 (S(1, 2))
-#define a02 (-S(2, 0))
-#define a12 (S(1, 0))
-                const float det = 1 / (a00 * a11 * a22 + 2 * a01 * a02 * a12 - a00 * a12 * a12 - a11 * a02 * a02 - a22 * a01 * a01);
-#define c00 (a11 * a22 - a12 * a12)
-#define c01 (a02 * a12 - a01 * a22)
-#define c02 (a01 * a12 - a02 * a11)
-#define c11 (a00 * a22 - a02 * a02)
-#define c12 (a01 * a02 - a00 * a12)
-#define c22 (a00 * a11 - a01 * a01)
-
-                float* p = param.A_inverse.data();
-                p[0] = c00 * det;
-                p[1] = c01 * det;
-                p[2] = c02 * det;
-                p[3] = c01 * det;
-                p[4] = c11 * det;
-                p[5] = c12 * det;
-                p[6] = c02 * det;
-                p[7] = c12 * det;
-                p[8] = c22 * det;
-
-#undef a00
-#undef a11
-#undef a22
-#undef a01
-#undef a02
-#undef a12
-#undef c00
-#undef c01
-#undef c02
-#undef c11
-#undef c12
-#undef c22
-            } // END compute SVD
-
-            const mat3& Fe = solver.p_current_state.p_deform_elastic[i];
-            const mat3& Fp = solver.p_current_state.p_deform_plastic[i];
-
-            param.Fe_det = Fe.determinant();
-            param.Fe_inverse = Fe.inverse();
-
-            {
-                const float Jp = Fp.determinant();
-                param.mu_2x = 2 * mu_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1) - Jp));
-                param.lambda = lambda_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1) - Jp));
-            }
-
-            vec3 p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
-            vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
-            size_t count = 0;
-            for (int z = 0; z < 4; ++z) {
-                for (int y = 0; y < 4; ++y) {
-                    for (int x = 0; x < 4; ++x) {
-                        if ((base_position.x() + x) < 0 || (base_position.x() + x) >= solver.grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= solver.grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= solver.grid.depth) [[unlikely]]
-                            continue;
-
-                        size_t index = get_node_id_from_local(
-                            solver.grid, base_position.x() + x, base_position.y() + y,
-                            base_position.z() + z);
-                        int active_id = solver.global_to_active_map[index];
-                        if (active_id < 0) continue;
-
-                        param.gradient[count].active_id = active_id;
-                        param.gradient[count].wip_grad = solver.p_weights_gradient[i][x + y * 4 + z * 4 * 4];
-                        count += 1;
-                    }
-                }
-            }
-        }
-
-        mat3n Ap = x;
-        calculate_Ar(solver, Ap, x, w_ip_gradient);
-        mat3n r = x - Ap;
-        mat3n p = Ap = r;
-
-        calculate_Ar(solver, Ap, r, w_ip_gradient);
-
-        float rAr_old = r.cwiseProduct(Ap).sum();
-        const float b_norm = x.norm();
-        const float b_sn = b_norm < EPSILON ? static_cast<float>(1) : 1 / (b_norm * b_norm);
-        constexpr float t_sq = tolerance * tolerance;
-
-        mat3n Ar;
-
-        for (size_t k = 0; k < max_iterations; ++k) {
-            if (r.squaredNorm() * b_sn < t_sq) [[unlikely]] {
-                break;
-            }
-
-            float alpha = rAr_old / Ap.squaredNorm();
-
-            x += alpha * p;
-            r -= alpha * Ap;
-
-            if (r.squaredNorm() * b_sn < t_sq) [[unlikely]] {
-                break;
-            }
-            Ar = r;
-
-            calculate_Ar(solver, Ar, r, w_ip_gradient);
-            float rAr_new = (r.cwiseProduct(Ar)).sum();
-            float beta = rAr_new / rAr_old;
-
-            p = r + beta * p;
-            Ap = Ar + beta * Ap;
-            rAr_old = rAr_new;
         }
     }
 
@@ -408,8 +328,7 @@ static void create_particle_state(MpmParticlesState& state,
 }
 
 static inline void reset_nodes(MpmSolver& solver) {
-
-#pragma omp for nowait
+#pragma omp for
     for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
         solver.grid.nodes[i].mass = static_cast<float>(0);
         solver.grid.nodes[i].velocity_star.setZero();
@@ -449,8 +368,8 @@ static inline constexpr float d_N(float x) {
 // Transfer from particles to grid:
 // Transfer mass using the weighing function
 // Transfer velocity using normalized weights
-static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
-#pragma omp parallel for schedule(static)
+static void step1345_rasterize_particles_to_grid(MpmSolver& solver) {
+#pragma omp for
     for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
 
         const mat3& Fe = solver.p_current_state.p_deform_elastic[i];
@@ -542,6 +461,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
         }
     }
 
+#pragma omp single nowait
     for (size_t index = 0; index < solver.grid.nodes.size(); ++index) {
         // v_i = sum( v_p * m_p * w_ip / m_i )
         // p = mv -> v = p/m
@@ -576,8 +496,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 
 // First time step only - initial configuration
 static void step2_compute_volumes_and_densities(MpmSolver& solver) {
-
-#pragma omp parallel for
+#pragma omp for
     for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
         vec3 p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
         vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
@@ -608,39 +527,269 @@ static void step2_compute_volumes_and_densities(MpmSolver& solver) {
     }
 }
 
-static void step6_solve_linear_system(MpmSolver& solver) {
+static void step6_solve_linear_system(MpmSolver& solver, ThreadSharedData& shared_data, ThreadLocalData& local_data) {
+    static constexpr auto tolerance = params.tolerance_solver;
+    static constexpr auto max_iterations = params.max_iterations_solver;
     if (params.beta_integration == static_cast<float>(0.0) || solver.grid.active_nodes.empty()) [[unlikely]] {
         return;
     }
 
-    const auto& active_nodes = solver.grid.active_nodes;
-    const size_t nb_active_nodes = active_nodes.size();
-    mat3n b(3, nb_active_nodes);
+    // mat3n b(3, nb_active_nodes);
 
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto index = active_nodes[i];
+#pragma omp for
+    for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
+        const auto index = solver.grid.active_nodes[i];
         solver.global_to_active_map[index] = i;
-        b.col(i) = solver.grid.nodes[index].velocity_star;
+
+        // __m128 a = _mm_load_ps(solver.grid.nodes[index].velocity_star.data());
+        // _mm_store_ps(&shared_data.cached_velocity[i].x, a);
+        shared_data.cached_velocity[i].x = solver.grid.nodes[index].velocity_star.x();
+        shared_data.cached_velocity[i].y = solver.grid.nodes[index].velocity_star.y();
+        shared_data.cached_velocity[i].z = solver.grid.nodes[index].velocity_star.z();
+        shared_data.Ap[i].x = shared_data.b[i].x = solver.grid.nodes[index].velocity_star.x();
+        shared_data.Ap[i].y = shared_data.b[i].y = solver.grid.nodes[index].velocity_star.y();
+        shared_data.Ap[i].z = shared_data.b[i].z = solver.grid.nodes[index].velocity_star.z();
     }
 
-    Solver::solveCR<params.max_iterations_solver, params.tolerance_solver>(solver, b, nb_active_nodes);
+    // Solver::solveCR<params.max_iterations_solver, params.tolerance_solver>(solver, b, nb_active_nodes);
 
-#pragma omp parallel
-#pragma omp for schedule(static) nowait
-    for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
+#pragma omp for
+    for (size_t i = 0; i < solver.p_current_state.p_position.size(); i++) {
+        auto& param = shared_data.ar_params[i];
+        param.volume = solver.p_current_state.p_volume_0[i];
+
+        {
+            Eigen::JacobiSVD<mat3> svd { solver.p_current_state.p_deform_elastic[i],
+                Eigen::ComputeFullU | Eigen::ComputeFullV };
+
+            mat3 const& U = svd.matrixU();
+            mat3 const& V = svd.matrixV();
+
+            mat3& R = param.R;
+            R = U * V.transpose();
+            if (R.determinant() < static_cast<float>(0)) [[unlikely]] {
+                R = U;
+                R.col(2) *= -1; // flip the last column to ensure R is a rotation matrix
+                R = R * V.transpose();
+            }
+            param.U = U;
+            param.V = V;
+            mat3 S = V * svd.singularValues().asDiagonal() * V.transpose();
+
+#define a00 (S(0, 0) + S(1, 1))
+#define a11 (S(0, 0) + S(2, 2))
+#define a22 (S(1, 1) + S(2, 2))
+#define a01 (S(1, 2))
+#define a02 (-S(2, 0))
+#define a12 (S(1, 0))
+            const float det = 1 / (a00 * a11 * a22 + 2 * a01 * a02 * a12 - a00 * a12 * a12 - a11 * a02 * a02 - a22 * a01 * a01);
+#define c00 (a11 * a22 - a12 * a12)
+#define c01 (a02 * a12 - a01 * a22)
+#define c02 (a01 * a12 - a02 * a11)
+#define c11 (a00 * a22 - a02 * a02)
+#define c12 (a01 * a02 - a00 * a12)
+#define c22 (a00 * a11 - a01 * a01)
+
+            float* p = param.A_inverse.data();
+            p[0] = c00 * det;
+            p[1] = c01 * det;
+            p[2] = c02 * det;
+            p[3] = c01 * det;
+            p[4] = c11 * det;
+            p[5] = c12 * det;
+            p[6] = c02 * det;
+            p[7] = c12 * det;
+            p[8] = c22 * det;
+
+#undef a00
+#undef a11
+#undef a22
+#undef a01
+#undef a02
+#undef a12
+        } // END compute SVD
+
+        const mat3& Fe = solver.p_current_state.p_deform_elastic[i];
+        const mat3& Fp = solver.p_current_state.p_deform_plastic[i];
+
+        param.Fe_det = Fe.determinant();
+        param.Fe_inverse = Fe.inverse();
+
+        {
+            const float Jp = Fp.determinant();
+            param.mu_2x = 2 * mu_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1) - Jp));
+            param.lambda = lambda_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1) - Jp));
+        }
+
+        vec3 p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
+        vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
+        size_t count = 0;
+        for (int z = 0; z < 4; ++z) {
+            for (int y = 0; y < 4; ++y) {
+                for (int x = 0; x < 4; ++x) {
+                    if ((base_position.x() + x) < 0 || (base_position.x() + x) >= solver.grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= solver.grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= solver.grid.depth) [[unlikely]]
+                        continue;
+
+                    size_t index = get_node_id_from_local(
+                        solver.grid, base_position.x() + x, base_position.y() + y,
+                        base_position.z() + z);
+                    int active_id = solver.global_to_active_map[index];
+                    if (active_id < 0) continue;
+
+                    param.gradient[count].active_id = active_id;
+                    param.gradient[count].wip_grad = solver.p_weights_gradient[i][x + y * 4 + z * 4 * 4];
+                    count += 1;
+                }
+            }
+        }
+    }
+
+    vec3a*& b = shared_data.b;
+    vec3a*& Ap = shared_data.Ap;
+    vec3a*& Ar = shared_data.Ar;
+    vec3a*& r = shared_data.r;
+    vec3a*& p = shared_data.p;
+
+    Solver::calculate_Ar(solver, Ap, b, shared_data, local_data);
+
+#pragma omp for
+    for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
+        Ap[i] = p[i] = r[i] = b[i] - Ap[i];
+    }
+
+    Solver::calculate_Ar(solver, Ap, r, shared_data, local_data);
+
+    vec3a acc_vec = { 0, 0, 0 };
+#pragma omp for
+    for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
+        acc_vec += r[i] * Ap[i];
+    }
+
+#pragma omp atomic
+    shared_data.acc_sum += acc_vec.sum();
+
+    acc_vec = { 0, 0, 0 };
+#pragma omp for
+    for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
+        acc_vec += b[i] * b[i];
+    }
+
+#pragma omp critical
+    { shared_data.b_norm_square += acc_vec.sum(); }
+
+    const float b_sn = shared_data.b_norm_square < EPSILON * EPSILON ? 1.f : 1 / shared_data.b_norm_square;
+    constexpr float t_sq = tolerance * tolerance;
+
+    float rAr_old = shared_data.acc_sum;
+    for (size_t k = 0; k < max_iterations; ++k) {
+        acc_vec = { 0, 0, 0 };
+#pragma omp for
+        for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
+            acc_vec += r[i] * r[i];
+        }
+
+#pragma omp critical
+        { shared_data.acc_sum += acc_vec.sum(); }
+
+        if (shared_data.acc_sum * b_sn < t_sq) [[unlikely]] {
+            break;
+        }
+
+#pragma omp single nowait
+        {
+            shared_data.acc_sum = 0.f;
+        }
+
+        acc_vec = { 0, 0, 0 };
+#pragma omp for
+        for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
+            acc_vec += Ap[i] * Ap[i];
+        }
+
+#pragma omp critical
+        {
+            shared_data.acc_sum += acc_vec.sum();
+        }
+
+        const float alpha = rAr_old / shared_data.acc_sum;
+
+#pragma omp single nowait
+        {
+            shared_data.acc_sum = 0.f;
+        }
+
+#pragma omp for
+        for (size_t i = 0; i < solver.grid.active_nodes.size(); i++) {
+            b[i] += alpha * p[i];
+        }
+
+        acc_vec = { 0, 0, 0 };
+#pragma omp for
+        for (size_t i = 0; i < solver.grid.active_nodes.size(); i++) {
+            r[i] -= alpha * Ap[i];
+            acc_vec += r[i] * r[i];
+        }
+
+#pragma omp critical
+
+        { shared_data.acc_sum += acc_vec.sum(); }
+
+        if (shared_data.acc_sum * b_sn < t_sq) [[unlikely]] {
+            break;
+        }
+
+#pragma omp single nowait
+        {
+            shared_data.acc_sum = 0.f;
+        }
+
+#pragma omp for
+        for (size_t i = 0; i < solver.grid.active_nodes.size(); i++) {
+            Ar[i] = r[i];
+        }
+
+        Solver::calculate_Ar(solver, Ar, r, shared_data, local_data);
+
+        acc_vec = { 0, 0, 0 };
+#pragma omp for
+        for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
+            acc_vec += r[i] * Ar[i];
+        }
+
+#pragma omp critical
+        { shared_data.acc_sum += acc_vec.sum(); }
+
+        const float beta = shared_data.acc_sum / rAr_old;
+        rAr_old = shared_data.acc_sum;
+#pragma omp single nowait
+        {
+            shared_data.acc_sum = 0;
+        }
+
+#pragma omp for
+        for (size_t i = 0; i < solver.grid.active_nodes.size(); i++) {
+            p[i] = r[i] + beta * p[i];
+            Ap[i] = Ar[i] + beta * Ap[i];
+        }
+    }
+
+#pragma omp for
+    for (size_t i = 0; i < solver.global_to_active_map.size(); ++i) {
         solver.global_to_active_map[i] = -1; // reset the map
     }
 
-#pragma omp for nowait
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto& index = active_nodes[i];
-        solver.grid.nodes[index].velocity_star = b.col(i);
+#pragma omp for
+    for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
+        const auto& index = solver.grid.active_nodes[i];
+        solver.grid.nodes[index].velocity_star.x() = shared_data.b[i].x;
+        solver.grid.nodes[index].velocity_star.y() = shared_data.b[i].y;
+        solver.grid.nodes[index].velocity_star.z() = shared_data.b[i].z;
     }
 }
 
 static void step7_update_deformation_gradient(MpmSolver& solver) {
 
-#pragma omp parallel for
+#pragma omp for nowait
     for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
         vec3 p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
         vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
@@ -683,7 +832,7 @@ static void step7_update_deformation_gradient(MpmSolver& solver) {
 }
 
 static void step8_update_particle_velocities(MpmSolver& solver) {
-#pragma omp parallel for
+#pragma omp for nowait
     for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
         vec3 p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
         vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
@@ -763,79 +912,141 @@ static void step10_update_particle_positions(MpmSolver& solver) {
 template <bool first_time>
 static void _iterate(MpmSolver& solver) {
     solver.grid.active_nodes.clear();
-
-    if constexpr (first_time) {
-#pragma omp parallel
-        {
-            reset_nodes(solver);
-        }
-        step1_rasterize_particles_to_grid(solver);
-        step2_compute_volumes_and_densities(solver);
-        return;
-    }
     auto t0 = std::chrono::high_resolution_clock::now();
-
-    auto t1 = t0;
-    auto t2 = t0;
-    auto t3 = t0;
-    auto t4 = t0;
-    auto t5 = t0;
-    auto t6 = t0;
-    auto t7 = t0;
-    auto t8 = t0;
-    auto t9 = t0;
-    auto t10 = t0;
-
-#pragma omp parallel
-    {
-        reset_nodes(solver);
-    }
-    t1 = std::chrono::high_resolution_clock::now();
-
-    step1_rasterize_particles_to_grid(solver);
-    t2 = std::chrono::high_resolution_clock::now();
-
-    //  step3_compute_grid_forces();
-    t3 = std::chrono::high_resolution_clock::now();
-
-    // step4_update_grid_velocities();
-    t4 = std::chrono::high_resolution_clock::now();
-
-    // step5_grid_based_collisions();
-    t5 = std::chrono::high_resolution_clock::now();
-
-    step6_solve_linear_system(solver);
-    t6 = std::chrono::high_resolution_clock::now();
-
-    //    step6_solve_linear_system_preconditioned<SolverPCR>();
-    step7_update_deformation_gradient(solver);
-    t7 = std::chrono::high_resolution_clock::now();
-
-    step8_update_particle_velocities(solver);
-    t8 = std::chrono::high_resolution_clock::now();
-
-    step9_particle_based_collisions(solver);
-    t9 = std::chrono::high_resolution_clock::now();
-
-    step10_update_particle_positions(solver);
-    t10 = std::chrono::high_resolution_clock::now();
-
     const auto print_duration = [](const char* name, auto t_start, auto t_end) {
         std::cout << name << ": "
                   << std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count()
                   << " us\n";
     };
 
+    if constexpr (first_time) {
+#pragma omp parallel
+        {
+            reset_nodes(solver);
+            step1345_rasterize_particles_to_grid(solver);
+            step2_compute_volumes_and_densities(solver);
+        }
+
+        print_duration("initialize", t0, std::chrono::high_resolution_clock::now());
+        return;
+    }
+
+    auto t1 = t0;
+    auto t2 = t0;
+    // auto t3 = t0;
+    // auto t4 = t0;
+    // auto t5 = t0;
+    auto t6 = t0;
+    auto t7 = t0;
+    auto t8 = t0;
+    auto t9 = t0;
+    auto t10 = t0;
+    auto t11 = t0;
+
+    ThreadSharedData shared_data;
+
+    const size_t false_nb_particles = 10000;
+
+    auto nb_threads = omp_get_max_threads();
+    shared_data.ar_params = new calculate_ar_params[solver.p_current_state.p_position.size()];
+    shared_data.cached_velocity = new vec3a[false_nb_particles];
+    shared_data.b = new vec3a[false_nb_particles];
+    shared_data.Ap = new vec3a[false_nb_particles];
+    shared_data.Ar = new vec3a[false_nb_particles];
+    shared_data.r = new vec3a[false_nb_particles];
+    shared_data.p = new vec3a[false_nb_particles];
+    shared_data.b_norm_square = 0;
+    shared_data.acc_sum = 0;
+
+#pragma omp parallel shared(shared_data)
+    {
+
+        ThreadLocalData local_data;
+        #pragma omp critical
+        {local_data.cached_velocity = new vec3a[solver.p_current_state.p_position.size()];}
+        reset_nodes(solver);
+#pragma omp single nowait
+        {
+            t1 = std::chrono::high_resolution_clock::now();
+        }
+
+        step1345_rasterize_particles_to_grid(solver);
+        const size_t nb_active_nodes = solver.grid.active_nodes.size();
+#pragma omp single
+        {
+            t2 = std::chrono::high_resolution_clock::now();
+
+            // shared_data.ar_params = new calculate_ar_params[solver.p_current_state.p_position.size()];
+            // auto nb_threads = omp_get_num_threads();
+            // shared_data.cached_velocity = new vec3a[nb_active_nodes * (nb_threads + 1)];
+            // shared_data.b = new vec3a[nb_active_nodes];
+            // shared_data.Ap = new vec3a[nb_active_nodes];
+            // shared_data.Ar = new vec3a[nb_active_nodes];
+            // shared_data.r = new vec3a[nb_active_nodes];
+            // shared_data.p = new vec3a[nb_active_nodes];
+            // shared_data.b_norm_square = 0;
+            // shared_data.acc_sum = 0;
+        }
+
+        // //  step3_compute_grid_forces();
+        // t3 = std::chrono::high_resolution_clock::now();
+
+        // // step4_update_grid_velocities();
+        // t4 = std::chrono::high_resolution_clock::now();
+
+        // // step5_grid_based_collisions();
+        // t5 = std::chrono::high_resolution_clock::now();
+
+        local_data.cached_velocity = shared_data.cached_velocity + nb_active_nodes * (omp_get_thread_num() + 1);
+
+        step6_solve_linear_system(solver, shared_data, local_data);
+#pragma omp single nowait
+        {
+            t6 = std::chrono::high_resolution_clock::now();
+        }
+
+        delete[] local_data.cached_velocity;
+
+        //    step6_solve_linear_system_preconditioned<SolverPCR>();
+        step7_update_deformation_gradient(solver);
+#pragma omp single nowait
+        {
+            t7 = std::chrono::high_resolution_clock::now();
+        }
+
+        step8_update_particle_velocities(solver);
+#pragma omp single nowait
+        {
+            t8 = std::chrono::high_resolution_clock::now();
+        }
+    }
+    delete[] shared_data.p;
+    delete[] shared_data.r;
+    delete[] shared_data.Ar;
+    delete[] shared_data.Ap;
+    delete[] shared_data.b;
+    delete[] shared_data.cached_velocity;
+    delete[] shared_data.ar_params;
+    step9_particle_based_collisions(solver);
+    t9 = std::chrono::high_resolution_clock::now();
+
+    step10_update_particle_positions(solver);
+    t10 = std::chrono::high_resolution_clock::now();
+
+    t11 = std::chrono::high_resolution_clock::now();
+
     print_duration("grid.reset_nodes", t0, t1);
-    print_duration("step1_rasterize_particles_to_grid", t1, t2);
-    print_duration("step3_compute_grid_forces", t2, t3);
-    print_duration("step4_update_grid_velocities", t3, t4);
-    print_duration("step5_grid_based_collisions", t4, t5);
-    print_duration("step6_solve_linear_system", t5, t6);
+    print_duration("step1345_rasterize_particles_to_grid", t1, t2);
+    // print_duration("step3_compute_grid_forces", t2, t3);
+    // print_duration("step4_update_grid_velocities", t3, t4);
+    // print_duration("step5_grid_based_collisions", t4, t5);
+    print_duration("step6_solve_linear_system", t2, t6);
     print_duration("step7_update_deformation_gradient", t6, t7);
     print_duration("step8_update_particle_velocities", t7, t8);
     print_duration("step9_particle_based_collisions", t8, t9);
     print_duration("step10_update_particle_positions", t9, t10);
+    print_duration("total", t0, t11);
+    print_duration("print_duration", t11, std::chrono::high_resolution_clock::now());
 }
 
 void MpmSolver::iterate() {

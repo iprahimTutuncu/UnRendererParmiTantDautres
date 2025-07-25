@@ -115,6 +115,8 @@ void Application::run() {
         double new_time = SDL_GetPerformanceCounter();
         double delta_time = (new_time - old_time) / frequency;
         old_time = new_time;
+        std::vector<vec3> positions = m_mpm_solver.get_positions();
+        m_renderer.update_particles(positions);
 
         process_events();
 
@@ -125,8 +127,6 @@ void Application::run() {
 
         SDL_GL_SwapWindow(m_main_window.get_handle());
 
-        std::vector<vec3> positions = m_mpm_solver.get_positions();
-        m_renderer.update_particles(positions);
     }
 
     simulation.join();

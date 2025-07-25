@@ -10,7 +10,6 @@ using vec3 = Eigen::aligned_allocator<Eigen::Vector3f>::value_type;
 using mat3 = Eigen::Matrix3f;
 
 #include <mutex>
-#include <new>
 #include <vector>
 
 #define STEP6_PRECONDITIONED 0
@@ -28,7 +27,8 @@ static inline constexpr float DEFAULT_DENSITY = 4.0e2f;
 static inline constexpr float DEFAULT_YOUNGS_MODULUS = 1.4e5f;
 static inline constexpr float DEFAULT_POISSON_RATIO = 0.2f;
 
-struct alignas(std::hardware_destructive_interference_size) MpmGridNode {
+#define HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE 64
+struct alignas(HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE) MpmGridNode {
     float mass { 0.0f }; // m
     vec3 momentum = vec3::Zero(); // v*
     alignas(16) vec3 velocity_star = vec3::Zero(); // v
