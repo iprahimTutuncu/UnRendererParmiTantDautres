@@ -173,6 +173,7 @@ struct MpmSolver {
     std::vector<std::array<float, 64>> p_weights;
     std::vector<std::array<vec3, 64>> p_weights_gradient;
 
+    void create_particle(vec3 position, vec3 velocity);
     void initialize();
     void iterate();
 
@@ -187,22 +188,4 @@ struct MpmSolver {
 
         return positions;
     }
-
-    void create_particle(vec3 position, vec3 velocity);
-
-    void step1_rasterize_particles_to_grid();
-    void step2_compute_volumes_and_densities();
-    void step3_compute_grid_forces();
-    void step4_update_grid_velocities();
-    void step5_grid_based_collisions();
-#if not STEP6_PRECONDITIONED
-    void step6_solve_linear_system();
-#else
-    void step6_solve_linear_system_preconditioned();
-    void compute_preconditioner(mat3n& M_inv) const;
-#endif
-    void step7_update_deformation_gradient();
-    void step8_update_particle_velocities();
-    void step9_particle_based_collisions();
-    void step10_update_particle_positions();
 };
