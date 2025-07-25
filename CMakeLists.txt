@@ -25,7 +25,16 @@ endif()
 # Optimization
 if (NOT (WIN32 OR MSVC))
     add_compile_options(-march=native -mtune=native -mavx2)
+
+
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
+
 endif()
+
+
+
+
 
 # IPO / LTO
 include(CheckIPOSupported)
