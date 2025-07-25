@@ -19,7 +19,6 @@
 
 #include <chrono>
 #include <iostream>
-#include <omp.h>
 
 #define USE_APIC 1
 
@@ -164,6 +163,7 @@ namespace Solver {
             // 3.23 - velocity gradient
             mat3 velocities_grad = mat3::Zero();
             for (const auto& d : param.gradient) {
+
                 velocities_grad += vec3(v_next[d.active_id].x, v_next[d.active_id].y, v_next[d.active_id].z) * d.wip_grad.transpose();
             }
 
@@ -680,8 +680,12 @@ static void step6_solve_linear_system(MpmSolver& solver, ThreadSharedData& share
     const float b_sn = shared_data.b_norm_square < EPSILON * EPSILON ? 1.f : 1 / shared_data.b_norm_square;
     constexpr float t_sq = tolerance * tolerance;
 
+    static volatile bool flag = false;
+
     float rAr_old = shared_data.acc_sum;
     for (size_t k = 0; k < max_iterations; ++k) {
+        if (flag) continue;
+
         acc_vec = { 0, 0, 0 };
 #pragma omp for
         for (size_t i = 0; i < solver.grid.active_nodes.size(); ++i) {
@@ -692,7 +696,10 @@ static void step6_solve_linear_system(MpmSolver& solver, ThreadSharedData& share
         { shared_data.acc_sum += acc_vec.sum(); }
 
         if (shared_data.acc_sum * b_sn < t_sq) [[unlikely]] {
-            break;
+            flag = true;
+
+            continue;
+            ;
         }
 
 #pragma omp single nowait
@@ -735,7 +742,8 @@ static void step6_solve_linear_system(MpmSolver& solver, ThreadSharedData& share
         { shared_data.acc_sum += acc_vec.sum(); }
 
         if (shared_data.acc_sum * b_sn < t_sq) [[unlikely]] {
-            break;
+            flag = true;
+            continue;
         }
 
 #pragma omp single nowait
@@ -909,7 +917,6 @@ static void step10_update_particle_positions(MpmSolver& solver) {
     }
 }
 
-template <bool first_time>
 static void _iterate(MpmSolver& solver) {
     solver.grid.active_nodes.clear();
     auto t0 = std::chrono::high_resolution_clock::now();
@@ -918,18 +925,6 @@ static void _iterate(MpmSolver& solver) {
                   << std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count()
                   << " us\n";
     };
-
-    if constexpr (first_time) {
-#pragma omp parallel
-        {
-            reset_nodes(solver);
-            step1345_rasterize_particles_to_grid(solver);
-            step2_compute_volumes_and_densities(solver);
-        }
-
-        print_duration("initialize", t0, std::chrono::high_resolution_clock::now());
-        return;
-    }
 
     auto t1 = t0;
     auto t2 = t0;
@@ -943,27 +938,27 @@ static void _iterate(MpmSolver& solver) {
     auto t10 = t0;
     auto t11 = t0;
 
+    const size_t false_nb_particles = std::max(4096ul * 5, solver.grid.active_nodes.size());
+
     ThreadSharedData shared_data;
-
-    const size_t false_nb_particles = 10000;
-
-    auto nb_threads = omp_get_max_threads();
     shared_data.ar_params = new calculate_ar_params[solver.p_current_state.p_position.size()];
-    shared_data.cached_velocity = new vec3a[false_nb_particles];
-    shared_data.b = new vec3a[false_nb_particles];
-    shared_data.Ap = new vec3a[false_nb_particles];
-    shared_data.Ar = new vec3a[false_nb_particles];
-    shared_data.r = new vec3a[false_nb_particles];
-    shared_data.p = new vec3a[false_nb_particles];
+    shared_data.cached_velocity = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
+    shared_data.b = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
+    shared_data.Ap = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
+    shared_data.Ar = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
+    shared_data.r = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
+    shared_data.p = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
     shared_data.b_norm_square = 0;
     shared_data.acc_sum = 0;
 
-#pragma omp parallel shared(shared_data)
+#pragma omp parallel
     {
 
+        vec3a cccc[false_nb_particles];
+
         ThreadLocalData local_data;
-        #pragma omp critical
-        {local_data.cached_velocity = new vec3a[solver.p_current_state.p_position.size()];}
+
+        local_data.cached_velocity = &cccc[0];
         reset_nodes(solver);
 #pragma omp single nowait
         {
@@ -972,7 +967,7 @@ static void _iterate(MpmSolver& solver) {
 
         step1345_rasterize_particles_to_grid(solver);
         const size_t nb_active_nodes = solver.grid.active_nodes.size();
-#pragma omp single
+#pragma omp single nowait
         {
             t2 = std::chrono::high_resolution_clock::now();
 
@@ -997,15 +992,11 @@ static void _iterate(MpmSolver& solver) {
         // // step5_grid_based_collisions();
         // t5 = std::chrono::high_resolution_clock::now();
 
-        local_data.cached_velocity = shared_data.cached_velocity + nb_active_nodes * (omp_get_thread_num() + 1);
-
-        step6_solve_linear_system(solver, shared_data, local_data);
+        //step6_solve_linear_system(solver, shared_data, local_data);
 #pragma omp single nowait
         {
             t6 = std::chrono::high_resolution_clock::now();
         }
-
-        delete[] local_data.cached_velocity;
 
         //    step6_solve_linear_system_preconditioned<SolverPCR>();
         step7_update_deformation_gradient(solver);
@@ -1015,17 +1006,11 @@ static void _iterate(MpmSolver& solver) {
         }
 
         step8_update_particle_velocities(solver);
-#pragma omp single nowait
+#pragma omp single
         {
             t8 = std::chrono::high_resolution_clock::now();
         }
     }
-    delete[] shared_data.p;
-    delete[] shared_data.r;
-    delete[] shared_data.Ar;
-    delete[] shared_data.Ap;
-    delete[] shared_data.b;
-    delete[] shared_data.cached_velocity;
     delete[] shared_data.ar_params;
     step9_particle_based_collisions(solver);
     t9 = std::chrono::high_resolution_clock::now();
@@ -1047,19 +1032,40 @@ static void _iterate(MpmSolver& solver) {
     print_duration("step10_update_particle_positions", t9, t10);
     print_duration("total", t0, t11);
     print_duration("print_duration", t11, std::chrono::high_resolution_clock::now());
+
+
+    free(shared_data.p);
+    free(shared_data.r);
+    free(shared_data.Ar);
+    free(shared_data.Ap);
+    free(shared_data.b);
+    free(shared_data.cached_velocity);
 }
 
 void MpmSolver::iterate() {
-    _iterate<false>(*this);
+    _iterate(*this);
 }
 
 void MpmSolver::initialize() {
+    auto t0 = std::chrono::high_resolution_clock::now();
     const size_t nb_particles = p_current_state.p_position.size();
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
     global_to_active_map.assign(grid.nodes.size(), -1);
+    const auto print_duration = [](const char* name, auto t_start, auto t_end) {
+        std::cout << name << ": "
+                  << std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count()
+                  << " us\n";
+    };
 
-    _iterate<true>(*this);
+#pragma omp parallel
+    {
+        reset_nodes(*this);
+        step1345_rasterize_particles_to_grid(*this);
+        step2_compute_volumes_and_densities(*this);
+    }
+
+    print_duration("initialize", t0, std::chrono::high_resolution_clock::now());
 }
 
 void MpmSolver::create_particle(vec3 position, vec3 velocity) {
