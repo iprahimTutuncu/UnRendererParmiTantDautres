@@ -326,7 +326,7 @@ namespace Solver {
 
         float rAr_old = r.cwiseProduct(Ap).sum();
         const float b_norm = x.norm();
-        const float b_sn = b_norm < EPSILON ? static_cast<float>(1) : 1/(b_norm * b_norm);
+        const float b_sn = b_norm < EPSILON ? static_cast<float>(1) : 1 / (b_norm * b_norm);
         constexpr float t_sq = tolerance * tolerance;
 
         mat3n Ar;
@@ -341,7 +341,7 @@ namespace Solver {
             x += alpha * p;
             r -= alpha * Ap;
 
-            if (r.squaredNorm() / b_sn < t_sq) [[unlikely]] {
+            if (r.squaredNorm() * b_sn < t_sq) [[unlikely]] {
                 break;
             }
             Ar = r;
@@ -492,8 +492,12 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
         for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
                 for (int x = 0; x < 4; ++x) {
-                    if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]]
+                    auto weight_id = x + y * 4 + z * 4 * 4;
+                    if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]] {
+                        p_weights[i][weight_id] = 0.0f;
+                        p_weights_gradient[i][weight_id] = vec3::Zero();
                         continue;
+                    }
 
                     // calculate particle offset
                     size_t node_index = get_node_id_from_local(
@@ -515,7 +519,6 @@ void MpmSolver::step1_rasterize_particles_to_grid() {
                     float dNi_y = d_N(p_off.y());
                     float dNi_z = d_N(p_off.z());
 
-                    auto weight_id = x + y * 4 + z * 4 * 4;
                     const float w_ip = p_weights[i][weight_id] = Ni_x * Ni_y * Ni_z;
                     const auto& w_ip_grad = p_weights_gradient[i][weight_id] = grid.one_over_h * vec3(dNi_x * Ni_y * Ni_z, Ni_x * dNi_y * Ni_z, Ni_x * Ni_y * dNi_z);
 
