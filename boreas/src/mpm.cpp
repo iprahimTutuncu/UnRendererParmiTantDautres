@@ -409,20 +409,13 @@ static void create_particle_state(MpmParticlesState& state,
 
 static inline void reset_nodes(MpmSolver& solver) {
 
-#pragma omp parallel
-    {
-#pragma omp single nowait
-        {
-            solver.grid.active_nodes.clear();
-        }
-#pragma omp for schedule(dynamic, 64)
-        for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
-            solver.grid.nodes[i].mass = static_cast<float>(0);
-            solver.grid.nodes[i].velocity_star.setZero();
-            solver.grid.nodes[i].velocity.setZero();
-            solver.grid.nodes[i].momentum.setZero();
-            solver.grid.nodes[i].force.setZero();
-        }
+#pragma omp for nowait
+    for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
+        solver.grid.nodes[i].mass = static_cast<float>(0);
+        solver.grid.nodes[i].velocity_star.setZero();
+        solver.grid.nodes[i].velocity.setZero();
+        solver.grid.nodes[i].momentum.setZero();
+        solver.grid.nodes[i].force.setZero();
     }
 }
 
@@ -769,8 +762,13 @@ static void step10_update_particle_positions(MpmSolver& solver) {
 
 template <bool first_time>
 static void _iterate(MpmSolver& solver) {
+    solver.grid.active_nodes.clear();
+
     if constexpr (first_time) {
-        reset_nodes(solver);
+#pragma omp parallel
+        {
+            reset_nodes(solver);
+        }
         step1_rasterize_particles_to_grid(solver);
         step2_compute_volumes_and_densities(solver);
         return;
@@ -788,7 +786,10 @@ static void _iterate(MpmSolver& solver) {
     auto t9 = t0;
     auto t10 = t0;
 
-    reset_nodes(solver);
+#pragma omp parallel
+    {
+        reset_nodes(solver);
+    }
     t1 = std::chrono::high_resolution_clock::now();
 
     step1_rasterize_particles_to_grid(solver);
