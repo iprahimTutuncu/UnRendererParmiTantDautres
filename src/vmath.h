@@ -86,18 +86,6 @@ constexpr vec3 operator*(vec3 const& v, float f) {
     return { v.x * f, v.y * f, v.z * f };
 }
 
-constexpr vec3 operator-(float f, vec3 const& v) {
-    return { f - v.x, f - v.y, f - v.z };
-}
-
-constexpr vec3 operator-(vec3 const& v, float f) {
-    return { v.x - f, v.y - f, v.z - f };
-}
-
-constexpr vec3 operator-(vec3 const& v, vec3 const& u) {
-    return { v.x - u.x, v.y - u.y, v.z - u.z };
-}
-
 struct mat3 {
     union {
         __m128 mm[3];
