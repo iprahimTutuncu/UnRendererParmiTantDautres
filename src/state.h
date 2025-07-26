@@ -2,6 +2,9 @@
 
 #include <cstdint>
 
+#define INITIAL_WINDOW_WIDTH 1280u
+#define INITIAL_WINDOW_HEIGHT 768u
+
 struct SDL_GPUDevice;
 struct SDL_Window;
 struct SDL_Thread;

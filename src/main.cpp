@@ -41,9 +41,6 @@ static void updateTiming(AppState &state) {
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
-    const int width = 1280;
-    const int height = 768;
-
     if (!SDL_SetAppMetadata("Olaf engine renderer", "0.1.1", "ca.etsmtl.olaf")) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to set app metadata: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -62,7 +59,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         return SDL_APP_FAILURE;
     }
 
-    SDL_Window *window = SDL_CreateWindow(nullptr, 1280, 768, SDL_WINDOW_RESIZABLE);
+    SDL_Window *window = SDL_CreateWindow(nullptr, INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
     if (window == nullptr) {
         SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Failed to create SDL Window: %s", SDL_GetError());
         SDL_DestroyGPUDevice(device);
@@ -93,7 +90,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     state.camera = new CameraPerspective {
         .rotation = quat_cast({ .cols { right, up, front } }),
         .position = position,
-        .aspectRatio = static_cast<float>(width) / static_cast<float>(height),
+        .aspectRatio = static_cast<float>(INITIAL_WINDOW_WIDTH) / static_cast<float>(INITIAL_WINDOW_HEIGHT),
         .fov = radians(75.f),
         .near = 20.f,
         .far = 60.0f,
