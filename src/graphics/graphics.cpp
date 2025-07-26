@@ -9,8 +9,9 @@
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_log.h>
 
-#include <stddef.h>
+#include <ctime>
 #include <imgui_impl_sdlgpu3.h>
+#include <stddef.h>
 
 SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
@@ -23,43 +24,45 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     if (!SDL_GetWindowSize(state.window, &w, &h))
         return SDL_APP_FAILURE;
 
-    createRenderTarget(state, GeometryPosition, w, h, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
-    createRenderTarget(state, GeometryNormal, w, h, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
-    createRenderTarget(state, GeometryAlbedo, w, h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER);
+    createRenderTarget(state, GeometryPosition, w, h, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE);
+    createRenderTarget(state, GeometryNormal, w, h, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE);
+    createRenderTarget(state, GeometryAlbedo, w, h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE);
     createRenderTarget(state, GeometryDepth, w, h, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
+    createRenderTarget(state, GeometryDepthModified, w, h, SDL_GPU_TEXTUREFORMAT_R32_FLOAT, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE);
 
     imgui_init(state);
     init_sampler_presets(state);
 
-    static constexpr std::size_t gridSizeX = 10;
-    static constexpr std::size_t gridSizeY = 10;
-    static constexpr std::size_t gridSizeZ = 10;
-    static constexpr float spacing = 1.0f; // distance between particles
+    // Initialize random seed
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
 
-    // Offset to center the grid at origin
-    static constexpr float offsetX = static_cast<float>(gridSizeX - 1) * spacing * 0.5f;
-    static constexpr float offsetY = static_cast<float>(gridSizeY - 1) * spacing * 0.5f;
-    static constexpr float offsetZ = static_cast<float>(gridSizeZ - 1) * spacing * 0.5f;
+    static constexpr std::size_t numParticles = 5000; // Total number of random particles
+    static constexpr float sizeX = 10.0f;
+    static constexpr float sizeY = 10.0f;
+    static constexpr float sizeZ = 10.0f;
 
-    graphics.particles.resize(gridSizeX * gridSizeY * gridSizeZ);
+    // Half-extents to center the cloud at origin
+    static constexpr float offsetX = sizeX * 0.5f;
+    static constexpr float offsetY = sizeY * 0.5f;
+    static constexpr float offsetZ = sizeZ * 0.5f;
+
+    graphics.particles.resize(numParticles);
     Particle* p = graphics.particles.data();
-    for (std::size_t z = 0; z < gridSizeZ; ++z) {
-        for (std::size_t y = 0; y < gridSizeY; ++y) {
-            for (std::size_t x = 0; x < gridSizeX; ++x) {
-                p->position[0] = static_cast<float>(x) * spacing - offsetX;
-                p->position[1] = static_cast<float>(y) * spacing - offsetY;
-                p->position[2] = static_cast<float>(z) * spacing - offsetZ;
-                p->position[3] = 1.0f;
 
-                // Set all colors to white
-                p->color[0] = 1.0f;
-                p->color[1] = 1.0f;
-                p->color[2] = 1.0f;
-                p->color[3] = 1.0f;
+    for (std::size_t i = 0; i < numParticles; ++i) {
+        // Random position within a centered cube
+        p->position[0] = ((std::rand() % 1000) / 1000.0f) * sizeX - offsetX;
+        p->position[1] = ((std::rand() % 1000) / 1000.0f) * sizeY - offsetY;
+        p->position[2] = ((std::rand() % 1000) / 1000.0f) * sizeZ - offsetZ;
+        p->position[3] = 1.0f;
 
-                p += 1;
-            }
-        }
+        // Random color
+        p->color[0] = (std::rand() % 256) / 255.0f;
+        p->color[1] = (std::rand() % 256) / 255.0f;
+        p->color[2] = (std::rand() % 256) / 255.0f;
+        p->color[3] = 1.0f;
+
+        ++p;
     }
 
     graphics.boxes.resize(1);
@@ -72,12 +75,14 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     graphics.boxes[0].max[1] = 0.5f;
     graphics.boxes[0].max[2] = 0.5f;
 
-
     if (SDL_AppResult result = deferred_lighting_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
 
     if (SDL_AppResult result = deferred_gbuffer_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
         return result;
+
+    // if (SDL_AppResult result = deferred_ssao_init(state); result != SDL_APP_CONTINUE) [[unlikely]]
+    //     return result;
 
     return SDL_APP_CONTINUE;
 }
@@ -106,6 +111,22 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
     deferred_gbuffer_render(state, cmdbuf);
 
+    // deferred_ssao_render(state, cmdbuf);
+
+    // ou
+
+    /*
+    SDL_GPUColorTargetInfo colorTarget = {};
+    colorTarget.texture = state.textures[ssaoTexture];
+    colorTarget.clear_color = SDL_FColor { 0.0f, 0.0f, 0.0f, 1.0f };
+    colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+    colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+
+    SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTarget, 1, nullptr);
+    deferred_ssao_render(state, renderPass, cmdbuf);
+    SDL_EndGPURenderPass(renderPass);
+    */
+
     imgui_iterate(state);
     ImDrawData* draw_data = ImGui::GetDrawData();
     Imgui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
@@ -117,12 +138,12 @@ SDL_AppResult graphics_iterate(AppState& state) {
     colorTarget.store_op = SDL_GPU_STOREOP_STORE;
 
     SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(cmdbuf, &colorTarget, 1, nullptr);
+
     state.graphics->displayMode = DisplayMode::Final;
-    deferred_lighting_render_to_texture(state, renderPass, cmdbuf, state.graphics->displayMode);
+    deferred_lighting_render_to_texture(state, renderPass, cmdbuf, state.graphics->displayMode); // le "to_texture" dans le nom je vais retirer
     ImGui_ImplSDLGPU3_RenderDrawData(draw_data, cmdbuf, renderPass);
 
     SDL_EndGPURenderPass(renderPass);
-
 
     SDL_SubmitGPUCommandBuffer(cmdbuf);
 

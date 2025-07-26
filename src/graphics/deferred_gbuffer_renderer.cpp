@@ -18,6 +18,10 @@ SDL_AppResult deferred_gbuffer_init(AppState& state) {
         return SDL_APP_FAILURE;
     }
 
+    state.graphics->bilateralBlurBufferUniform.blurScale = 2.0f;
+    state.graphics->bilateralBlurBufferUniform.blurDepthFalloff = 1.0f;
+    state.graphics->bilateralBlurBufferUniform.filterRadius = 10;
+
     deferred_gbuffer_update_particles(state);
 
     return SDL_APP_CONTINUE;
@@ -29,14 +33,15 @@ void deferred_gbuffer_update_particles(AppState& state) {
 
     positions.resize(state.graphics->particles.size() * 4);
 
-    for (std::size_t i = 0; i < state.graphics->particles.size(); i++) {
+    for (size_t i = 0; i < state.graphics->particles.size(); i++) {
         // Access the i-th particle
         auto& p = state.graphics->particles[i];
 
-        positions[i * 4 + 0] = p.position[0];
-        positions[i * 4 + 1] = p.position[1];
-        positions[i * 4 + 2] = p.position[2];
-        positions[i * 4 + 3] = p.position[3];
+        size_t j = i * 4;
+        positions[j] = p.position[0];
+        positions[j + 1] = p.position[1];
+        positions[j + 2] = p.position[2];
+        positions[j + 3] = p.position[3];
     }
 
     if (!state.graphics->buffers[ParticlePositionBuffer]) {
@@ -72,29 +77,32 @@ void deferred_gbuffer_update_particles(AppState& state) {
 void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     GraphicState& graphics = *state.graphics;
 
+    int width, height;
+    if (!SDL_GetWindowSize(state.window, &width, &height))
+        return;
+
     if (!graphics.textures[GeometryPosition] || !graphics.textures[GeometryNormal] || !graphics.textures[GeometryAlbedo] || !graphics.textures[GeometryDepth]) [[unlikely]] {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GBuffer textures not set!");
         return;
     }
 
-    graphics.particleUniformBuffer.time += 0.01f;
+    // --- ParticleUpdate Compute Pass ---
+    {
+        graphics.particleUniformBuffer.time += 0.01f;
 
-    SDL_GPUStorageBufferReadWriteBinding bufferBindings {};
-    bufferBindings.buffer = graphics.buffers[ParticlePositionBuffer];
+        SDL_GPUStorageBufferReadWriteBinding bufferBinding {};
+        bufferBinding.buffer = graphics.buffers[ParticlePositionBuffer];
 
-    SDL_GPUCommandBuffer* cmdBufcomp = SDL_AcquireGPUCommandBuffer(state.device);
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBuf, nullptr, 0, &bufferBinding, 1);
+        SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleUpdate]);
+        SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
 
-    // BEGIN
-    SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBufcomp, nullptr, 0, &bufferBindings, 1);
-    SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleUpdate]);
+        Uint32 groupCount = static_cast<Uint32>((graphics.particles.size() + 63) / 64);
+        SDL_DispatchGPUCompute(computePass, groupCount, 1, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
 
-    SDL_PushGPUComputeUniformData(cmdBufcomp, 0, &graphics.particleUniformBuffer, sizeof(ParticleUpdateUniform));
-    Uint32 groupCount = static_cast<std::uint32_t>((graphics.particles.size() + 63) / 64);
-    SDL_DispatchGPUCompute(computePass, groupCount, 1, 1);
-    SDL_EndGPUComputePass(computePass);
-    SDL_SubmitGPUCommandBuffer(cmdBufcomp);
-    // END
-
+    // --- Setup Depth and Color Targets ---
     SDL_GPUDepthStencilTargetInfo depthTarget {};
     depthTarget.texture = graphics.textures[GeometryDepth];
     depthTarget.cycle = true;
@@ -105,7 +113,6 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     depthTarget.stencil_load_op = SDL_GPU_LOADOP_CLEAR;
     depthTarget.stencil_store_op = SDL_GPU_STOREOP_STORE;
 
-    // Set up render targets
     SDL_GPUColorTargetInfo colorTargets[3] = {};
     colorTargets[0].texture = graphics.textures[GeometryPosition];
     colorTargets[1].texture = graphics.textures[GeometryNormal];
@@ -114,119 +121,149 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     for (auto& target : colorTargets) {
         target.load_op = SDL_GPU_LOADOP_CLEAR;
         target.store_op = SDL_GPU_STOREOP_STORE;
-        target.clear_color = { 0, 0, 0, 1 };
+        target.clear_color = { 0, 0, 0, 0 };
     }
 
-    // Begin geometry pass
     SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(cmdBuf, colorTargets, 3, &depthTarget);
 
-    SDL_GPUGraphicsPipeline* boxPipeline = graphics.rasterMode == RasterMode_Fill
-        ? graphics.graphicPipeline[GeometryBufferFillPipeline]
-        : graphics.graphicPipeline[GeometryBufferLinePipeline];
+    // --- Box Rendering Pass ---
+    {
+        SDL_GPUGraphicsPipeline* pipeline = graphics.rasterMode == RasterMode_Fill
+            ? graphics.graphicPipeline[GeometryBufferFillPipeline]
+            : graphics.graphicPipeline[GeometryBufferLinePipeline];
 
-    SDL_BindGPUGraphicsPipeline(pass, boxPipeline);
+        SDL_BindGPUGraphicsPipeline(pass, pipeline);
 
-    // Bind box geometry
-    SDL_GPUBufferBinding vertexBinding {};
-    vertexBinding.buffer = graphics.buffers[BoxVertexBuffer];
-    vertexBinding.offset = 0;
+        SDL_GPUBufferBinding vertexBinding {};
+        vertexBinding.buffer = graphics.buffers[BoxVertexBuffer];
 
-    SDL_GPUBufferBinding indexBinding {};
-    indexBinding.buffer = graphics.buffers[BoxIndexBuffer];
-    indexBinding.offset = 0;
+        SDL_GPUBufferBinding indexBinding {};
+        indexBinding.buffer = graphics.buffers[BoxIndexBuffer];
 
-    // Bind default texture
-    SDL_GPUTextureSamplerBinding samplerBinding {};
-    samplerBinding.texture = graphics.textures[DefaultWhite];
-    samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
+        SDL_GPUTextureSamplerBinding samplerBinding {};
+        samplerBinding.texture = graphics.textures[DefaultWhite];
+        samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
 
-    SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
+        SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
+        SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
+        SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
-    SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
-    SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+        for (Box& box : graphics.boxes) {
+            vec3 min { box.min[0], box.min[1], box.min[2] };
+            vec3 max { box.max[0], box.max[1], box.max[2] };
 
-    [[maybe_unused]] float mvp[48] = {
-        // proj (16 floats)
-        1.358f, 0.0f, 0.0f, 0.0f,
-        0.0f, 2.41421f, 0.0f, 0.0f,
-        0.0f, 0.0f, -1.002f, -1.0f,
-        0.0f, 0.0f, -0.2002f, 0.0f,
+            vec3 size { max.x - min.x, max.y - min.y, max.z - min.z };
+            vec3 center { (max.x + min.x) * 0.5f, (max.y + min.y) * 0.5f, (max.z + min.z) * 0.5f };
 
-        // view (16 floats)
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, -1.0f, -10.0f, 1.0f,
+            mat4 model = mat4::identity();
+            model[3].x = center.x;
+            model[3].y = center.y;
+            model[3].z = center.z;
+            model[0].x *= size.x * 0.5f;
+            model[1].y *= size.y * 0.5f;
+            model[2].z *= size.z * 0.5f;
+            model[3].w = 1.f;
 
-        // model (16 floats)
-        0.25f, 0.0f, 0.0f, 0.0f,
-        0.0f, 0.25f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.25f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
+            graphics.geometryBufferUniform.model = model;
+            graphics.geometryBufferUniform.view = state.camera->view_matrix();
+            graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
+            graphics.geometryBufferUniform.id = 1;
 
-    // Render each box
-    for (Box& box : graphics.boxes) {
-        vec3 min = { box.min[0], box.min[1], box.min[2] };
-        vec3 max = { box.max[0], box.max[1], box.max[2] };
+            SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
+            SDL_DrawGPUIndexedPrimitives(pass, graphics.numBoxIndices, 1, 0, 0, 0);
+        }
+    }
 
-        vec3 size = { max.x - min.x, max.y - min.y, max.z - min.z };
-        vec3 center = { (max.x + min.x) * 0.5f, (max.y + min.y) * 0.5f, (max.z + min.z) * 0.5f };
+    // --- Particle Rendering Pass ---
+    {
+        SDL_GPUGraphicsPipeline* pipeline = graphics.rasterMode == RasterMode_Fill
+            ? graphics.graphicPipeline[GeometryBufferParticleFillPipeline]
+            : graphics.graphicPipeline[GeometryBufferParticleLinePipeline];
 
-        mat4 model = mat4::identity();
+        SDL_BindGPUGraphicsPipeline(pass, pipeline);
 
-        // Apply translation
-        model[3].x = center.x;
-        model[3].y = center.y;
-        model[3].z = center.z;
+        SDL_GPUBufferBinding vertexBinding {};
+        vertexBinding.buffer = graphics.buffers[SphereVertexBuffer];
 
-        // Apply scaling (column-major)
-        model[0].x *= size.x * 0.5f;
-        model[1].y *= size.y * 0.5f;
-        model[2].z *= size.z * 0.5f;
+        SDL_GPUBufferBinding indexBinding {};
+        indexBinding.buffer = graphics.buffers[SphereIndexBuffer];
+
+        SDL_GPUTextureSamplerBinding samplerBinding {};
+        samplerBinding.texture = graphics.textures[DefaultWhite];
+        samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
+
+        SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
+        SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
+        SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+
+        SDL_BindGPUVertexStorageBuffers(pass, 0, &graphics.buffers[ParticlePositionBuffer], 1);
+
+        mat4 model {};
+        model[0].x = 0.25f;
+        model[1].y = 0.25f;
+        model[2].z = 0.25f;
         model[3].w = 1.f;
 
         graphics.geometryBufferUniform.model = model;
-        graphics.geometryBufferUniform.view = state.camera->view_matrix();
-        graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
-        SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
-        SDL_DrawGPUIndexedPrimitives(pass, graphics.numBoxIndices, 1, 0, 0, 0);
+
+        graphics.geometryBufferParticlesUniform.view = state.camera->view_matrix();
+        graphics.geometryBufferParticlesUniform.proj = state.camera->projection_matrix();
+        graphics.geometryBufferParticlesUniform.id = 2;
+        graphics.geometryBufferParticlesUniform.radius = 2.f;
+        graphics.geometryBufferParticlesUniform.color = { 1.f, 1.f, 1.f, 1.f };
+        graphics.geometryBufferParticlesUniform.near = state.camera->near;
+        graphics.geometryBufferParticlesUniform.far = state.camera->far;
+
+        SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
+        SDL_PushGPUFragmentUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
+
+        SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
     }
 
-    SDL_GPUGraphicsPipeline* particlePipeline = graphics.rasterMode == RasterMode_Fill
-        ? graphics.graphicPipeline[GeometryBufferParticleFillPipeline]
-        : graphics.graphicPipeline[GeometryBufferParticleLinePipeline];
-
-    SDL_BindGPUGraphicsPipeline(pass, particlePipeline);
-
-    vertexBinding.buffer = graphics.buffers[SphereVertexBuffer];
-    vertexBinding.offset = 0;
-
-    indexBinding.buffer = graphics.buffers[SphereIndexBuffer];
-    indexBinding.offset = 0;
-
-    SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
-
-    SDL_BindGPUVertexBuffers(pass, 0, &vertexBinding, 1);
-    SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
-
-    SDL_BindGPUVertexStorageBuffers(pass, 0, &graphics.buffers[ParticlePositionBuffer], 1);
-
-    mat4 model {};
-    model[0].x = 0.25f;
-    model[1].y = 0.25f;
-    model[2].z = 0.25f;
-    model[3].w = 1.f;
-
-    graphics.geometryBufferUniform.model = model;
-
-    graphics.geometryBufferUniform.view = state.camera->view_matrix();
-    graphics.geometryBufferUniform.proj = state.camera->projection_matrix();
-
-    SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
-    SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
-
     SDL_EndGPURenderPass(pass);
+
+    { // Particle Bilateral Blur
+        SDL_GPUStorageTextureReadWriteBinding textureBinding {};
+        textureBinding.texture = state.graphics->textures[GeometryDepthModified];
+
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBuf, &textureBinding, 1, nullptr, 0);
+
+        SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleBilateralBlur]);
+        SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.bilateralBlurBufferUniform, sizeof(BilateralBlurBufferUniform));
+
+        SDL_GPUTextureSamplerBinding samplerBinding {};
+        samplerBinding.texture = state.graphics->textures[GeometryDepth];
+        samplerBinding.sampler = state.graphics->samplersPreset[LinearClamp];
+
+        SDL_BindGPUComputeSamplers(computePass, 0, &samplerBinding, 1);
+
+        Uint32 x = static_cast<Uint32>((width + 15) / 16);
+        Uint32 y = static_cast<Uint32>((height + 15) / 16);
+        SDL_DispatchGPUCompute(computePass, x, y, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
+
+    { // Particle Depth To Position/Normal/Albedo
+        SDL_GPUStorageTextureReadWriteBinding textureBinding[3] {};
+        textureBinding[0].texture = state.graphics->textures[GeometryPosition];
+        textureBinding[1].texture = state.graphics->textures[GeometryNormal];
+        textureBinding[2].texture = state.graphics->textures[GeometryAlbedo];
+
+        SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBuf, textureBinding, 3, nullptr, 0);
+
+        SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleDepthToGBuffer]);
+        SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
+
+        SDL_GPUTextureSamplerBinding samplerBinding {};
+        samplerBinding.texture = state.graphics->textures[GeometryDepthModified];
+        samplerBinding.sampler = state.graphics->samplersPreset[LinearClamp];
+        SDL_BindGPUComputeSamplers(computePass, 0, &samplerBinding, 1);
+
+        Uint32 x = static_cast<Uint32>((width + 15) / 16);
+        Uint32 y = static_cast<Uint32>((height + 15) / 16);
+        SDL_DispatchGPUCompute(computePass, x, y, 1);
+        SDL_EndGPUComputePass(computePass);
+    }
 }
 
 void deferred_gbuffer_create_pipelines(AppState& state) {
@@ -247,7 +284,30 @@ void deferred_gbuffer_create_pipelines(AppState& state) {
     pipelineInfo.threadcount_y = 1;
     pipelineInfo.threadcount_z = 1;
 
-    state.graphics->computePipeline[ParticleUpdate] = createComputePipelineFromShader(state.device, SHADER_PATH("particleUpdate.comp"), &pipelineInfo);
+    state.graphics->computePipeline[ParticleUpdate] = createComputePipelineFromShader(state.device, SHADER_PATH("particle_update.comp"), &pipelineInfo);
+
+    pipelineInfo.num_readwrite_storage_textures = 1;
+    pipelineInfo.num_readonly_storage_buffers = 0;
+    pipelineInfo.num_readwrite_storage_buffers = 0;
+    pipelineInfo.num_readonly_storage_textures = 0;
+    pipelineInfo.num_uniform_buffers = 1;
+    pipelineInfo.num_samplers = 1;
+    pipelineInfo.threadcount_x = 16;
+    pipelineInfo.threadcount_y = 16;
+    pipelineInfo.threadcount_z = 1;
+
+    state.graphics->computePipeline[ParticleBilateralBlur] = createComputePipelineFromShader(state.device, SHADER_PATH("particle_bilateral_blur.comp"), &pipelineInfo);
+    pipelineInfo.num_readwrite_storage_textures = 3;
+    pipelineInfo.num_readonly_storage_buffers = 0;
+    pipelineInfo.num_readwrite_storage_buffers = 0;
+    pipelineInfo.num_readonly_storage_textures = 0;
+    pipelineInfo.num_uniform_buffers = 1;
+    pipelineInfo.num_samplers = 1;
+    pipelineInfo.threadcount_x = 16;
+    pipelineInfo.threadcount_y = 16;
+    pipelineInfo.threadcount_z = 1;
+
+    state.graphics->computePipeline[ParticleDepthToGBuffer] = createComputePipelineFromShader(state.device, SHADER_PATH("particle_gbuffer_from_depth.comp"), &pipelineInfo);
 }
 
 void deferred_gbuffer_create_particles_pipeline(AppState& state) {
@@ -259,7 +319,7 @@ void deferred_gbuffer_create_particles_pipeline(AppState& state) {
         return;
     }
 
-    SDL_GPUShader* fragmentShader = loadShader(device, SHADER_PATH("deferred_gBuffer.frag"), 1, 0, 0, 0);
+    SDL_GPUShader* fragmentShader = loadShader(device, SHADER_PATH("deferred_gBuffer_particles.frag"), 1, 1, 0, 0);
     if (!fragmentShader) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load fragment shader: deferred_gBuffer.frag");
         SDL_ReleaseGPUShader(device, vertexShader);
@@ -535,72 +595,34 @@ void deferred_gbuffer_create_box_geometry(AppState& state) {
 }
 
 void deferred_gbuffer_create_sphere_geometry(AppState& state) {
-    static constexpr std::size_t kLatitudeBands = 32;
-    static constexpr std::size_t kLongitudeBands = 64;
-    static constexpr float pi = 3.14159265358979323846f;
-
     std::vector<Vertex> vertices;
     std::vector<uint16_t> indices;
 
-    for (std::size_t lat = 0; lat <= kLatitudeBands; ++lat) {
-        float theta = static_cast<float>(lat) * pi / kLatitudeBands;
-        float sinTheta = std::sin(theta);
-        float cosTheta = std::cos(theta);
+    float r = 0.5f;
 
-        for (std::size_t lon = 0; lon <= kLongitudeBands; ++lon) {
-            float phi = static_cast<float>(lon) * (2.f * pi) / kLongitudeBands;
-            float sinPhi = std::sin(phi);
-            float cosPhi = std::cos(phi);
+    // Positions (x, y, z), normals (up), texcoords
+    vertices.push_back(Vertex { { -r, -r, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } }); // bottom left
+    vertices.push_back(Vertex { { r, -r, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } }); // bottom right
+    vertices.push_back(Vertex { { r, r, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } }); // top right
+    vertices.push_back(Vertex { { -r, r, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } }); // top left
 
-            float x = cosPhi * sinTheta;
-            float y = cosTheta;
-            float z = sinPhi * sinTheta;
-
-            float u = 1.0f - static_cast<float>(lon) / kLongitudeBands;
-            float v = 1.0f - static_cast<float>(lat) / kLatitudeBands;
-
-            Vertex vertex = {};
-            vertex.position[0] = x;
-            vertex.position[1] = y;
-            vertex.position[2] = z;
-
-            vertex.normal[0] = x;
-            vertex.normal[1] = y;
-            vertex.normal[2] = z;
-
-            vertex.texCoord[0] = u;
-            vertex.texCoord[1] = v;
-
-            vertices.push_back(vertex);
-        }
-    }
-
-    for (std::size_t lat = 0; lat < kLatitudeBands; ++lat) {
-        for (std::size_t lon = 0; lon < kLongitudeBands; ++lon) {
-            std::uint16_t first = static_cast<std::uint16_t>(lat * (kLongitudeBands + 1) + lon);
-            std::uint16_t second = static_cast<std::uint16_t>(first + kLongitudeBands + 1);
-
-            indices.push_back(first);
-            indices.push_back(second);
-            indices.push_back(first + 1);
-
-            indices.push_back(second);
-            indices.push_back(second + 1);
-            indices.push_back(first + 1);
-        }
-    }
+    // Two triangles (0-1-2 and 2-3-0)
+    indices = {
+        0, 1, 2,
+        2, 3, 0
+    };
 
     state.graphics->numSphereIndices = static_cast<std::uint32_t>(indices.size());
 
     // Upload to GPU
     SDL_GPUBufferCreateInfo vertexBufferInfo = {};
     vertexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE;
-    vertexBufferInfo.size = static_cast<std::uint32_t>(sizeof(decltype(vertices)::value_type) * vertices.size());
+    vertexBufferInfo.size = static_cast<std::uint32_t>(sizeof(Vertex) * vertices.size());
     state.graphics->buffers[SphereVertexBuffer] = SDL_CreateGPUBuffer(state.device, &vertexBufferInfo);
 
     SDL_GPUBufferCreateInfo indexBufferInfo = {};
     indexBufferInfo.usage = SDL_GPU_BUFFERUSAGE_INDEX | SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_WRITE;
-    indexBufferInfo.size = static_cast<std::uint32_t>(sizeof(decltype(indices)::value_type) * indices.size());
+    indexBufferInfo.size = static_cast<std::uint32_t>(sizeof(uint16_t) * indices.size());
     state.graphics->buffers[SphereIndexBuffer] = SDL_CreateGPUBuffer(state.device, &indexBufferInfo);
 
     // Transfer buffer

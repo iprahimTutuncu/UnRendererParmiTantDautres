@@ -97,6 +97,7 @@ set(SHADERS
     ${SHADER_DIR}/deferred_debug.frag
     ${SHADER_DIR}/deferred_gBuffer.frag
     ${SHADER_DIR}/deferred_gBuffer_particles.vert
+    ${SHADER_DIR}/deferred_gBuffer_particles.frag
     ${SHADER_DIR}/deferred_gBuffer.vert
     ${SHADER_DIR}/deferred_render.frag
     ${SHADER_DIR}/FillTexture.comp
@@ -104,7 +105,9 @@ set(SHADERS
     ${SHADER_DIR}/floorShader.vert
     ${SHADER_DIR}/particleShader.frag
     ${SHADER_DIR}/particleShader.vert
-    ${SHADER_DIR}/particleUpdate.comp
+    ${SHADER_DIR}/particle_update.comp
+    ${SHADER_DIR}/particle_bilateral_blur.comp
+    ${SHADER_DIR}/particle_gbuffer_from_depth.comp
     ${SHADER_DIR}/PositionColor.vert
     ${SHADER_DIR}/quad.vert
     ${SHADER_DIR}/SolidColor.frag
