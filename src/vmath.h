@@ -359,7 +359,7 @@ static inline mat4 lookat(vec3 const& eye, vec3 const& center, vec3 const& up) {
     vec3 const s(normalize(cross(f, up)));
     vec3 const u(cross(s, f));
 
-    mat4 m;
+    mat4 m = mat4::identity();
     m[0].x = s.x;
     m[1].x = s.y;
     m[2].x = s.z;

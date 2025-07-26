@@ -23,7 +23,7 @@ SDL_AppResult controls_init(AppState& state, int argc, char** argv) {
     controls.mouse_sensitivity = 0.1f;
     controls.distanceFromTarget = state.camera->position.length();
     controls.yaw = -180.f;
-    controls.pitch = 0.f;
+    controls.pitch = -60.f;
 
     return SDL_APP_CONTINUE;
 }

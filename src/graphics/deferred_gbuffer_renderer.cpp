@@ -149,8 +149,8 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
             vec3 min { box.min[0], box.min[1], box.min[2] };
             vec3 max { box.max[0], box.max[1], box.max[2] };
 
-            vec3 size { max.x - min.x, max.y - min.y, max.z - min.z };
-            vec3 center { (max.x + min.x) * 0.5f, (max.y + min.y) * 0.5f, (max.z + min.z) * 0.5f };
+            vec3 size = vec3 { max.x - min.x, max.y - min.y, max.z - min.z };
+            vec3 center = vec3 { max.x + min.x, max.y + min.y, max.z + min.z } * 0.5f;
 
             mat4 model = mat4::identity();
             model[3].x = center.x;
