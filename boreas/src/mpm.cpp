@@ -90,17 +90,17 @@ vec3a operator*(float scalar, const vec3a& vec) {
 struct alignas(HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE) ThreadSharedData {
     float acc_sum;
     float b_norm_square;
-    calculate_ar_params* ar_params;
-    vec3a* cached_velocity; // step6: b
-    vec3a* b; // step6: v*
-    vec3a* Ap;
-    vec3a* Ar;
-    vec3a* r;
-    vec3a* p;
+    std::vector<calculate_ar_params> ar_params;
+    std::vector<vec3a> cached_velocity; // step6: b
+    std::vector<vec3a> b; // step6: v*
+    std::vector<vec3a> Ap;
+    std::vector<vec3a> Ar;
+    std::vector<vec3a> r;
+    std::vector<vec3a> p;
 };
 
 struct ThreadLocalData {
-    vec3a* cached_velocity; // step6::calculate_Ar: df
+    std::vector<vec3a> cached_velocity; // step6::calculate_Ar: df
 };
 
 // https://csmbrannon.net/2013/02/14/illustration-of-polar-decomposition/
@@ -644,11 +644,11 @@ static void step6_solve_linear_system(MpmSolver& solver, ThreadSharedData& share
         }
     }
 
-    vec3a*& b = shared_data.b;
-    vec3a*& Ap = shared_data.Ap;
-    vec3a*& Ar = shared_data.Ar;
-    vec3a*& r = shared_data.r;
-    vec3a*& p = shared_data.p;
+    vec3a* b = shared_data.b.data();
+    vec3a* Ap = shared_data.Ap.data();
+    vec3a* Ar = shared_data.Ar.data();
+    vec3a* r = shared_data.r.data();
+    vec3a* p = shared_data.p.data();
 
     Solver::calculate_Ar(solver, Ap, b, shared_data, local_data);
 
@@ -941,24 +941,21 @@ static void _iterate(MpmSolver& solver) {
     const size_t false_nb_particles = std::max(4096ul * 5, solver.grid.active_nodes.size());
 
     ThreadSharedData shared_data;
-    shared_data.ar_params = new calculate_ar_params[solver.p_current_state.p_position.size()];
-    shared_data.cached_velocity = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
-    shared_data.b = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
-    shared_data.Ap = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
-    shared_data.Ar = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
-    shared_data.r = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
-    shared_data.p = (vec3a*)malloc(false_nb_particles * sizeof(vec3a));
+    shared_data.ar_params.resize(solver.p_current_state.p_position.size());
+    shared_data.cached_velocity.resize(false_nb_particles);
+    shared_data.b.resize(false_nb_particles);
+    shared_data.Ap.resize(false_nb_particles);
+    shared_data.Ar.resize(false_nb_particles);
+    shared_data.r.resize(false_nb_particles);
+    shared_data.p.resize(false_nb_particles);
     shared_data.b_norm_square = 0;
     shared_data.acc_sum = 0;
 
 #pragma omp parallel
     {
-
-        vec3a cccc[false_nb_particles];
-
         ThreadLocalData local_data;
 
-        local_data.cached_velocity = &cccc[0];
+        local_data.cached_velocity.resize(false_nb_particles);
         reset_nodes(solver);
 #pragma omp single nowait
         {
@@ -992,7 +989,7 @@ static void _iterate(MpmSolver& solver) {
         // // step5_grid_based_collisions();
         // t5 = std::chrono::high_resolution_clock::now();
 
-        //step6_solve_linear_system(solver, shared_data, local_data);
+        step6_solve_linear_system(solver, shared_data, local_data);
 #pragma omp single nowait
         {
             t6 = std::chrono::high_resolution_clock::now();
@@ -1011,7 +1008,7 @@ static void _iterate(MpmSolver& solver) {
             t8 = std::chrono::high_resolution_clock::now();
         }
     }
-    delete[] shared_data.ar_params;
+
     step9_particle_based_collisions(solver);
     t9 = std::chrono::high_resolution_clock::now();
 
@@ -1033,13 +1030,6 @@ static void _iterate(MpmSolver& solver) {
     print_duration("total", t0, t11);
     print_duration("print_duration", t11, std::chrono::high_resolution_clock::now());
 
-
-    free(shared_data.p);
-    free(shared_data.r);
-    free(shared_data.Ar);
-    free(shared_data.Ap);
-    free(shared_data.b);
-    free(shared_data.cached_velocity);
 }
 
 void MpmSolver::iterate() {
