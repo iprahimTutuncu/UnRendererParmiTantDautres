@@ -10,8 +10,8 @@
 #include <SDL3/SDL_log.h>
 #include <imgui_impl_sdlgpu3.h>
 
-#include <ctime>
 #include <stddef.h>
+#include <random>
 
 static SDL_AppResult graphics_create_render_targets(AppState& state, std::uint32_t width, std::uint32_t height);
 static SDL_GPUTexture* createSolidColorTextureRGBA8(SDL_GPUDevice* device, std::uint32_t width, std::uint32_t height, const float r, const float g, const float b, const float a);
@@ -34,33 +34,30 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     imgui_init(state);
     init_sampler_presets(state);
 
-    // Initialize random seed
-    std::srand(static_cast<unsigned>(std::time(nullptr)));
+    std::random_device rd;
+    std::mt19937 generator(rd());
+    std::uniform_real_distribution<float> dist1000(-5, 5);
+    std::uniform_real_distribution<float> dist255(0, 256);
+    generator.seed(38);
 
     static constexpr std::size_t numParticles = 5000; // Total number of random particles
-    static constexpr float sizeX = 10.0f;
-    static constexpr float sizeY = 10.0f;
-    static constexpr float sizeZ = 10.0f;
 
     // Half-extents to center the cloud at origin
-    static constexpr float offsetX = sizeX * 0.5f;
-    static constexpr float offsetY = sizeY * 0.5f;
-    static constexpr float offsetZ = sizeZ * 0.5f;
 
     graphics.particles.resize(numParticles);
     Particle* p = graphics.particles.data();
 
     for (std::size_t i = 0; i < numParticles; ++i) {
         // Random position within a centered cube
-        p->position[0] = ((std::rand() % 1000) / 1000.0f) * sizeX - offsetX;
-        p->position[1] = ((std::rand() % 1000) / 1000.0f) * sizeY - offsetY;
-        p->position[2] = ((std::rand() % 1000) / 1000.0f) * sizeZ - offsetZ;
+        p->position[0] = dist1000(generator);
+        p->position[1] = dist1000(generator);
+        p->position[2] = dist1000(generator);
         p->position[3] = 1.0f;
 
         // Random color
-        p->color[0] = (std::rand() % 256) / 255.0f;
-        p->color[1] = (std::rand() % 256) / 255.0f;
-        p->color[2] = (std::rand() % 256) / 255.0f;
+        p->color[0] = dist255(generator);
+        p->color[1] = dist255(generator);
+        p->color[2] = dist255(generator);
         p->color[3] = 1.0f;
 
         ++p;
