@@ -52,7 +52,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     // enabling debug mode on linux crash the app at SDL_CreateGPUGraphicsPipeline
     // desabling it for now
-    SDL_GPUDevice *device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, "vulkan");
+    SDL_GPUDevice *device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, "vulkan");
     if (device == nullptr) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create SDL GPU Device: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -81,7 +81,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     state.numFrames = 0u;
     state.deltaTime = 0.f;
 
-    static const vec3 position { 10,0,0};
+    static const vec3 position { 0, 10, 20 };
     static const vec3 worldUp { 0.f, 1.f, 0.f };
     const vec3 front = normalize(position);
     const vec3 right = normalize(cross(worldUp, front));

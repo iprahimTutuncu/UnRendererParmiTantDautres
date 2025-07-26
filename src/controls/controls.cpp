@@ -22,8 +22,8 @@ SDL_AppResult controls_init(AppState& state, int argc, char** argv) {
     controls.movement_speed = 2.5f;
     controls.mouse_sensitivity = 0.1f;
     controls.distanceFromTarget = state.camera->position.length();
-    controls.yaw = -180.f;
-    controls.pitch = 0.f;
+    controls.yaw = -80.f;
+    controls.pitch = -20.f;
 
     return SDL_APP_CONTINUE;
 }
@@ -48,10 +48,10 @@ SDL_AppResult controls_iterate(AppState& state) {
         state.camera->position += velocity * state.camera->front;
     }
     if (keystate[SDL_SCANCODE_SPACE]) {
-        state.camera->position += velocity * state.camera->up;
+        state.camera->position.y += velocity;
     }
     if (keystate[SDL_SCANCODE_LSHIFT]) {
-        state.camera->position -= velocity * state.camera->up;
+        state.camera->position.y -= velocity;
     }
 
     return SDL_APP_CONTINUE;
@@ -102,7 +102,7 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
             pitch = -89.f;
         }
 
-        if (yaw > 180.f){
+        if (yaw > 180.f) {
             yaw -= 360.f;
         } else if (yaw < -180.f) {
             yaw += 360.f;

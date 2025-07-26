@@ -144,6 +144,13 @@ struct alignas(16) vec4 {
     union { float w, a, q; };
     // clang-format on
 
+    consteval vec4() = default;
+    vec4(float x, float y, float z, float w)
+        : x(x)
+        , y(y)
+        , z(z)
+        , w(w) { }
+
     constexpr float& operator[](std::size_t index) {
         assert(index < 4);
         switch (index) {
@@ -174,16 +181,16 @@ struct alignas(16) vec4 {
         }
     }
 
-    inline vec4 operator*(float f) const {
-        return { { x * f }, { y * f }, { z * f }, { w * f } };
+    inline vec4 operator*(float f) {
+        return { x * f, y * f, z * f, w * f };
     }
 
-    inline vec4 operator+(float f) const {
-        return { { x + f }, { y + f }, { z + f }, { w + f } };
+    inline vec4 operator+(float f) {
+        return { x + f, y + f, z + f, w + f };
     }
 
-    inline vec4 operator+(vec4 const& v) const {
-        return { { x + v.x }, { y + v.y }, { z + v.z }, { w + v.w } };
+    inline vec4 operator+(vec4 const& v) {
+        return { x + v.x, y + v.y, z + v.z, w + v.w };
     }
 };
 
@@ -345,28 +352,6 @@ static inline vec4 cross(vec4 const& x, vec4 const& y) {
     vec4 v;
     _mm_store_ps(&v.x, _mm_fmsub_ps(tmp0, tmp1, tmp4));
     return v;
-}
-
-static inline mat4 lookat(vec3 const& eye, vec3 const& center, vec3 const& up) {
-    vec3 const f(normalize(center - eye));
-    vec3 const s(normalize(cross(f, up)));
-    vec3 const u(cross(s, f));
-
-    mat4 m;
-    m[0].x = s.x;
-    m[1].x = s.y;
-    m[2].x = s.z;
-    m[0].y = u.x;
-    m[1].y = u.y;
-    m[2].y = u.z;
-    m[0].z = -f.x;
-    m[1].z = -f.y;
-    m[2].z = -f.z;
-    m[3].x = -dot(s, eye);
-    m[3].y = -dot(u, eye);
-    m[3].z = dot(f, eye);
-
-    return m;
 }
 
 static inline __m128 cross(__m128 const& vec0, __m128 const& vec1) {

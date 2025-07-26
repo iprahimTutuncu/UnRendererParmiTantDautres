@@ -25,13 +25,15 @@ enum GraphicPipelineIndex {
 
 enum ComputePipelineIndex {
     ParticleUpdate,
+    ParticleBilateralBlur,
+    ParticleDepthToGBuffer,
     NumComputePipelines // must be last
 };
 
 enum BufferIndex {
     BoxVertexBuffer,
     BoxIndexBuffer,
-    ParticlePositionBuffer, // TODO: this has to be the struct for MPM and be renamed
+    ParticlePositionBuffer, // TODO: this has to be the MPM and be renamed
     ParticlesVertexBuffer,
     ParticlesIndexBuffer,
     SphereVertexBuffer,
@@ -44,6 +46,7 @@ enum TextureIndex {
     GeometryNormal,
     GeometryAlbedo,
     GeometryDepth,
+    GeometryDepthModified,
     NumTextures // must be last
 };
 
@@ -71,6 +74,11 @@ enum DisplayMode {
     Depth
 };
 
+enum class ViewType {
+    Particles,
+    Mesh
+};
+
 enum RasterMode {
     RasterMode_Fill,
     RasterMode_Line
@@ -89,8 +97,8 @@ struct Rect {
 };
 
 struct Particle {
-    alignas(16) float position[4];
-    alignas(16) float color[4];
+    vec4 position;
+    vec4 color;
 };
 
 struct Vertex {
@@ -115,6 +123,26 @@ struct GeometryBufferUniform {
     mat4 proj;
     mat4 view;
     mat4 model;
+    int id;
+    int p0, p1, p2;
+};
+
+struct BilateralBlurBufferUniform {
+    int filterRadius;
+    float blurScale;
+    float blurDepthFalloff;
+    int p0, p1, p2;
+};
+
+struct GeometryBufferParticlesUniform {
+    mat4 proj;
+    mat4 view;
+    mat4 model;
+    float radius;
+    float near;
+    float far;
+    int id;
+    vec4 color;
 };
 
 struct GraphicState {
@@ -125,12 +153,15 @@ struct GraphicState {
     SDL_GPUTexture* staticTextures[NumStaticTextures];
     SDL_GPUSampler* samplersPreset[NumSamplers];
     DisplayMode displayMode;
+    ViewType viewType;
     RasterMode rasterMode;
     std::uint32_t numSphereIndices;
     std::uint32_t numBoxIndices;
 
     ParticleUpdateUniform particleUniformBuffer;
     GeometryBufferUniform geometryBufferUniform;
+    GeometryBufferParticlesUniform geometryBufferParticlesUniform;
+    BilateralBlurBufferUniform bilateralBlurBufferUniform;
 
     std::vector<Box> boxes;
     std::vector<Particle> particles;

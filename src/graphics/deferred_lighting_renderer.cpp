@@ -1,4 +1,6 @@
 #include "deferred_lighting_renderer.h"
+
+#include "../camera.h"
 #include "graphics.h"
 #include "shaders.h"
 
@@ -12,7 +14,7 @@ SDL_AppResult deferred_lighting_init(AppState& state) {
     if (vs == nullptr) [[unlikely]] {
         return SDL_APP_FAILURE;
     }
-    SDL_GPUShader* fsFinal = loadShader(device, SHADER_PATH("deferred_render.frag"), 3, 0, 0, 0);
+    SDL_GPUShader* fsFinal = loadShader(device, SHADER_PATH("deferred_render.frag"), 3, 1, 0, 0);
     if (fsFinal == nullptr) [[unlikely]] {
         SDL_ReleaseGPUShader(device, vs);
         return SDL_APP_FAILURE;
@@ -42,7 +44,6 @@ SDL_AppResult deferred_lighting_init(AppState& state) {
     pipelineInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
 
     gfx.graphicPipeline[DeferredLightingPipeline] = SDL_CreateGPUGraphicsPipeline(device, &pipelineInfo);
-
     if (!gfx.graphicPipeline[DeferredLightingPipeline])
         SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create DeferredLightingPipeline!");
 
@@ -82,10 +83,17 @@ void deferred_lighting_render_to_texture(
         { gfx.textures[GeometryAlbedo], sampler }
     };
 
+    state.graphics->geometryBufferUniform.model = mat4::identity();
+    state.graphics->geometryBufferUniform.view = state.camera->view_matrix();
+    state.graphics->geometryBufferUniform.proj = state.camera->projection_matrix();
+    state.graphics->geometryBufferUniform.id = 1;
     SDL_BindGPUFragmentSamplers(renderPass, 0, gbufferSamplers, 3);
 
     int displayMode = static_cast<int>(mode);
-    SDL_PushGPUFragmentUniformData(cmdBuf, 0, &displayMode, sizeof(int));
+    if (mode != DisplayMode::Final)
+        SDL_PushGPUFragmentUniformData(cmdBuf, 0, &displayMode, sizeof(int));
+    else
+        SDL_PushGPUFragmentUniformData(cmdBuf, 0, &state.graphics->geometryBufferUniform, sizeof(GeometryBufferUniform));
 
     SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
 }
