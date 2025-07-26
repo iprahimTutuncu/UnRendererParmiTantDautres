@@ -81,7 +81,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     state.numFrames = 0u;
     state.deltaTime = 0.f;
 
-    static const vec3 position { 10,0,0};
+    static const vec3 position { 30, 30, 30 };
     static const vec3 worldUp { 0.f, 1.f, 0.f };
     const vec3 front = normalize(position);
     const vec3 right = normalize(cross(worldUp, front));
