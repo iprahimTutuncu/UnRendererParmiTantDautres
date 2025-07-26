@@ -193,6 +193,11 @@ void graphics_quit(AppState& state) {
                 SDL_ReleaseGPUTexture(state.device, state.graphics->staticTextures[i]);
         }
 
+        for (std::size_t i = 0; i < NumSamplers; i++) {
+            if (state.graphics->samplersPreset[i])
+                SDL_ReleaseGPUSampler(state.device, state.graphics->samplersPreset[i]);
+        }
+
         delete state.graphics;
     }
 }

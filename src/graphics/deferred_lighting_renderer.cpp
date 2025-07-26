@@ -44,7 +44,6 @@ SDL_AppResult deferred_lighting_init(AppState& state) {
     pipelineInfo.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
 
     gfx.graphicPipeline[DeferredLightingPipeline] = SDL_CreateGPUGraphicsPipeline(device, &pipelineInfo);
-
     if (!gfx.graphicPipeline[DeferredLightingPipeline])
         SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create DeferredLightingPipeline!");
 
