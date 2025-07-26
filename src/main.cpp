@@ -93,8 +93,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         .position = position,
         .aspectRatio = static_cast<float>(INITIAL_WINDOW_WIDTH) / static_cast<float>(INITIAL_WINDOW_HEIGHT),
         .fov = radians(75.f),
-        .near = 20.f,
-        .far = 60.0f,
+        .near = .1f,
+        .far = 100.0f,
     };
 
     SDL_AppResult result;
