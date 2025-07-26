@@ -7,9 +7,9 @@
 
 class FloorRenderer : public Mesh {
 public:
-    FloorRenderer(float y_pos = 0.0f, float size = 50.0f) :
-        m_y_pos{y_pos}, m_size{size}
-    {}
+    FloorRenderer(float y_pos = 0.0f, float size = 50.0f)
+        : m_y_pos { y_pos }
+        , m_size { size } { }
 
     ~FloorRenderer() override;
 

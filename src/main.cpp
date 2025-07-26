@@ -29,21 +29,17 @@ static void updateTiming(AppState &state) {
     std::uint64_t performanceCounter = SDL_GetPerformanceCounter();
     state.deltaTime = static_cast<float>(performanceCounter - state.lastPerformanceCounter) / static_cast<float>(SDL_GetPerformanceFrequency());
     state.lastPerformanceCounter = performanceCounter;
-    std::uint32_t timeDelta = (state.currentTick = static_cast<std::uint32_t>(SDL_GetTicks())) - state.lastTick;
-    if (timeDelta >= 1000ull) [[unlikely]] {
+    if (SDL_GetTicks() - state.lastTick >= 1000ull) [[unlikely]] {
         static char title[] = "Running at XXX fps.";
         constexpr int indexFirstX = 11;
         setFPSinTitle(state.numFrames, title + indexFirstX);
         SDL_SetWindowTitle(state.window, title);
-        state.lastTick = state.currentTick;
+        state.lastTick = static_cast<std::uint32_t>(SDL_GetTicks());
         state.numFrames = 0u;
     }
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
-    const int width = 1280;
-    const int height = 768;
-
     if (!SDL_SetAppMetadata("Olaf engine renderer", "0.1.1", "ca.etsmtl.olaf")) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to set app metadata: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -62,7 +58,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         return SDL_APP_FAILURE;
     }
 
-    SDL_Window *window = SDL_CreateWindow(nullptr, 1280, 768, SDL_WINDOW_RESIZABLE);
+    SDL_Window *window = SDL_CreateWindow(nullptr, INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
     if (window == nullptr) {
         SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Failed to create SDL Window: %s", SDL_GetError());
         SDL_DestroyGPUDevice(device);
@@ -80,7 +76,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     AppState &state = *static_cast<AppState *>(*appstate);
     state.device = device;
     state.window = window;
-    state.lastTick = 0ull;
+    state.lastTick = static_cast<std::uint32_t>(SDL_GetTicks());
     state.lastPerformanceCounter = SDL_GetPerformanceCounter();
     state.numFrames = 0u;
     state.deltaTime = 0.f;
@@ -91,9 +87,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     const vec3 right = normalize(cross(worldUp, front));
     const vec3 up = cross(front, right);
     state.camera = new CameraPerspective {
-        .rotation = quat_cast({ .cols { right, up, front } }),
+        .front = front,
+        .right = right,
+        .up = up,
         .position = position,
-        .aspectRatio = static_cast<float>(width) / static_cast<float>(height),
+        .aspectRatio = static_cast<float>(INITIAL_WINDOW_WIDTH) / static_cast<float>(INITIAL_WINDOW_HEIGHT),
         .fov = radians(75.f),
         .near = 20.f,
         .far = 60.0f,

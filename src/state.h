@@ -2,6 +2,9 @@
 
 #include <cstdint>
 
+#define INITIAL_WINDOW_WIDTH 1280u
+#define INITIAL_WINDOW_HEIGHT 768u
+
 struct SDL_GPUDevice;
 struct SDL_Window;
 struct SDL_Thread;
@@ -19,8 +22,8 @@ struct AppState {
     GraphicState *graphics;
 
     // some timing variables
-    std::uint32_t lastTick, currentTick;
     std::uint64_t lastPerformanceCounter;
+    std::uint32_t lastTick;
     std::uint32_t numFrames;
     float deltaTime;
 };

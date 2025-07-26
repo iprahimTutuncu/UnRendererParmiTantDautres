@@ -47,8 +47,13 @@ enum TextureIndex {
     GeometryAlbedo,
     GeometryDepth,
     GeometryDepthModified,
-    DefaultWhite,
     NumTextures // must be last
+};
+
+// Texture that dont change during the lifetime of the application
+enum StaticTexture {
+    DefaultWhite,
+    NumStaticTextures // must be last
 };
 
 enum SamplerPreset {
@@ -92,8 +97,8 @@ struct Rect {
 };
 
 struct Particle {
-    alignas(16) vec4 position;
-    alignas(16) vec4 color;
+    vec4 position;
+    vec4 color;
 };
 
 struct Vertex {
@@ -124,7 +129,7 @@ struct GeometryBufferUniform {
 
 struct BilateralBlurBufferUniform {
     int filterRadius;
-    float blurScale; 
+    float blurScale;
     float blurDepthFalloff;
     int p0, p1, p2;
 };
@@ -140,12 +145,12 @@ struct GeometryBufferParticlesUniform {
     vec4 color;
 };
 
-
 struct GraphicState {
     SDL_GPUGraphicsPipeline* graphicPipeline[NumGraphicPipelines];
     SDL_GPUComputePipeline* computePipeline[NumComputePipelines];
     SDL_GPUBuffer* buffers[NumBuffers];
     SDL_GPUTexture* textures[NumTextures];
+    SDL_GPUTexture* staticTextures[NumStaticTextures];
     SDL_GPUSampler* samplersPreset[NumSamplers];
     DisplayMode displayMode;
     ViewType viewType;

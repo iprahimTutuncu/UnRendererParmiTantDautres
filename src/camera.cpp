@@ -2,21 +2,13 @@
 
 #include <cassert>
 #include <cmath>
-#include <limits>
 
 mat4 CameraPerspective::view_matrix() const {
-    mat4 m;
-    quat const& q = rotation;
-    vec3 p = -position;
-
-    m = mat3_cast(q);
-    m.mm[3] = m.mm[0] * p.x + m.mm[1] * p.y + m.mm[2] * p.z;
-    m[3].w = 1;
-    return m;
+    return lookat(position, position + front, up);
 }
 
 mat4 CameraPerspective::projection_matrix() const {
-    assert(std::abs(aspectRatio - std::numeric_limits<float>::epsilon()) > 0.f);
+    assert(aspectRatio != 0.f);
     assert(far - near != 0.f);
     const float tanHalfFovy = std::tan(fov / 2.f);
     mat4 m = {};

@@ -3,7 +3,6 @@
 #include "../camera.h"
 #include "graphics.h"
 #include "shaders.h"
-#include "texture.h"
 
 #include <SDL3/SDL_log.h>
 
@@ -13,16 +12,11 @@ SDL_AppResult deferred_gbuffer_init(AppState& state) {
     deferred_gbuffer_create_pipelines(state);
     deferred_gbuffer_create_box_geometry(state);
     deferred_gbuffer_create_sphere_geometry(state);
-
-    if (createSolidColorTextureRGBA8(state, DefaultWhite, 32, 32, 1.f, 1.f, 1.f, 1.f) == SDL_APP_FAILURE) [[unlikely]] {
-        return SDL_APP_FAILURE;
-    }
+    deferred_gbuffer_update_particles(state);
 
     state.graphics->bilateralBlurBufferUniform.blurScale = 2.0f;
     state.graphics->bilateralBlurBufferUniform.blurDepthFalloff = 1.0f;
     state.graphics->bilateralBlurBufferUniform.filterRadius = 10;
-
-    deferred_gbuffer_update_particles(state);
 
     return SDL_APP_CONTINUE;
 }
@@ -72,13 +66,15 @@ void deferred_gbuffer_update_particles(AppState& state) {
 
     SDL_EndGPUCopyPass(copyPass);
     SDL_SubmitGPUCommandBuffer(cmdBuf);
+
+    SDL_ReleaseGPUTransferBuffer(state.device, transferBuffer);
 }
 
 void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
     GraphicState& graphics = *state.graphics;
 
-    int w, h;
-    if (!SDL_GetWindowSize(state.window, &w, &h))
+    int width, height;
+    if (!SDL_GetWindowSize(state.window, &width, &height))
         return;
 
     if (!graphics.textures[GeometryPosition] || !graphics.textures[GeometryNormal] || !graphics.textures[GeometryAlbedo] || !graphics.textures[GeometryDepth]) [[unlikely]] {
@@ -140,8 +136,9 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         SDL_GPUBufferBinding indexBinding {};
         indexBinding.buffer = graphics.buffers[BoxIndexBuffer];
 
+        // Bind default texture
         SDL_GPUTextureSamplerBinding samplerBinding {};
-        samplerBinding.texture = graphics.textures[DefaultWhite];
+        samplerBinding.texture = graphics.staticTextures[DefaultWhite];
         samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
 
         SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
@@ -149,11 +146,11 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
         for (Box& box : graphics.boxes) {
-            vec3 min = { box.min[0], box.min[1], box.min[2] };
-            vec3 max = { box.max[0], box.max[1], box.max[2] };
+            vec3 min { box.min[0], box.min[1], box.min[2] };
+            vec3 max { box.max[0], box.max[1], box.max[2] };
 
-            vec3 size = { max.x - min.x, max.y - min.y, max.z - min.z };
-            vec3 center = { (max.x + min.x) * 0.5f, (max.y + min.y) * 0.5f, (max.z + min.z) * 0.5f };
+            vec3 size { max.x - min.x, max.y - min.y, max.z - min.z };
+            vec3 center { (max.x + min.x) * 0.5f, (max.y + min.y) * 0.5f, (max.z + min.z) * 0.5f };
 
             mat4 model = mat4::identity();
             model[3].x = center.x;
@@ -189,7 +186,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         indexBinding.buffer = graphics.buffers[SphereIndexBuffer];
 
         SDL_GPUTextureSamplerBinding samplerBinding {};
-        samplerBinding.texture = graphics.textures[DefaultWhite];
+        samplerBinding.texture = graphics.staticTextures[DefaultWhite];
         samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
 
         SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
@@ -237,8 +234,8 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
 
         SDL_BindGPUComputeSamplers(computePass, 0, &samplerBinding, 1);
 
-        Uint32 x = static_cast<Uint32>((w + 15) / 16);
-        Uint32 y = static_cast<Uint32>((h + 15) / 16);
+        Uint32 x = static_cast<Uint32>((width + 15) / 16);
+        Uint32 y = static_cast<Uint32>((height + 15) / 16);
         SDL_DispatchGPUCompute(computePass, x, y, 1);
         SDL_EndGPUComputePass(computePass);
     }
@@ -259,8 +256,8 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         samplerBinding.sampler = state.graphics->samplersPreset[LinearClamp];
         SDL_BindGPUComputeSamplers(computePass, 0, &samplerBinding, 1);
 
-        Uint32 x = static_cast<Uint32>((w + 15) / 16);
-        Uint32 y = static_cast<Uint32>((h + 15) / 16);
+        Uint32 x = static_cast<Uint32>((width + 15) / 16);
+        Uint32 y = static_cast<Uint32>((height + 15) / 16);
         SDL_DispatchGPUCompute(computePass, x, y, 1);
         SDL_EndGPUComputePass(computePass);
     }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../libs/eigen.hpp"
+#include "../eigen.hpp"
 #include "Mesh.hpp"
 #include "ShaderProgram.hpp"
 
@@ -18,11 +18,11 @@ public:
     void init(ShaderProgram* shader) override;
     void init(ShaderProgram* shader, unsigned int nb_particles);
     void deinit() override;
-    void update_particles(std::vector<vec3>& positions);
+    void update_particles(std::vector<vec3>const & positions);
 
 private:
     ShaderProgram* m_shader = nullptr;
-    void* m_bufferPointer = nullptr;
+    void* m_gpu_map_buffer = nullptr;
 
     GLint m_bufferLocation;
     GLint m_bindingPoint;

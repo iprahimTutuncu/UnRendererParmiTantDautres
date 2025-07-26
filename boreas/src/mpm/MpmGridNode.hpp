@@ -1,15 +1,14 @@
 #pragma once
 
-#include "libs/eigen.hpp"
-
+#include "../eigen.hpp"
 
 struct MpmGridNode {
-    double mass{0.0};                           // m
-    vec3 velocity_star = vec3::Zero();          // v
-    vec3 velocity = vec3::Zero();               // v*
-    vec3 momentum = vec3::Zero();               // v*
-    vec3 force = vec3::Zero();                  // F (stress)
-    vec3i local_pos = vec3i::Zero();
+    double mass; // m
+    vec3 velocity_star; // v
+    vec3 velocity; // v*
+    vec3 momentum; // v*
+    vec3 force; // F (stress)
+    bool is_active;
     int index;
-    bool is_active = false;
+    vec3i local_pos;
 };

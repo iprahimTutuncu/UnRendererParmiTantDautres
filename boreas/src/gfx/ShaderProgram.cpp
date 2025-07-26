@@ -1,6 +1,6 @@
 // ---------------------------------------------------
 /* Code based on Learn openGL shader class
- *  
+ *
  * https://learnopengl.com/code_viewer_gh.php?code=includes/learnopengl/shader.h
  * Copyright (C) Joey de Vries -
  * licensed under the terms of the CC BY-NC 4.0 license as published by Creative Commons
@@ -10,34 +10,28 @@
  */
 
 #include "ShaderProgram.hpp"
-#include <iostream>
-#include <fstream>
-#include <sstream>
 
+#include <fstream>
+#include <iostream>
+#include <sstream>
 
 // utility function for checking shader compilation/linking errors.
 // ------------------------------------------------------------------------
-bool checkCompileErrors(GLuint shader, std::string type, std::string filename)
-{
+bool checkCompileErrors(GLuint shader, std::string type, std::string filename) {
     int success;
     char infoLog[1024];
-    if (type != "PROGRAM")
-    {
+    if (type != "PROGRAM") {
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-        if (!success)
-        {
+        if (!success) {
             glGetShaderInfoLog(shader, 1024, NULL, infoLog);
             std::cerr << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << "\n";
             if (filename != "")
                 std::cerr << "Filename: " << filename << "\n";
             std::cerr << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
         }
-    }
-    else
-    {
+    } else {
         glGetProgramiv(shader, GL_LINK_STATUS, &success);
-        if (!success)
-        {
+        if (!success) {
             glGetProgramInfoLog(shader, 1024, NULL, infoLog);
             std::cerr << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << "\n";
             if (filename != "")
@@ -48,8 +42,7 @@ bool checkCompileErrors(GLuint shader, std::string type, std::string filename)
     return success;
 }
 
-ShaderProgram::ShaderProgram()
-{
+ShaderProgram::ShaderProgram() {
     // Note that the Glad need to be initialized before calling this line
     m_ID = glCreateProgram();
 }
@@ -58,23 +51,17 @@ bool ShaderProgram::addShaderFromSource(GLenum shader_type, const std::string& p
     std::string shader_type_str = [&]() -> std::string {
         if (shader_type == GL_VERTEX_SHADER) {
             return "VERTEX";
-        }
-        else if (shader_type == GL_FRAGMENT_SHADER) {
+        } else if (shader_type == GL_FRAGMENT_SHADER) {
             return "FRAGMENT";
-        }
-        else if (shader_type == GL_TESS_CONTROL_SHADER) {
+        } else if (shader_type == GL_TESS_CONTROL_SHADER) {
             return "TCONTROL";
-        }
-        else if (shader_type == GL_TESS_EVALUATION_SHADER) {
+        } else if (shader_type == GL_TESS_EVALUATION_SHADER) {
             return "TEVAL";
-        } 
-        else if (shader_type == GL_GEOMETRY_SHADER) {
+        } else if (shader_type == GL_GEOMETRY_SHADER) {
             return "GEOMETRY";
-        }
-        else if (shader_type == GL_COMPUTE_SHADER) {
+        } else if (shader_type == GL_COMPUTE_SHADER) {
             return "COMPUTE";
-        }
-        else {
+        } else {
             return "UNKNOW";
         }
     }();
@@ -87,16 +74,13 @@ bool ShaderProgram::addShaderFromSource(GLenum shader_type, const std::string& p
     std::string code;
     std::ifstream file;
     file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    try
-    {
+    try {
         file.open(path);
         std::stringstream ss;
         ss << file.rdbuf();
         file.close();
         code = ss.str();
-    } 
-    catch (std::ifstream::failure& e)
-    {
+    } catch (std::ifstream::failure& e) {
         std::cerr << "Impossible to read: " << path << std::endl;
         std::cerr << e.what() << std::endl;
         return false;
