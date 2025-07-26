@@ -12,12 +12,11 @@ SDL_AppResult deferred_gbuffer_init(AppState& state) {
     deferred_gbuffer_create_pipelines(state);
     deferred_gbuffer_create_box_geometry(state);
     deferred_gbuffer_create_sphere_geometry(state);
+    deferred_gbuffer_update_particles(state);
 
     state.graphics->bilateralBlurBufferUniform.blurScale = 2.0f;
     state.graphics->bilateralBlurBufferUniform.blurDepthFalloff = 1.0f;
     state.graphics->bilateralBlurBufferUniform.filterRadius = 10;
-
-    deferred_gbuffer_update_particles(state);
 
     return SDL_APP_CONTINUE;
 }
@@ -67,6 +66,8 @@ void deferred_gbuffer_update_particles(AppState& state) {
 
     SDL_EndGPUCopyPass(copyPass);
     SDL_SubmitGPUCommandBuffer(cmdBuf);
+
+    SDL_ReleaseGPUTransferBuffer(state.device, transferBuffer);
 }
 
 void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
