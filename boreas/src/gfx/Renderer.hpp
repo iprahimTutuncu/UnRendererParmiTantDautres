@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../eigen.hpp"
+#include "../libs/eigen.hpp"
 #include "CameraPerspective.hpp"
 #include "FloorRenderer.hpp"
 #include "ParticleRenderer.hpp"

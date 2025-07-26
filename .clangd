@@ -1,2 +1,2 @@
 CompileFlags:
-  Remove: [-ipo]
+  Remove: [-ipo, -fiopenmp]

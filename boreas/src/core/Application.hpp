@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../gfx/Renderer.hpp"
-#include "../mpm/MpmSolver.hpp"
+#include "../mpm.hpp"
 #include "ActionManager.hpp"
 #include "Window.hpp"
 
@@ -16,6 +16,7 @@ public:
 private:
     void init_keymap();
     void init_scene();
+    void process_events();
     void iterate_particles();
     void resize(int width, int height);
     void escape_mouse();

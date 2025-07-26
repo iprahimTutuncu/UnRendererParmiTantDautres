@@ -87,16 +87,11 @@ struct alignas(16) vec3 {
 };
 
 constexpr vec3 operator*(float f, vec3 const& v) {
-    return { v.x * f, v.y * f, v.z * f };
+    return { f * v.x, f * v.y, f * v.z };
 }
 
 constexpr vec3 operator*(vec3 const& v, float f) {
     return { v.x * f, v.y * f, v.z * f };
-}
-
-constexpr vec3 operator*(int i, vec3 const& v) {
-    const float j = static_cast<float>(i);
-    return { j * v.x, j * v.y, j * v.z };
 }
 
 struct mat3 {

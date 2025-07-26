@@ -14,13 +14,13 @@ class Mesh {
 public:
     virtual ~Mesh();
 
-    GLuint vao() const {
+    const GLuint vao() const {
         return m_vao;
     }
     const GLuint* vbo() const {
         return m_vbo;
     }
-    GLuint ebo() const {
+    const GLuint ebo() const {
         return m_ebo;
     }
 

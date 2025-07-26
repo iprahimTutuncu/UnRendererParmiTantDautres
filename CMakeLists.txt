@@ -76,6 +76,7 @@ add_custom_command(
 
 # OpenGL Mathematics (GLM)
 add_subdirectory(libs/glm EXCLUDE_FROM_ALL)
+target_compile_definitions(glm INTERFACE GLM_ENABLE_EXPERIMENTAL)
 
 # Eigen: C++ template library for linear algebra
 set(EIGEN_BUILD_TESTING OFF)
