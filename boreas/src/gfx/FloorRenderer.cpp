@@ -1,12 +1,10 @@
 #include "FloorRenderer.hpp"
 
-FloorRenderer::~FloorRenderer()
-{
+FloorRenderer::~FloorRenderer() {
     deinit();
 }
 
-void FloorRenderer::init(ShaderProgram* shader)
-{
+void FloorRenderer::init(ShaderProgram* shader) {
     m_shader = shader;
     m_shader->bind();
 
@@ -29,18 +27,16 @@ void FloorRenderer::init(ShaderProgram* shader)
     glCreateBuffers(1, &m_ebo);
 
     glNamedBufferData(
-            m_vbo[VertexBufferId::Position],
-            m_positions.size() * sizeof(glm::vec3),
-            m_positions.data(),
-            GL_STATIC_DRAW
-            );
+        m_vbo[VertexBufferId::Position],
+        m_positions.size() * sizeof(glm::vec3),
+        m_positions.data(),
+        GL_STATIC_DRAW);
 
     glNamedBufferData(
-            m_ebo,
-            m_indices.size() * sizeof(glm::uvec3),
-            m_indices.data(),
-            GL_STATIC_DRAW
-            );
+        m_ebo,
+        m_indices.size() * sizeof(glm::uvec3),
+        m_indices.data(),
+        GL_STATIC_DRAW);
 
     int vPositionLocation = shader->attributeLocation("vPosition");
     glVertexArrayAttribFormat(m_vao, vPositionLocation, 3, GL_FLOAT, GL_FALSE, 0);
@@ -53,16 +49,13 @@ void FloorRenderer::init(ShaderProgram* shader)
     m_initialized = true;
 }
 
-
-void FloorRenderer::render() const
-{
+void FloorRenderer::render() const {
     glBindVertexArray(m_vao);
     glDrawElements(GL_TRIANGLES, m_indices.size() * 3, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
 }
 
-void FloorRenderer::deinit()
-{
+void FloorRenderer::deinit() {
     Mesh::deinit();
     m_initialized = false;
 }

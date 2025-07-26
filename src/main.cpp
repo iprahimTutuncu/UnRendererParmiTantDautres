@@ -29,13 +29,12 @@ static void updateTiming(AppState &state) {
     std::uint64_t performanceCounter = SDL_GetPerformanceCounter();
     state.deltaTime = static_cast<float>(performanceCounter - state.lastPerformanceCounter) / static_cast<float>(SDL_GetPerformanceFrequency());
     state.lastPerformanceCounter = performanceCounter;
-    std::uint32_t timeDelta = (state.currentTick = static_cast<std::uint32_t>(SDL_GetTicks())) - state.lastTick;
-    if (timeDelta >= 1000ull) [[unlikely]] {
+    if (SDL_GetTicks() - state.lastTick >= 1000ull) [[unlikely]] {
         static char title[] = "Running at XXX fps.";
         constexpr int indexFirstX = 11;
         setFPSinTitle(state.numFrames, title + indexFirstX);
         SDL_SetWindowTitle(state.window, title);
-        state.lastTick = state.currentTick;
+        state.lastTick = static_cast<std::uint32_t>(SDL_GetTicks());
         state.numFrames = 0u;
     }
 }
@@ -77,7 +76,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     AppState &state = *static_cast<AppState *>(*appstate);
     state.device = device;
     state.window = window;
-    state.lastTick = 0ull;
+    state.lastTick = static_cast<std::uint32_t>(SDL_GetTicks());
     state.lastPerformanceCounter = SDL_GetPerformanceCounter();
     state.numFrames = 0u;
     state.deltaTime = 0.f;

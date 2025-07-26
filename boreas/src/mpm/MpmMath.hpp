@@ -1,16 +1,11 @@
 #pragma once
 
 #include <cmath>
-#include <cstdlib>
 
 const float EPSILON = 1E-12;
 
-inline double get_random(double min, double max, unsigned int* seed) {
-    return min + (rand_r(seed) / (double)RAND_MAX) * (max - min);
-}
-
 // https://csmbrannon.net/2013/02/14/illustration-of-polar-decomposition/
-template<typename T>
+template <typename T>
 inline T fast_polar_decompose_R(const T& A, const int k) {
     double alpha = (A.transpose() * A).trace();
     T X = A / std::sqrt(alpha);
@@ -23,7 +18,7 @@ inline T fast_polar_decompose_R(const T& A, const int k) {
 }
 
 struct SolverCG {
-    template<class Vec, class CalculateA>
+    template <class Vec, class CalculateA>
     static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
         Vec r = b - A(x);
         Vec p = r;
@@ -58,7 +53,7 @@ struct SolverCG {
 };
 
 struct SolverCR {
-    template<class Vec, class CalculateA>
+    template <class Vec, class CalculateA>
     static void solve(CalculateA A, Vec& x, const Vec& b, int max_iterations, double tolerance) {
         Vec r = b - A(x);
         Vec p = r;
@@ -69,7 +64,7 @@ struct SolverCR {
         const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
         const double t_sq = tolerance * tolerance;
 
-        for (int k = 0; k < max_iterations ; ++k) {
+        for (int k = 0; k < max_iterations; ++k) {
             if (r.squaredNorm() / b_sn < t_sq) {
                 break;
             }
@@ -87,7 +82,7 @@ struct SolverCR {
             double rAr_new = (r.cwiseProduct(Ar)).sum();
             double beta = rAr_new / rAr_old;
 
-            p  = r  + beta * p;
+            p = r + beta * p;
             Ap = Ar + beta * Ap;
             rAr_old = rAr_new;
         }
@@ -95,7 +90,7 @@ struct SolverCR {
 };
 
 struct SolverPCR {
-    template<class Vec, class CalculateA>
+    template <class Vec, class CalculateA>
     static void solve(CalculateA A, Vec& x, const Vec& b, const Vec& M_inv, int max_iterations, double tolerance) {
         Vec r = b - A(x);
         Vec z = r.cwiseProduct(M_inv);
@@ -106,7 +101,7 @@ struct SolverPCR {
         const double b_sn = b_norm < EPSILON ? 1.0 : b_norm * b_norm;
         const double t_sq = tolerance * tolerance;
 
-        for (int k = 0; k < max_iterations ; ++k) {
+        for (int k = 0; k < max_iterations; ++k) {
             if (r.squaredNorm() / b_sn < t_sq) {
                 break;
             }

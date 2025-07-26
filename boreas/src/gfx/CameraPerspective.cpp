@@ -1,18 +1,18 @@
 #include "CameraPerspective.hpp"
 
-#include <SDL3/SDL_camera.h>
+#include "../sdl.hpp"
 
-#include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
 
+CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at)
+    : CameraPerspective(width, height, position, at, DEFAULT_YAW, DEFAULT_PITCH) { }
 
-CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at) :
-    CameraPerspective(width, height, position, at, DEFAULT_YAW, DEFAULT_PITCH)
-{}
-
-CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at, float yaw, float pitch) :
-    _aspect_ratio{(float)width / (float)height}, position{position}, yaw{yaw}, pitch{pitch}
-{
+CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at, float yaw, float pitch)
+    : _aspect_ratio { (float)width / (float)height }
+    , position { position }
+    , yaw { yaw }
+    , pitch { pitch } {
     update();
 }
 
@@ -24,24 +24,20 @@ void CameraPerspective::set_aspect_ratio(int width, int height) {
     _aspect_ratio = (float)width / (float)height;
 }
 
-glm::mat4 CameraPerspective::get_view_matrix()
-{
+glm::mat4 CameraPerspective::get_view_matrix() {
     // eye, target, up
     return glm::lookAt(position, position + front, up);
 }
 
-glm::mat4 CameraPerspective::get_proj_matrix()
-{
+glm::mat4 CameraPerspective::get_proj_matrix() {
     return glm::perspective(glm::radians(zoom), _aspect_ratio, _near, _far);
 }
 
-glm::vec3 CameraPerspective::get_position()
-{
+glm::vec3 CameraPerspective::get_position() {
     return position;
 }
 
-void CameraPerspective::process_input(double delta_time)
-{
+void CameraPerspective::process_input(double delta_time) {
     float velocity = movement_speed * delta_time;
     const Uint8* keystate = SDL_GetKeyboardState(NULL);
 
@@ -78,8 +74,7 @@ void CameraPerspective::process_input(double delta_time)
     }
 }
 
-void CameraPerspective::process_mouse(float x, float y)
-{
+void CameraPerspective::process_mouse(float x, float y) {
     if (_first_mouse) {
         SDL_CaptureMouse(SDL_TRUE);
         SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -92,7 +87,7 @@ void CameraPerspective::process_mouse(float x, float y)
     pitch += -(y * sensitivity);
 
     if (pitch > 89.f) {
-        pitch =  89.f;
+        pitch = 89.f;
     }
     if (pitch < -89.f) {
         pitch = -89.f;
@@ -101,8 +96,7 @@ void CameraPerspective::process_mouse(float x, float y)
     update();
 }
 
-void CameraPerspective::process_wheel(float y)
-{
+void CameraPerspective::process_wheel(float y) {
     zoom -= (float)y * 1.25;
 
     if (zoom < DEFAULT_ZOOM_MIN)
@@ -111,8 +105,7 @@ void CameraPerspective::process_wheel(float y)
         zoom = DEFAULT_ZOOM_MAX;
 }
 
-void CameraPerspective::update()
-{
+void CameraPerspective::update() {
     front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     front.y = sin(glm::radians(pitch));
     front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -121,4 +114,3 @@ void CameraPerspective::update()
     right = glm::normalize(glm::cross(front, world_up));
     up = glm::normalize(glm::cross(right, front));
 }
-
