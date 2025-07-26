@@ -33,60 +33,20 @@ void imgui_iterate(AppState& state) {
 
     ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
 
-    ImGui::SliderFloat3("Camera", &state.camera->position.x, -100.0f, 100.0f);
-    if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_None)) {
-        if (ImGui::BeginTabItem("Camera Control")) {
+    ImGui::InputFloat3("Camera", &state.camera->position.x);
+    if (ImGui::CollapsingHeader("Controls")) {
+        ImGui::Text("Mouvement State: ");
+        ImGui::SameLine();
 
-            // Camera options table
-            if (ImGui::BeginTable("CameraTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-                // Lock state row
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Camera Lock");
-                ImGui::TableSetColumnIndex(1);
-                if (state.controls->isCameraLocked) {
-                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "Locked");
-                } else {
-                    ImGui::TextColored(ImVec4(0, 1, 0, 1), "Unlocked");
-                }
-
-                // Camera position row (read-only)
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Position");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("(%.2f, %.2f, %.2f)", state.camera->position.x, state.camera->position.y, state.camera->position.z);
-
-                // Camera target row
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Target");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("(%.2f, %.2f, %.2f)", state.controls->cameraTarget.x, state.controls->cameraTarget.y, state.controls->cameraTarget.z);
-
-                // Camera FOV (optional, for perspective zoom)
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("FOV");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%.2f deg", state.camera->fov * (180.0f / 3.14159265f));
-
-                // Reset button row
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Reset");
-                ImGui::TableSetColumnIndex(1);
-                if (ImGui::Button("Reset Camera")) {
-                    state.controls->cameraTarget = { 0.f, 0.f, 0.f };
-                    state.camera->position = { 0.f, 0.f, 100.f };
-                    state.camera->rotation = { 1.f, 0.f, 0.f, 0.f };
-                }
-
-                ImGui::EndTable();
-            }
-            ImGui::EndTabItem();
-        }
-        ImGui::EndTabBar();
+        if (state.controls->isCameraCaptured)
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "mouse captured");
+        else
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "free");
+        ImGui::SliderFloat("Movement Speed", &state.controls->movement_speed, 0.1f, 10.0f);
+        ImGui::SliderFloat("Mouse Sensitivity", &state.controls->mouse_sensitivity, 0.01f, 1.0f);
+        ImGui::SliderFloat("Distance From Target", &state.controls->distanceFromTarget, 0.1f, 100.0f);
+        ImGui::SliderFloat("Yaw", &state.controls->yaw, -180.0f, 180.0f);
+        ImGui::SliderFloat("Pitch", &state.controls->pitch, -89.0f, 89.0f);
     }
 
     ImGui::End();

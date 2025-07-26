@@ -1,6 +1,6 @@
 #include "deferred_lighting_renderer.h"
-#include "shaders.h"
 #include "graphics.h"
+#include "shaders.h"
 
 #include <SDL3/SDL_log.h>
 
@@ -14,10 +14,13 @@ SDL_AppResult deferred_lighting_init(AppState& state) {
     }
     SDL_GPUShader* fsFinal = loadShader(device, SHADER_PATH("deferred_render.frag"), 3, 0, 0, 0);
     if (fsFinal == nullptr) [[unlikely]] {
+        SDL_ReleaseGPUShader(device, vs);
         return SDL_APP_FAILURE;
     }
     SDL_GPUShader* fsDebug = loadShader(device, SHADER_PATH("deferred_debug.frag"), 3, 1, 0, 0);
     if (fsDebug == nullptr) [[unlikely]] {
+        SDL_ReleaseGPUShader(device, vs);
+        SDL_ReleaseGPUShader(device, fsFinal);
         return SDL_APP_FAILURE;
     }
     SDL_GPUVertexInputState vertexInputState = {};
@@ -51,7 +54,7 @@ SDL_AppResult deferred_lighting_init(AppState& state) {
     SDL_ReleaseGPUShader(device, vs);
     SDL_ReleaseGPUShader(device, fsFinal);
     SDL_ReleaseGPUShader(device, fsDebug);
-    
+
     return SDL_APP_CONTINUE;
 }
 
@@ -66,7 +69,6 @@ void deferred_lighting_render_to_texture(
         SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Renderer: Invalid G-buffer textures");
         return;
     }
-
 
     SDL_GPUGraphicsPipeline* pipeline = (mode == DisplayMode::Final) ? gfx.graphicPipeline[DeferredLightingPipeline] : gfx.graphicPipeline[DeferredDebugPipeline];
 
@@ -86,5 +88,4 @@ void deferred_lighting_render_to_texture(
     SDL_PushGPUFragmentUniformData(cmdBuf, 0, &displayMode, sizeof(int));
 
     SDL_DrawGPUPrimitives(renderPass, 3, 1, 0, 0);
-
 }
