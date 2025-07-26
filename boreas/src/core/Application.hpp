@@ -8,7 +8,7 @@
 class Application {
 public:
     Application();
-    ~Application() = default;
+    ~Application();
 
     void run();
     void init();
@@ -29,4 +29,5 @@ private:
     SDL_Event m_event;
     std::uint32_t iteration_count = 0;
     bool m_capture_mouse = true;
+    bool should_close = false;
 };

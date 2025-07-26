@@ -16,6 +16,11 @@ Application::Application()
     , m_renderer {}
     , m_mpm_solver() { }
 
+Application::~Application() {
+        SDL_Quit();
+
+}
+
 void Application::init() {
     init_keymap();
 
@@ -111,7 +116,7 @@ void Application::run() {
     const double frequency = static_cast<double>(SDL_GetPerformanceFrequency());
     double old_time = SDL_GetPerformanceCounter();
 
-    while (m_main_window.is_active()) {
+    while (m_main_window.is_active() && !should_close) {
         double new_time = SDL_GetPerformanceCounter();
         double delta_time = (new_time - old_time) / frequency;
         old_time = new_time;
@@ -129,6 +134,7 @@ void Application::run() {
 
     }
 
+    std::cout << "INFO: Waiting for simulation thread to finish..." << std::endl;
     simulation.join();
 }
 
@@ -146,7 +152,7 @@ void Application::iterate_particles() {
     double total_delay = 0.0;
 
     auto last_time = clock::now();
-    while (m_main_window.is_active()) {
+    while (m_main_window.is_active() && !should_close) {
         auto start_time = clock::now();
 
         m_mpm_solver.iterate();
@@ -163,7 +169,7 @@ void Application::iterate_particles() {
                   << " (count: " << i << ")\n\n"
                   << std::endl;
         if (i > sizeof(delays) / sizeof(delays[0])) [[unlikely]] {
-            m_main_window.close();
+            this->should_close = true;
             std::cout << "INFO: Simulation finished after " << this->iteration_count - 1 << " iterations." << std::endl;
             return;
         }
