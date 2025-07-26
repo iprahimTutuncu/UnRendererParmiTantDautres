@@ -69,7 +69,7 @@ void imgui_event(AppState& state, SDL_Event& event) {
 
 void imgui_quit(AppState& state) {
     (void)state;
-    ImGui_ImplSDLGPU3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
+    ImGui_ImplSDLGPU3_Shutdown();
     ImGui::DestroyContext();
 }
