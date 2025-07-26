@@ -9,8 +9,7 @@
 
 #include <stddef.h>
 
-SDL_AppResult deferred_gbuffer_init(AppState& state) 
-{
+SDL_AppResult deferred_gbuffer_init(AppState& state) {
     deferred_gbuffer_create_pipelines(state);
     deferred_gbuffer_create_box_geometry(state);
     deferred_gbuffer_create_sphere_geometry(state);
@@ -34,11 +33,11 @@ void deferred_gbuffer_update_particles(AppState& state) {
 
     positions.resize(state.graphics->particles.size() * 4);
 
-    for (int i = 0; i < state.graphics->particles.size(); i++) {
+    for (size_t i = 0; i < state.graphics->particles.size(); i++) {
         // Access the i-th particle
         auto& p = state.graphics->particles[i];
 
-        int j = i * 4;
+        size_t j = i * 4;
         positions[j] = p.position[0];
         positions[j + 1] = p.position[1];
         positions[j + 2] = p.position[2];
@@ -173,10 +172,9 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
             SDL_PushGPUVertexUniformData(cmdBuf, 0, &graphics.geometryBufferUniform, sizeof(GeometryBufferUniform));
             SDL_DrawGPUIndexedPrimitives(pass, graphics.numBoxIndices, 1, 0, 0, 0);
         }
-
     }
 
-            // --- Particle Rendering Pass ---
+    // --- Particle Rendering Pass ---
     {
         SDL_GPUGraphicsPipeline* pipeline = graphics.rasterMode == RasterMode_Fill
             ? graphics.graphicPipeline[GeometryBufferParticleFillPipeline]
@@ -221,7 +219,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
 
         SDL_DrawGPUIndexedPrimitives(pass, graphics.numSphereIndices, static_cast<std::uint32_t>(graphics.particles.size()), 0, 0, 0);
     }
-    
+
     SDL_EndGPURenderPass(pass);
 
     { // Particle Bilateral Blur
@@ -239,7 +237,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
 
         SDL_BindGPUComputeSamplers(computePass, 0, &samplerBinding, 1);
 
-         Uint32 x = static_cast<Uint32>((w + 15) / 16);
+        Uint32 x = static_cast<Uint32>((w + 15) / 16);
         Uint32 y = static_cast<Uint32>((h + 15) / 16);
         SDL_DispatchGPUCompute(computePass, x, y, 1);
         SDL_EndGPUComputePass(computePass);
@@ -252,7 +250,6 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         textureBinding[2].texture = state.graphics->textures[GeometryAlbedo];
 
         SDL_GPUComputePass* computePass = SDL_BeginGPUComputePass(cmdBuf, textureBinding, 3, nullptr, 0);
-
 
         SDL_BindGPUComputePipeline(computePass, graphics.computePipeline[ParticleDepthToGBuffer]);
         SDL_PushGPUComputeUniformData(cmdBuf, 0, &graphics.geometryBufferParticlesUniform, sizeof(GeometryBufferParticlesUniform));
@@ -311,8 +308,6 @@ void deferred_gbuffer_create_pipelines(AppState& state) {
     pipelineInfo.threadcount_z = 1;
 
     state.graphics->computePipeline[ParticleDepthToGBuffer] = createComputePipelineFromShader(state.device, SHADER_PATH("particle_gbuffer_from_depth.comp"), &pipelineInfo);
-
-
 }
 
 void deferred_gbuffer_create_particles_pipeline(AppState& state) {

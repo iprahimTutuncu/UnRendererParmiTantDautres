@@ -136,6 +136,13 @@ struct alignas(16) vec4 {
     union { float w, a, q; };
     // clang-format on
 
+    consteval vec4() = default;
+    vec4(float x, float y, float z, float w)
+        : x(x)
+        , y(y)
+        , z(z)
+        , w(w) { }
+
     constexpr float& operator[](std::size_t index) {
         assert(index < 4);
         switch (index) {
@@ -167,15 +174,15 @@ struct alignas(16) vec4 {
     }
 
     inline vec4 operator*(float f) {
-        return { { x * f }, { y * f }, { z * f }, { w * f } };
+        return { x * f, y * f, z * f, w * f };
     }
 
     inline vec4 operator+(float f) {
-        return { { x + f }, { y + f }, { z + f }, { w + f } };
+        return { x + f, y + f, z + f, w + f };
     }
 
     inline vec4 operator+(vec4 const& v) {
-        return { { x + v.x }, { y + v.y }, { z + v.z }, { w + v.w } };
+        return { x + v.x, y + v.y, z + v.z, w + v.w };
     }
 };
 
