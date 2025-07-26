@@ -4,13 +4,12 @@
 #include "../vmath.h"
 
 #include <SDL3/SDL_keyboard.h>
+#include <SDL3/SDL_mouse.h>
 
-static inline vec3 rotate_vec3_by_quat(const vec3& v, const quat& q) {
-    // q * v * q^-1
-    quat vq { 0, v.x, v.y, v.z };
-    quat q_inv { q.w, -q.x, -q.y, -q.z };
-    quat result = q * vq * q_inv;
-    return { result.x, result.y, result.z };
+static void set_mouse_capture(AppState& state, bool capture) {
+    state.controls->isCameraCaptured = capture;
+    SDL_SetWindowMouseGrab(state.window, capture);
+    SDL_SetWindowRelativeMouseMode(state.window, capture);
 }
 
 SDL_AppResult controls_init(AppState& state, int argc, char** argv) {
@@ -19,97 +18,108 @@ SDL_AppResult controls_init(AppState& state, int argc, char** argv) {
 
     state.controls = new ControlState {};
     ControlState& controls = *state.controls;
-    controls.cameraTarget = { 0.f, 0.f, 0.f };
+    controls.isCameraCaptured = false;
     controls.movement_speed = 2.5f;
-    controls.mouse_sensitivity = 1.f;
+    controls.mouse_sensitivity = 0.1f;
     controls.distanceFromTarget = state.camera->position.length();
-    controls.isCameraLocked = true;
+    controls.yaw = -180.f;
+    controls.pitch = 0.f;
 
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult controls_iterate(AppState& state) {
-    float velocity = state.controls->movement_speed * state.deltaTime;
     bool const* keystate = SDL_GetKeyboardState(nullptr);
 
+    float velocity = state.controls->movement_speed * state.deltaTime;
     if (keystate[SDL_SCANCODE_LCTRL]) {
         velocity *= 10;
     }
     if (keystate[SDL_SCANCODE_A]) {
-        state.camera->position -= velocity * state.deltaTime * mat3_cast(state.camera->rotation)[0];
+        state.camera->position -= velocity * state.camera->right;
     }
     if (keystate[SDL_SCANCODE_D]) {
-        state.camera->position += velocity * state.deltaTime * mat3_cast(state.camera->rotation)[0];
+        state.camera->position += velocity * state.camera->right;
     }
     if (keystate[SDL_SCANCODE_S]) {
-        state.camera->position -= velocity * state.deltaTime * mat3_cast(state.camera->rotation)[2];
+        state.camera->position -= velocity * state.camera->front;
     }
     if (keystate[SDL_SCANCODE_W]) {
-        state.camera->position += velocity * state.deltaTime * mat3_cast(state.camera->rotation)[2];
+        state.camera->position += velocity * state.camera->front;
     }
     if (keystate[SDL_SCANCODE_SPACE]) {
-        state.camera->position += velocity * state.deltaTime * mat3_cast(state.camera->rotation)[1];
+        state.camera->position += velocity * state.camera->up;
     }
     if (keystate[SDL_SCANCODE_LSHIFT]) {
-        state.camera->position -= velocity * state.deltaTime * mat3_cast(state.camera->rotation)[1];
+        state.camera->position -= velocity * state.camera->up;
     }
 
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
-
     switch (event.type) {
 
     case SDL_EVENT_KEY_DOWN: {
         SDL_KeyboardEvent& evt = (SDL_KeyboardEvent&)event;
-        if (evt.key == SDLK_ESCAPE) [[unlikely]]
+        switch (evt.key) {
+        case SDLK_ESCAPE:
             return SDL_APP_SUCCESS;
+        case SDLK_E:
+            set_mouse_capture(state, !state.controls->isCameraCaptured);
+            return SDL_APP_CONTINUE;
+
+        default:
+            return SDL_APP_CONTINUE;
+        }
+
     } break;
     // Handle Right Mouse Button Click to toggle camera lock
     case SDL_EVENT_MOUSE_BUTTON_DOWN: {
-        SDL_MouseButtonEvent const& evt = (SDL_MouseButtonEvent&)event;
+        SDL_MouseButtonEvent& evt = (SDL_MouseButtonEvent&)event;
         if (evt.button == SDL_BUTTON_RIGHT) {
-            state.controls->isCameraLocked = !state.controls->isCameraLocked;
+            set_mouse_capture(state, !state.controls->isCameraCaptured);
+            return SDL_APP_CONTINUE;
         }
     } break;
     case SDL_EVENT_MOUSE_MOTION: {
-        if (state.controls->isCameraLocked) break; // Ignore camera movement if locked
-
-        SDL_MouseMotionEvent const& evt = (SDL_MouseMotionEvent&)event;
-        float mouse_x, mouse_y;
-        Uint32 mouse_buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
-        // Check if left mouse button is held
-        if (mouse_buttons & SDL_BUTTON_LMASK) {
-
-            vec3 right = state.camera->right();
-            vec3 up = { 0, 1, 0 };
-
-            state.controls->cameraTarget -= right * evt.xrel;
-            state.controls->cameraTarget += up * evt.yrel;
-
-            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.controls->distanceFromTarget }, state.camera->rotation);
-            state.camera->position = vec3 {
-                state.controls->cameraTarget.x + offset.x,
-                state.controls->cameraTarget.y + offset.y,
-                state.controls->cameraTarget.z + offset.z
-            };
-        } else {
-            // Orbit as before
-            float angle_h = -radians(evt.xrel);
-            float angle_v = -radians(evt.yrel);
-            quat q_h = angleAxis(angle_h, vec3 { 0, 1, 0 });
-            quat q_v = angleAxis(angle_v, state.camera->right());
-
-            state.camera->rotation = q_h * q_v * state.camera->rotation;
-
-            vec3 offset = rotate_vec3_by_quat(vec3 { 0, 0, state.controls->distanceFromTarget }, state.camera->rotation);
-            state.camera->position = vec3 {
-                state.controls->cameraTarget.x + offset.x,
-                state.controls->cameraTarget.y + offset.y,
-                state.controls->cameraTarget.z + offset.z
-            };
+        if (!state.controls->isCameraCaptured) {
+            return SDL_APP_CONTINUE;
         }
+
+        // if (state.controls->isCameraLocked) break; // Ignore camera movement if locked
+        SDL_MouseMotionEvent const& evt = (SDL_MouseMotionEvent&)event;
+
+        float& yaw = state.controls->yaw;
+        float& pitch = state.controls->pitch;
+
+        yaw += evt.xrel * state.controls->mouse_sensitivity;
+        pitch -= evt.yrel * state.controls->mouse_sensitivity;
+
+        if (pitch > 89.f) {
+            pitch = 89.f;
+        } else if (pitch < -89.f) {
+            pitch = -89.f;
+        }
+
+        if (yaw > 180.f){
+            yaw -= 360.f;
+        } else if (yaw < -180.f) {
+            yaw += 360.f;
+        }
+
+        vec3& front = state.camera->front;
+        vec3& right = state.camera->right;
+        vec3& up = state.camera->up;
+
+        front.x = std::cos(radians(yaw)) * std::cos(radians(pitch));
+        front.y = std::sin(radians(pitch));
+        front.z = std::sin(radians(yaw)) * std::cos(radians(pitch));
+
+        front = normalize(front);
+        right = normalize(cross(front, vec3 { 0.f, 1.f, 0.f }));
+        up = normalize(cross(right, front));
+
     } break;
     case SDL_EVENT_MOUSE_WHEEL: {
         SDL_MouseWheelEvent const& evt = (SDL_MouseWheelEvent&)event;

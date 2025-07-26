@@ -1,4 +1,5 @@
 #include "deferred_lighting_renderer.h"
+
 #include "../camera.h"
 #include "graphics.h"
 #include "shaders.h"
@@ -15,10 +16,13 @@ SDL_AppResult deferred_lighting_init(AppState& state) {
     }
     SDL_GPUShader* fsFinal = loadShader(device, SHADER_PATH("deferred_render.frag"), 3, 1, 0, 0);
     if (fsFinal == nullptr) [[unlikely]] {
+        SDL_ReleaseGPUShader(device, vs);
         return SDL_APP_FAILURE;
     }
     SDL_GPUShader* fsDebug = loadShader(device, SHADER_PATH("deferred_debug.frag"), 3, 1, 0, 0);
     if (fsDebug == nullptr) [[unlikely]] {
+        SDL_ReleaseGPUShader(device, vs);
+        SDL_ReleaseGPUShader(device, fsFinal);
         return SDL_APP_FAILURE;
     }
     SDL_GPUVertexInputState vertexInputState = {};
