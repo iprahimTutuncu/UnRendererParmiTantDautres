@@ -1,6 +1,7 @@
 #pragma once
 
 #include "libs/sdl.hpp"
+#include <atomic>
 
 class Window {
 
@@ -26,7 +27,7 @@ class Window {
     public:
         int get_width() const { return m_width; };
         int get_height() const { return m_height; };
-        bool is_active() const { return m_active; };
+        std::atomic<bool> is_active() const { return m_active; };
 
         void resize(int width, int height);
         void close();

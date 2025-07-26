@@ -11,6 +11,8 @@ find_package(SDL2 REQUIRED)
 find_package(OpenGL 4.6 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(glm REQUIRED)
+find_package(OpenMP)
+
 
 set(EIGEN_BUILD_TESTING OFF)
 set(EIGEN_INCLUDE_INSTALL_DIR OFF)
