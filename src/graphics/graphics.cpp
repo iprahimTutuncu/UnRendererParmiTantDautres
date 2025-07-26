@@ -10,8 +10,8 @@
 #include <SDL3/SDL_log.h>
 #include <imgui_impl_sdlgpu3.h>
 
-#include <stddef.h>
 #include <random>
+#include <stddef.h>
 
 static SDL_AppResult graphics_create_render_targets(AppState& state, std::uint32_t width, std::uint32_t height);
 static SDL_GPUTexture* createSolidColorTextureRGBA8(SDL_GPUDevice* device, std::uint32_t width, std::uint32_t height, const float r, const float g, const float b, const float a);
@@ -127,7 +127,7 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
     imgui_iterate(state);
     ImDrawData* draw_data = ImGui::GetDrawData();
-    Imgui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
+    ImGui_ImplSDLGPU3_PrepareDrawData(draw_data, cmdbuf);
 
     SDL_GPUColorTargetInfo colorTarget = {};
     colorTarget.texture = swapchainTexture;

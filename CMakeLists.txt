@@ -63,11 +63,6 @@ target_link_libraries(ImGui PRIVATE
     SDL3::SDL3
 )
 
-# spdlog: Fast C++ logging library
-set(SPDLOG_ENABLE_PCH ON)
-set(SPDLOG_BUILD_PIC ON)
-add_subdirectory(libs/spdlog EXCLUDE_FROM_ALL)
-
 # stb_image: C library for loading images into memory with minimal dependencies
 set(GENERATED_STB_WRAPPER ${CMAKE_CURRENT_BINARY_DIR}/stb_wrapper.cpp)
 add_custom_command(
