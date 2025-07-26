@@ -48,6 +48,14 @@ struct alignas(16) vec3 {
         return { -x, -y, -z };
     }
 
+    inline vec3 operator-(const vec3& other) const {
+        return { x - other.x, y - other.y, z - other.z };
+    }
+
+    inline vec3 operator+(const vec3& other) const {
+        return { x + other.x, y + other.y, z + other.z };
+    }
+
     inline vec3& operator+=(vec3 const& v) {
         this->x += v.x;
         this->y += v.y;
@@ -337,6 +345,28 @@ static inline vec4 cross(vec4 const& x, vec4 const& y) {
     vec4 v;
     _mm_store_ps(&v.x, _mm_fmsub_ps(tmp0, tmp1, tmp4));
     return v;
+}
+
+static inline mat4 lookat(vec3 const& eye, vec3 const& center, vec3 const& up) {
+    vec3 const f(normalize(center - eye));
+    vec3 const s(normalize(cross(f, up)));
+    vec3 const u(cross(s, f));
+
+    mat4 m;
+    m[0].x = s.x;
+    m[1].x = s.y;
+    m[2].x = s.z;
+    m[0].y = u.x;
+    m[1].y = u.y;
+    m[2].y = u.z;
+    m[0].z = -f.x;
+    m[1].z = -f.y;
+    m[2].z = -f.z;
+    m[3].x = -dot(s, eye);
+    m[3].y = -dot(u, eye);
+    m[3].z = dot(f, eye);
+
+    return m;
 }
 
 static inline __m128 cross(__m128 const& vec0, __m128 const& vec1) {

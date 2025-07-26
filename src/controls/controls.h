@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../state.h"
-#include "../vmath.h"
 
 #include <SDL3/SDL_init.h>
 
@@ -13,9 +12,10 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event);
 void controls_quit(AppState& state);
 
 struct ControlState {
-    vec3 cameraTarget;
+    bool isCameraCaptured;
     float movement_speed;
     float mouse_sensitivity;
     float distanceFromTarget;
-    bool isCameraLocked;
+    float yaw;
+    float pitch;
 };
