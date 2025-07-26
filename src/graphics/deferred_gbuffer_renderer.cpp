@@ -3,7 +3,6 @@
 #include "../camera.h"
 #include "graphics.h"
 #include "shaders.h"
-#include "texture.h"
 
 #include <SDL3/SDL_log.h>
 
@@ -13,10 +12,6 @@ SDL_AppResult deferred_gbuffer_init(AppState& state) {
     deferred_gbuffer_create_pipelines(state);
     deferred_gbuffer_create_box_geometry(state);
     deferred_gbuffer_create_sphere_geometry(state);
-
-    if (createSolidColorTextureRGBA8(state, DefaultWhite, 32, 32, 1.f, 1.f, 1.f, 1.f) == SDL_APP_FAILURE) [[unlikely]] {
-        return SDL_APP_FAILURE;
-    }
 
     state.graphics->bilateralBlurBufferUniform.blurScale = 2.0f;
     state.graphics->bilateralBlurBufferUniform.blurDepthFalloff = 1.0f;

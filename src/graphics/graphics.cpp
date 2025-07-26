@@ -7,11 +7,15 @@
 
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_hints.h>
+#include <SDL3/SDL_init.h>
 #include <SDL3/SDL_log.h>
+#include <imgui_impl_sdlgpu3.h>
 
 #include <ctime>
-#include <imgui_impl_sdlgpu3.h>
 #include <stddef.h>
+
+static SDL_AppResult
+graphics_create_render_targets(AppState& state);
 
 SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
@@ -20,15 +24,8 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
 
     SDL_GetHintBoolean(SDL_HINT_RENDER_VULKAN_DEBUG, true);
 
-    int w, h;
-    if (!SDL_GetWindowSize(state.window, &w, &h))
-        return SDL_APP_FAILURE;
-
-    createRenderTarget(state, GeometryPosition, w, h, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE);
-    createRenderTarget(state, GeometryNormal, w, h, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE);
-    createRenderTarget(state, GeometryAlbedo, w, h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE);
-    createRenderTarget(state, GeometryDepth, w, h, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET);
-    createRenderTarget(state, GeometryDepthModified, w, h, SDL_GPU_TEXTUREFORMAT_R32_FLOAT, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE);
+    if (SDL_AppResult result = graphics_create_render_targets(state); result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
 
     imgui_init(state);
     init_sampler_presets(state);
@@ -87,7 +84,50 @@ SDL_AppResult graphics_init(AppState& state, [[maybe_unused]] int argc, [[maybe_
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult graphics_iterate(AppState& state) {
+static SDL_AppResult graphics_create_render_targets(AppState& state) {
+    int width, height;
+    if (!SDL_GetWindowSize(state.window, &width, &height)) [[unlikely]]
+        return SDL_APP_FAILURE;
+
+    for (SDL_GPUTexture*& texture : state.graphics->textures) {
+        if (texture) {
+            SDL_ReleaseGPUTexture(state.device, texture);
+            texture = nullptr;
+        }
+    }
+
+    struct _RenderTargetOptions {
+        const TextureIndex index;
+        const SDL_GPUTextureFormat format;
+        const SDL_GPUTextureUsageFlags usage;
+    };
+
+    constexpr _RenderTargetOptions renderTargets[] = {
+        { GeometryPosition, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE },
+        { GeometryNormal, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE },
+        { GeometryAlbedo, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE },
+        { GeometryDepth, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET },
+        { GeometryDepthModified, SDL_GPU_TEXTUREFORMAT_R32_FLOAT, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE },
+    };
+
+    // Render Target
+    SDL_AppResult result;
+    for (const auto& target : renderTargets) {
+        result = createRenderTarget(state, target.index, width, height, target.format, target.usage);
+        if (result != SDL_APP_CONTINUE) [[unlikely]]
+            return result;
+    }
+
+    // Solid texture
+    result = createSolidColorTextureRGBA8(state, DefaultWhite, 32, 32, 1.f, 1.f, 1.f, 1.f);
+    if (result != SDL_APP_CONTINUE) [[unlikely]]
+        return result;
+
+    return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult
+graphics_iterate(AppState& state) {
     SDL_GPUCommandBuffer* cmdbuf = SDL_AcquireGPUCommandBuffer(state.device);
     if (cmdbuf == nullptr) [[unlikely]] {
         SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to acquired GPU Command Buffer: %s", SDL_GetError());
@@ -152,6 +192,11 @@ SDL_AppResult graphics_iterate(AppState& state) {
 
 SDL_AppResult graphics_event(AppState& state, SDL_Event& event) {
     imgui_event(state, event);
+
+    if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+        if (SDL_AppResult result = graphics_create_render_targets(state); result != SDL_APP_CONTINUE) [[unlikely]]
+            return result;
+    }
 
     return SDL_APP_CONTINUE;
 }
