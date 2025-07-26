@@ -185,7 +185,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         indexBinding.buffer = graphics.buffers[SphereIndexBuffer];
 
         SDL_GPUTextureSamplerBinding samplerBinding {};
-        samplerBinding.texture = graphics.textures[DefaultWhite];
+        samplerBinding.texture = graphics.staticTextures[DefaultWhite];
         samplerBinding.sampler = graphics.samplersPreset[LinearClamp];
 
         SDL_BindGPUFragmentSamplers(pass, 0, &samplerBinding, 1);
