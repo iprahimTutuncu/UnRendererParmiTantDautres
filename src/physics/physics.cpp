@@ -1,4 +1,4 @@
-#include "api.h"
+#include "physics.h"
 
 SDL_AppResult physics_init(AppState& state, int argc, char** argv) {
     (void)state;

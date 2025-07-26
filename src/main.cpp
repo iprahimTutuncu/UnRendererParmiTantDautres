@@ -3,7 +3,7 @@
 #include "camera.h"
 #include "controls/controls.h"
 #include "graphics/graphics.h"
-#include "physics/api.h"
+#include "physics/physics.h"
 
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
