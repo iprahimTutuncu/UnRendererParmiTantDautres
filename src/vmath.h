@@ -354,28 +354,6 @@ static inline vec4 cross(vec4 const& x, vec4 const& y) {
     return v;
 }
 
-static inline mat4 lookat(vec3 const& eye, vec3 const& center, vec3 const& up) {
-    vec3 const f(normalize(center - eye));
-    vec3 const s(normalize(cross(f, up)));
-    vec3 const u(cross(s, f));
-
-    mat4 m = mat4::identity();
-    m[0].x = s.x;
-    m[1].x = s.y;
-    m[2].x = s.z;
-    m[0].y = u.x;
-    m[1].y = u.y;
-    m[2].y = u.z;
-    m[0].z = -f.x;
-    m[1].z = -f.y;
-    m[2].z = -f.z;
-    m[3].x = -dot(s, eye);
-    m[3].y = -dot(u, eye);
-    m[3].z = dot(f, eye);
-
-    return m;
-}
-
 static inline __m128 cross(__m128 const& vec0, __m128 const& vec1) {
     __m128 tmp0 = _mm_shuffle_ps(vec0, vec0, _MM_SHUFFLE(3, 0, 2, 1));
     __m128 tmp1 = _mm_shuffle_ps(vec1, vec1, _MM_SHUFFLE(3, 1, 0, 2));
