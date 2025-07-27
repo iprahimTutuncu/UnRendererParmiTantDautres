@@ -141,4 +141,5 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
 
 void controls_quit(AppState& state) {
     delete state.controls;
+    state.controls = nullptr;
 }

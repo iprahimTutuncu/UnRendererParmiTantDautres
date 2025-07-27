@@ -43,6 +43,9 @@ endif()
 
 #  ========== LIBRARIES ==========
 
+find_package(OpenMP)
+
+
 # Simple DirectMedia Layer (SDL for short)
 set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
@@ -182,6 +185,8 @@ add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
     SDL3::SDL3
     ImGui
+    OpenMP::OpenMP_CXX
+    UTL::include
 )
 target_compile_definitions(app PRIVATE
     SHADERS_DIR="${SHADER_OUT_DIR}/"

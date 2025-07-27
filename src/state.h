@@ -12,6 +12,7 @@ struct SDL_Thread;
 struct CameraPerspective;
 struct ControlState;
 struct GraphicState;
+struct PhysicState;
 
 struct AppState {
     SDL_GPUDevice *device;
@@ -26,4 +27,7 @@ struct AppState {
     std::uint32_t lastTick;
     std::uint32_t numFrames;
     float deltaTime;
+
+    PhysicState *physics;
+
 };

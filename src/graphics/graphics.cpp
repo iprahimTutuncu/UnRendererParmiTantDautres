@@ -196,6 +196,7 @@ void graphics_quit(AppState& state) {
         }
 
         delete state.graphics;
+        state.graphics = nullptr;
     }
 }
 

@@ -9,7 +9,6 @@ set(OpenGL_GL_PREFERENCE GLVND)
 
 find_package(SDL2 REQUIRED)
 find_package(OpenGL 4.6 REQUIRED)
-find_package(OpenMP)
 
 add_compile_options(-march=native -mtune=native -mavx2 -O3)
 add_executable(boreas
@@ -33,7 +32,8 @@ target_link_libraries(boreas
     SDL2::SDL2
     Eigen3::Eigen
     glm::glm
-    OpenMP::OpenMP_CXX
+    #OpenMP::OpenMP_CXX
+    UTL::include
 )
 target_compile_definitions(boreas PRIVATE SHADERS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
 add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)

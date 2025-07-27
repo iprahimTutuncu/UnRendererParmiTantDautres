@@ -5,6 +5,8 @@
 #include <random>
 #include <thread>
 
+#include <UTL/profiler.hpp>
+
 const char* title = "Boreas";
 
 const int width = 640;
@@ -17,10 +19,18 @@ Application::Application()
     , m_mpm_solver() { }
 
 void Application::init() {
-    init_keymap();
 
-    init_scene();
-    m_mpm_solver.initialize();
+    UTL_PROFILER("init_keymap") {
+        init_keymap();
+    }
+
+    UTL_PROFILER("init_scene") {
+        init_scene();
+    }
+
+    UTL_PROFILER("mpm_solver_initialize") {
+        m_mpm_solver.initialize();
+    }
 
     int nb_particles = m_mpm_solver.p_current_state.p_position.size();
     std::cout << "INFO: Initialized simulation with " << nb_particles << " particles." << std::endl;
@@ -44,20 +54,21 @@ void Application::init_scene() {
     std::uniform_real_distribution<double> dist6(-radius, radius);
 
     m_mpm_solver.p_current_state.ensure_capacity(nb_particles);
+    UTL_PROFILER("create_particles") {
+        generator.seed(seed);
+        size_t particle_created = 0;
+        do {
+            double x = dist6(generator);
+            double y = dist6(generator);
+            double z = dist6(generator);
+            vec3 relative_pos = vec3(x, y, z);
 
-    generator.seed(seed);
-    size_t particle_created = 0;
-    do {
-        double x = dist6(generator);
-        double y = dist6(generator);
-        double z = dist6(generator);
-        vec3 relative_pos = vec3(x, y, z);
-
-        if (relative_pos.squaredNorm() <= radius * radius) {
-            m_mpm_solver.create_particle(origin + relative_pos, velocity);
-            ++particle_created;
-        }
-    } while (particle_created < nb_particles);
+            if (relative_pos.squaredNorm() <= radius * radius) {
+                m_mpm_solver.create_particle(origin + relative_pos, velocity);
+                ++particle_created;
+            }
+        } while (particle_created < nb_particles);
+    }
 }
 
 void Application::init_keymap() {
@@ -116,7 +127,9 @@ void Application::run() {
         double delta_time = (new_time - old_time) / frequency;
         old_time = new_time;
 
-        process_events();
+        UTL_PROFILER("processing_events") {
+            process_events();
+        }
 
         m_renderer.process_input(delta_time);
         m_renderer.clear();
@@ -139,32 +152,17 @@ void Application::process_events() {
 }
 
 void Application::iterate_particles() {
-    using clock = std::chrono::high_resolution_clock;
-    double delays[512] {};
     size_t i = 0;
 
-    double total_delay = 0.0;
-
-    auto last_time = clock::now();
     while (m_main_window.is_active()) {
-        auto start_time = clock::now();
-
-        m_mpm_solver.iterate();
-        auto end_time = clock::now();
+        UTL_PROFILER("mpm_iterate") {
+            m_mpm_solver.iterate();
+        }
         this->iteration_count++;
 
-        std::chrono::duration<double, std::milli> delay = end_time - start_time;
-        delays[i++ % (sizeof(delays) / sizeof(delays[0]))] = delay.count();
-        total_delay += delay.count();
-        total_delay -= delays[i % (sizeof(delays) / sizeof(delays[0]))];
-
-        std::cout << "Iteration delay: " << delay.count() << " ms, "
-                  << "Average: " << (total_delay / i) << " ms"
-                  << " (count: " << i << ")\n\n"
-                  << std::endl;
-        if (i > sizeof(delays) / sizeof(delays[0])) [[unlikely]] {
+        // helpfull for profiling constant iteration count
+        if (i++ > 512) [[unlikely]] {
             m_main_window.close();
-            std::cout << "INFO: Simulation finished after " << this->iteration_count - 1 << " iterations." << std::endl;
             return;
         }
     }
