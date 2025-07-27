@@ -84,6 +84,12 @@ set(EIGEN_INCLUDE_INSTALL_DIR OFF)
 add_subdirectory(libs/eigen EXCLUDE_FROM_ALL)
 target_compile_definitions(eigen INTERFACE EIGEN_NO_DEBUG)
 
+# UTL: C++ utilities library (profiling)
+add_subdirectory(libs/UTL EXCLUDE_FROM_ALL)
+target_compile_definitions(utl_lib_include INTERFACE
+    UTL_PROFILER_USE_INTRINSICS_FOR_FREQUENCY=2995.2e6
+)
+
 #  ========== SHADERS ==========
 
 set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
