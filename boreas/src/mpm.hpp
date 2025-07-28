@@ -91,7 +91,7 @@ wet and chunky snow. Icy snow has a higher hardening coefficient
 and Young’s modulus, with the opposite producing muddy snow.
 */
 
-struct MpmSolverParams {
+struct MpmParams {
     const unsigned int particles_per_cell;
     const float particle_spacing;
     const float grid_spacing;
@@ -125,7 +125,7 @@ struct MpmSolverParams {
     const float alpha_blend; // PIC/FLIP blend
 };
 
-static constexpr MpmSolverParams params {
+static constexpr MpmParams params {
     .particles_per_cell = 32,
     .grid_spacing = 0.080,
     .grid_origin = { -2.5, 0.0, -2.5 },

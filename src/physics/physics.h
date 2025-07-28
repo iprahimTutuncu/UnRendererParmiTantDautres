@@ -16,5 +16,6 @@ void physics_quit(AppState& state);
 
 struct PhysicState {
     SDL_Thread* thread;
+    void* mpm_data; // an opaque pointer to the MPM data structure
     std::atomic_bool running;
 };

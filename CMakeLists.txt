@@ -164,7 +164,7 @@ endif()
 if (WIN32 OR MSVC)
 add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
 else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
+    # add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
 add_executable(app
@@ -176,6 +176,7 @@ add_executable(app
     src/graphics/graphics.cpp
     src/graphics/imguisdl.cpp
     src/graphics/shaders.cpp
+    src/physics/mpm/mpm.cu
     src/physics/physics.cpp
 )
 
