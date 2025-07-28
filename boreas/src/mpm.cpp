@@ -34,15 +34,6 @@ static inline T fast_polar_decompose_R(const T& A) {
     return X;
 }
 
-static inline vec3i get_local_pos_from_index(MpmGrid const& grid,
-    size_t index) {
-    return {
-        static_cast<int>(index % grid.width),
-        static_cast<int>((index / grid.width) % grid.height),
-        static_cast<int>(index / (grid.width * grid.height)),
-    };
-}
-
 static inline size_t get_node_id_from_local(MpmGrid const& grid, int x, int y,
     int z) {
     return static_cast<size_t>(x + y * grid.width + z * grid.width * grid.height);
@@ -53,13 +44,6 @@ static inline vec3 get_node_world_coords(MpmGrid const& grid, int x, int y,
     return vec3(grid.origin.x() + x * grid.spacing,
         grid.origin.y() + y * grid.spacing,
         grid.origin.z() + z * grid.spacing);
-}
-
-static inline vec3 get_node_world_coords_from_index(MpmGrid const& grid,
-    size_t index) {
-    return vec3(grid.origin.x() + static_cast<float>(index % grid.width) * grid.spacing,
-        grid.origin.y() + static_cast<float>((index / grid.width) % grid.height) * grid.spacing,
-        grid.origin.z() + static_cast<float>(index / (grid.width * grid.height)) * grid.spacing);
 }
 
 namespace Solver {
@@ -84,13 +68,12 @@ namespace Solver {
 
     // see
     // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-    void calculate_Ar(MpmSolver const& solver, mat3n& Av_next, const mat3n& v_next, const std::vector<calculate_ar_params>& _params) {
+    void calculate_Ar(MpmSolver const& solver, vec3* Av_next, const vec3* v_next, const std::vector<calculate_ar_params>& _params) {
         const size_t actives_nodes_size = solver.grid.active_nodes.size();
 
 #pragma omp parallel
         {
-            mat3n df(3, v_next.cols());
-            df.setZero();
+            vec3* df = new vec3[actives_nodes_size]();
 
 #pragma omp for
             for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
@@ -100,7 +83,7 @@ namespace Solver {
                 // 3.23 - velocity gradient
                 mat3 velocities_grad = mat3::Zero();
                 for (const auto& d : param.gradient) {
-                    velocities_grad += v_next.col(d.active_id) * d.wip_grad.transpose();
+                    velocities_grad += v_next[d.active_id] * d.wip_grad.transpose();
                 }
 
                 // 3.24 - dFEp
@@ -155,25 +138,27 @@ namespace Solver {
 
                 // 3.25 - df
                 for (const auto& d : param.gradient) {
-                    df.col(d.active_id) -= Ap * d.wip_grad;
+                    df[d.active_id] -= Ap * d.wip_grad;
                 }
             }
 
             for (size_t i = 0; i < actives_nodes_size; ++i) {
-                if (df == vec3::Zero()) continue;
+                if (df[i] == vec3::Zero()) continue;
 
                 const auto index = solver.grid.active_nodes[i];
                 const float& node_mass = solver.grid.nodes[index].mass;
                 if (node_mass > EPSILON) [[likely]] {
-                    vec3 df_res = params.beta_integration * simulation_dt * df.col(i) / node_mass;
+                    vec3 df_res = params.beta_integration * simulation_dt * df[i] / node_mass;
 #pragma omp atomic
-                    Av_next.col(i).x() -= df_res.x();
+                    Av_next[i].x() -= df_res.x();
 #pragma omp atomic
-                    Av_next.col(i).y() -= df_res.y();
+                    Av_next[i].y() -= df_res.y();
 #pragma omp atomic
-                    Av_next.col(i).z() -= df_res.z();
+                    Av_next[i].z() -= df_res.z();
                 }
             }
+
+            delete[] df;
         }
     }
 
@@ -211,8 +196,13 @@ namespace Solver {
     }
 
     template <size_t max_iterations, float tolerance>
-    static void solveCR(MpmSolver const& solver, mat3n& x, size_t nb_active_nodes) {
+    static void solveCR(MpmSolver const& solver, vec3* x, size_t nb_active_nodes) {
         std::vector<calculate_ar_params> w_ip_gradient(solver.p_current_state.p_position.size());
+
+        vec3* Ap = x + nb_active_nodes;
+        vec3* r = Ap + nb_active_nodes;
+        vec3* p = r + nb_active_nodes;
+        vec3* Ar = p + nb_active_nodes;
 
         const size_t nb_particles = solver.p_current_state.p_position.size();
 
@@ -317,79 +307,88 @@ namespace Solver {
             }
         }
 
-        mat3n Ap = x;
+        for (size_t i = 0; i < nb_active_nodes; i++) {
+            Ap[i] = x[i];
+        }
+
         calculate_Ar(solver, Ap, x, w_ip_gradient);
-        mat3n r = x - Ap;
-        mat3n p = Ap = r;
+
+        for (size_t i = 0; i < nb_active_nodes; i++) {
+            r[i] = x[i] - Ap[i];
+        }
+
+        for (size_t i = 0; i < nb_active_nodes; i++) {
+            Ap[i] = r[i];
+        }
+        for (size_t i = 0; i < nb_active_nodes; i++) {
+            p[i] = r[i];
+        }
 
         calculate_Ar(solver, Ap, r, w_ip_gradient);
 
-        float rAr_old = r.cwiseProduct(Ap).sum();
-        const float b_norm = x.norm();
+        float rAr_old = 0.f;
+        for (size_t i = 0; i < nb_active_nodes; i++) {
+            rAr_old += r[i].cwiseProduct(Ap[i]).sum();
+        }
+        float accf = 0.f;
+        for (size_t i = 0; i < nb_active_nodes; i++) {
+            accf += x[i].squaredNorm();
+        }
+
+        const float b_norm = std::sqrt(accf);
         const float b_sn = b_norm < EPSILON ? static_cast<float>(1) : 1 / (b_norm * b_norm);
         constexpr float t_sq = tolerance * tolerance;
 
-        mat3n Ar;
-
+        vec3 acc;
         for (size_t k = 0; k < max_iterations; ++k) {
-            if (r.squaredNorm() * b_sn < t_sq) [[unlikely]] {
+            acc = vec3::Zero();
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                acc += Ap[i].cwiseSquare();
+            }
+
+            if (acc.sum() * b_sn < t_sq) [[unlikely]] {
                 break;
             }
 
-            float alpha = rAr_old / Ap.squaredNorm();
+            acc = vec3::Zero();
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                acc += Ap[i].cwiseSquare();
+            }
 
-            x += alpha * p;
-            r -= alpha * Ap;
+            float alpha = rAr_old / acc.sum();
 
-            if (r.squaredNorm() * b_sn < t_sq) [[unlikely]] {
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                x[i] += alpha * p[i];
+            }
+
+            acc = vec3::Zero();
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                r[i] -= alpha * Ap[i];
+                acc += r[i].cwiseSquare();
+            }
+
+            if (acc.sum() * b_sn < t_sq) [[unlikely]] {
                 break;
             }
-            Ar = r;
+
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                Ar[i] = r[i];
+            }
 
             calculate_Ar(solver, Ar, r, w_ip_gradient);
-            float rAr_new = (r.cwiseProduct(Ar)).sum();
+
+            acc = vec3::Zero();
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                acc += r[i].cwiseProduct(Ar[i]);
+            }
+            float rAr_new = acc.sum();
             float beta = rAr_new / rAr_old;
-
-            p = r + beta * p;
-            Ap = Ar + beta * Ap;
             rAr_old = rAr_new;
-        }
-    }
 
-    template <class Vec, class CalculateA>
-    static void solvePCR(CalculateA A, Vec& x, const Vec& b, const Vec& M_inv,
-        int max_iterations, float tolerance) {
-        Vec r = b - A(x);
-        Vec z = r.cwiseProduct(M_inv);
-        Vec p = z;
-
-        float rz_old = r.cwiseProduct(z).sum();
-        const float b_norm = b.norm();
-        const float b_sn = b_norm < EPSILON ? static_cast<float>(1) : b_norm * b_norm;
-        const float t_sq = tolerance * tolerance;
-
-        for (int k = 0; k < params.max_iterations_solver; ++k) {
-            if (r.squaredNorm() / b_sn < t_sq) {
-                break;
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                p[i] = r[i] + beta * p[i];
+                Ap[i] = Ar[i] + beta * Ap[i];
             }
-
-            Vec Ap = A(p);
-            float alpha = rz_old / Ap.squaredNorm();
-
-            x += alpha * p;
-            r -= alpha * Ap;
-
-            if (r.squaredNorm() / b_sn < t_sq) {
-                break;
-            }
-
-            z = r.cwiseProduct(M_inv);
-
-            float rz_new = (r.cwiseProduct(z)).sum();
-            float beta = rz_new / rz_old;
-
-            p = z + beta * p;
-            rz_old = rz_new;
         }
     }
 } // namespace Solver
@@ -622,26 +621,28 @@ static void step6_solve_linear_system(MpmSolver& solver) {
 
     const auto& active_nodes = solver.grid.active_nodes;
     const size_t nb_active_nodes = active_nodes.size();
-    mat3n b(3, nb_active_nodes);
+    vec3* b = new vec3[nb_active_nodes * 5];
 
     for (size_t i = 0; i < nb_active_nodes; ++i) {
         const auto index = active_nodes[i];
         solver.global_to_active_map[index] = i;
-        b.col(i) = solver.grid.nodes[index].velocity_star;
+        b[i] = solver.grid.nodes[index].velocity_star;
     }
 
     Solver::solveCR<params.max_iterations_solver, params.tolerance_solver>(solver, b, nb_active_nodes);
 
 #pragma omp parallel
+    {
 #pragma omp for schedule(static) nowait
-    for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
-        solver.global_to_active_map[i] = -1; // reset the map
-    }
+        for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
+            solver.global_to_active_map[i] = -1; // reset the map
+        }
 
 #pragma omp for nowait
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto& index = active_nodes[i];
-        solver.grid.nodes[index].velocity_star = b.col(i);
+        for (size_t i = 0; i < nb_active_nodes; ++i) {
+            const auto& index = active_nodes[i];
+            solver.grid.nodes[index].velocity_star = b[i];
+        }
     }
 }
 
@@ -854,98 +855,3 @@ void MpmSolver::create_particle(vec3 position, vec3 velocity) {
     const float mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
     create_particle_state(p_current_state, position, velocity, mass);
 }
-
-#if STEP6_PRECONDITIONED
-
-void MpmSolver::step6_solve_linear_system_preconditioned() {
-    if (params.beta_integration == 0.0 || grid.active_nodes.empty())
-        [[unlikely]] {
-        return;
-    }
-
-    size_t nb_active_nodes = grid.active_nodes.size();
-    global_to_active_map.assign(grid.nodes.size(), -1);
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        global_to_active_map[grid.active_nodes[i]] = i;
-    }
-
-    mat3n M_inv;
-    compute_preconditioner(M_inv);
-
-    mat3n b(3, nb_active_nodes);
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto index = grid.active_nodes[i];
-        b.col(i) = grid.nodes[index].velocity_star;
-    }
-
-    mat3n df(3, nb_active_nodes);
-    auto A = [&](const mat3n& v) {
-        mat3n Av(3, v.cols());
-        calculate_Ar(Av, v, df);
-        return Av;
-    };
-
-    mat3n x = b;
-    Solver::solvePCR(A, x, b, M_inv, params.max_iterations_solver,
-        params.tolerance_solver);
-
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto index = grid.active_nodes[i];
-        grid.nodes[index].velocity_star = x.col(i);
-    }
-}
-
-void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
-    const size_t nb_active_nodes = grid.active_nodes.size();
-    M_inv.resize(3, nb_active_nodes);
-
-    mat3n P(3, nb_active_nodes);
-    P.setZero();
-
-#pragma omp parallel for
-    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * grid.one_over_h;
-        vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
-
-        const float particle_stiffness = p_current_state.p_volume_0[i] * (static_cast<float>(2.0) * mu_0 + lambda_0) * std::exp(params.hardening_coefficient * (static_cast<float>(1.0) - p_current_state.p_deform_plastic[i].determinant()));
-
-        for (int z = 0; z < 4; ++z) {
-            for (int y = 0; y < 4; ++y) {
-                for (int x = 0; x < 4; ++x) {
-                    if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]]
-                        continue;
-                    const size_t index = get_node_id_from_local(
-                        grid, base_position.x() + x, base_position.y() + y,
-                        base_position.z() + z);
-
-                    int active_id = global_to_active_map[index];
-                    if (active_id < 0) continue;
-
-                    const vec3& w_ip_grad = p_weights_gradient[i][x + y * 4 + z * 4 * 4];
-                    const float diag_contrib = particle_stiffness * w_ip_grad.squaredNorm();
-
-#pragma omp atomic
-                    P(0, active_id) += diag_contrib;
-#pragma omp atomic
-                    P(1, active_id) += diag_contrib;
-#pragma omp atomic
-                    P(2, active_id) += diag_contrib;
-                }
-            }
-        }
-    }
-
-    const float factor = params.beta_integration * simulation_dt * simulation_dt;
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto index = grid.active_nodes[i];
-        float const& node_mass = grid.nodes[i].mass;
-        if (node_mass > EPSILON) {
-            vec3 A_diag = vec3::Ones() + (factor / node_mass) * P.col(i);
-            M_inv.col(i) = A_diag.cwiseInverse();
-        } else {
-            M_inv.col(i).setOnes();
-        }
-    }
-}
-
-#endif // STEP6_PRECONDITIONED

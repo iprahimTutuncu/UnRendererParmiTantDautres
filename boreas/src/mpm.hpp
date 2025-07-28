@@ -5,14 +5,11 @@
 
 using vec3i = Eigen::Vector3i;
 
-using mat3n = Eigen::Matrix<float, 3, Eigen::Dynamic, Eigen::ColMajor>;
 using vec3 = Eigen::aligned_allocator<Eigen::Vector3f>::value_type;
 using mat3 = Eigen::Matrix3f;
 
 #include <mutex>
 #include <vector>
-
-#define STEP6_PRECONDITIONED 0
 
 const float EPSILON = 1E-12;
 
@@ -183,7 +180,7 @@ struct MpmSolver {
 
         {
             std::lock_guard<std::mutex> lock(p_state_mutex);
-            std::memcpy(positions.data(), p_current_state.p_position.data(),
+            std::memcpy(static_cast<void*>(positions.data()), p_current_state.p_position.data(),
                 p_current_state.p_position.size() * sizeof(decltype(positions[0])));
         }
 
