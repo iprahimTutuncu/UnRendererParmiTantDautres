@@ -183,7 +183,7 @@ struct MpmSolver {
 
         {
             std::lock_guard<std::mutex> lock(p_state_mutex);
-            std::memcpy(positions.data(), p_current_state.p_position.data(),
+            std::memcpy(static_cast<void*>(positions.data()), p_current_state.p_position.data(),
                 p_current_state.p_position.size() * sizeof(decltype(positions[0])));
         }
 

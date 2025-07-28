@@ -34,15 +34,6 @@ static inline T fast_polar_decompose_R(const T& A) {
     return X;
 }
 
-static inline vec3i get_local_pos_from_index(MpmGrid const& grid,
-    size_t index) {
-    return {
-        static_cast<int>(index % grid.width),
-        static_cast<int>((index / grid.width) % grid.height),
-        static_cast<int>(index / (grid.width * grid.height)),
-    };
-}
-
 static inline size_t get_node_id_from_local(MpmGrid const& grid, int x, int y,
     int z) {
     return static_cast<size_t>(x + y * grid.width + z * grid.width * grid.height);
@@ -53,13 +44,6 @@ static inline vec3 get_node_world_coords(MpmGrid const& grid, int x, int y,
     return vec3(grid.origin.x() + x * grid.spacing,
         grid.origin.y() + y * grid.spacing,
         grid.origin.z() + z * grid.spacing);
-}
-
-static inline vec3 get_node_world_coords_from_index(MpmGrid const& grid,
-    size_t index) {
-    return vec3(grid.origin.x() + static_cast<float>(index % grid.width) * grid.spacing,
-        grid.origin.y() + static_cast<float>((index / grid.width) % grid.height) * grid.spacing,
-        grid.origin.z() + static_cast<float>(index / (grid.width * grid.height)) * grid.spacing);
 }
 
 namespace Solver {
@@ -89,8 +73,8 @@ namespace Solver {
 
 #pragma omp parallel
         {
-            mat3n df(3, v_next.cols());
-            df.setZero();
+            vec3* df = new vec3[v_next.cols()]();
+
 
 #pragma omp for
             for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
@@ -155,17 +139,17 @@ namespace Solver {
 
                 // 3.25 - df
                 for (const auto& d : param.gradient) {
-                    df.col(d.active_id) -= Ap * d.wip_grad;
+                    df[d.active_id] -= Ap * d.wip_grad;
                 }
             }
 
             for (size_t i = 0; i < actives_nodes_size; ++i) {
-                if (df == vec3::Zero()) continue;
+                if (df[i] == vec3::Zero()) continue;
 
                 const auto index = solver.grid.active_nodes[i];
                 const float& node_mass = solver.grid.nodes[index].mass;
                 if (node_mass > EPSILON) [[likely]] {
-                    vec3 df_res = params.beta_integration * simulation_dt * df.col(i) / node_mass;
+                    vec3 df_res = params.beta_integration * simulation_dt * df[i] / node_mass;
 #pragma omp atomic
                     Av_next.col(i).x() -= df_res.x();
 #pragma omp atomic
@@ -174,6 +158,8 @@ namespace Solver {
                     Av_next.col(i).z() -= df_res.z();
                 }
             }
+
+            delete[] df;
         }
     }
 
