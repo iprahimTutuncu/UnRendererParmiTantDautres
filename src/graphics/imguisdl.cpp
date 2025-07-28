@@ -35,8 +35,8 @@ void imgui_iterate(AppState& state) {
     ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
 
     ImGui::InputFloat3("Camera", &state.camera->position.x);
-    if (ImGui::CollapsingHeader("Controls")) {
-        ImGui::Text("Mouvement State: ");
+    if (ImGui::CollapsingHeader("Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::TextUnformatted("Mouvement State: ");
         ImGui::SameLine();
 
         if (state.controls->isCameraCaptured)
@@ -52,7 +52,7 @@ void imgui_iterate(AppState& state) {
 
     // --- Blur Settings Tab ---
     if (ImGui::CollapsingHeader("Blur Settings")) {
-        ImGui::Text("Bilateral Blur Settings");
+        ImGui::TextUnformatted("Bilateral Blur Settings");
         ImGui::SliderFloat("Blur Scale", &state.graphics->bilateralBlurBufferUniform.blurScale, 0.1f, 10.0f);
         ImGui::SliderFloat("Depth Falloff", &state.graphics->bilateralBlurBufferUniform.blurDepthFalloff, 0.01f, 5.0f);
         ImGui::SliderInt("Filter Radius", &state.graphics->bilateralBlurBufferUniform.filterRadius, 1, 10);
