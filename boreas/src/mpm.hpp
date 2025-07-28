@@ -12,8 +12,6 @@ using mat3 = Eigen::Matrix3f;
 #include <mutex>
 #include <vector>
 
-#define STEP6_PRECONDITIONED 0
-
 const float EPSILON = 1E-12;
 
 // Explicit:            dt ~= 10e-5

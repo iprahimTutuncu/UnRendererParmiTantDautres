@@ -75,7 +75,6 @@ namespace Solver {
         {
             vec3* df = new vec3[v_next.cols()]();
 
-
 #pragma omp for
             for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
 
@@ -840,98 +839,3 @@ void MpmSolver::create_particle(vec3 position, vec3 velocity) {
     const float mass = params.initial_density * params.grid_spacing * params.grid_spacing * params.grid_spacing / params.particles_per_cell;
     create_particle_state(p_current_state, position, velocity, mass);
 }
-
-#if STEP6_PRECONDITIONED
-
-void MpmSolver::step6_solve_linear_system_preconditioned() {
-    if (params.beta_integration == 0.0 || grid.active_nodes.empty())
-        [[unlikely]] {
-        return;
-    }
-
-    size_t nb_active_nodes = grid.active_nodes.size();
-    global_to_active_map.assign(grid.nodes.size(), -1);
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        global_to_active_map[grid.active_nodes[i]] = i;
-    }
-
-    mat3n M_inv;
-    compute_preconditioner(M_inv);
-
-    mat3n b(3, nb_active_nodes);
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto index = grid.active_nodes[i];
-        b.col(i) = grid.nodes[index].velocity_star;
-    }
-
-    mat3n df(3, nb_active_nodes);
-    auto A = [&](const mat3n& v) {
-        mat3n Av(3, v.cols());
-        calculate_Ar(Av, v, df);
-        return Av;
-    };
-
-    mat3n x = b;
-    Solver::solvePCR(A, x, b, M_inv, params.max_iterations_solver,
-        params.tolerance_solver);
-
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto index = grid.active_nodes[i];
-        grid.nodes[index].velocity_star = x.col(i);
-    }
-}
-
-void MpmSolver::compute_preconditioner(mat3n& M_inv) const {
-    const size_t nb_active_nodes = grid.active_nodes.size();
-    M_inv.resize(3, nb_active_nodes);
-
-    mat3n P(3, nb_active_nodes);
-    P.setZero();
-
-#pragma omp parallel for
-    for (size_t i = 0; i < p_current_state.p_position.size(); ++i) {
-        vec3 p_position_rel = (p_current_state.p_position[i] - grid.origin) * grid.one_over_h;
-        vec3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
-
-        const float particle_stiffness = p_current_state.p_volume_0[i] * (static_cast<float>(2.0) * mu_0 + lambda_0) * std::exp(params.hardening_coefficient * (static_cast<float>(1.0) - p_current_state.p_deform_plastic[i].determinant()));
-
-        for (int z = 0; z < 4; ++z) {
-            for (int y = 0; y < 4; ++y) {
-                for (int x = 0; x < 4; ++x) {
-                    if ((base_position.x() + x) < 0 || (base_position.x() + x) >= grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= grid.depth) [[unlikely]]
-                        continue;
-                    const size_t index = get_node_id_from_local(
-                        grid, base_position.x() + x, base_position.y() + y,
-                        base_position.z() + z);
-
-                    int active_id = global_to_active_map[index];
-                    if (active_id < 0) continue;
-
-                    const vec3& w_ip_grad = p_weights_gradient[i][x + y * 4 + z * 4 * 4];
-                    const float diag_contrib = particle_stiffness * w_ip_grad.squaredNorm();
-
-#pragma omp atomic
-                    P(0, active_id) += diag_contrib;
-#pragma omp atomic
-                    P(1, active_id) += diag_contrib;
-#pragma omp atomic
-                    P(2, active_id) += diag_contrib;
-                }
-            }
-        }
-    }
-
-    const float factor = params.beta_integration * simulation_dt * simulation_dt;
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto index = grid.active_nodes[i];
-        float const& node_mass = grid.nodes[i].mass;
-        if (node_mass > EPSILON) {
-            vec3 A_diag = vec3::Ones() + (factor / node_mass) * P.col(i);
-            M_inv.col(i) = A_diag.cwiseInverse();
-        } else {
-            M_inv.col(i).setOnes();
-        }
-    }
-}
-
-#endif // STEP6_PRECONDITIONED
