@@ -1,7 +1,8 @@
 #pragma once
 
 #include "../state.h"
-#include "../vmath.h"
+#include <vmath/vmath.h>
+
 
 #include <SDL3/SDL_init.h>
 #include <vector>
@@ -97,8 +98,8 @@ struct Rect {
 };
 
 struct Particle {
-    vec4 position;
-    vec4 color;
+    vmath::vec4 position;
+    vmath::vec4 color;
 };
 
 struct Vertex {
@@ -120,9 +121,9 @@ struct ParticleUpdateUniform {
 };
 
 struct GeometryBufferUniform {
-    mat4 proj;
-    mat4 view;
-    mat4 model;
+    vmath::mat4 proj;
+    vmath::mat4 view;
+    vmath::mat4 model;
     int id;
     int p0, p1, p2;
 };
@@ -135,14 +136,14 @@ struct BilateralBlurBufferUniform {
 };
 
 struct GeometryBufferParticlesUniform {
-    mat4 proj;
-    mat4 view;
-    mat4 model;
+    vmath::mat4 proj;
+    vmath::mat4 view;
+    vmath::mat4 model;
     float radius;
     float near;
     float far;
     int id;
-    vec4 color;
+    vmath::vec4 color;
 };
 
 struct GraphicState {

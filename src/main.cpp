@@ -81,18 +81,18 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     state.numFrames = 0u;
     state.deltaTime = 0.f;
 
-    static const vec3 position { 0, 10, 20 };
-    static const vec3 worldUp { 0.f, 1.f, 0.f };
-    const vec3 front = normalize(position);
-    const vec3 right = normalize(cross(worldUp, front));
-    const vec3 up = cross(front, right);
+    static const vmath::vec3 position { 0, 10, 20 };
+    static const vmath::vec3 worldUp { 0.f, 1.f, 0.f };
+    const vmath::vec3 front = vmath::normalize(position);
+    const vmath::vec3 right = vmath::normalize(vmath::cross(worldUp, front));
+    const vmath::vec3 up = vmath::cross(front, right);
     state.camera = new CameraPerspective {
         .front = front,
         .right = right,
         .up = up,
         .position = position,
         .aspectRatio = static_cast<float>(INITIAL_WINDOW_WIDTH) / static_cast<float>(INITIAL_WINDOW_HEIGHT),
-        .fov = radians(75.f),
+        .fov = vmath::radians(75.f),
         .near = .1f,
         .far = 100.0f,
     };

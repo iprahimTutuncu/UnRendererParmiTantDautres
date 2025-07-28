@@ -1,10 +1,10 @@
 #include "controls.h"
 
 #include "../camera.h"
-#include "../vmath.h"
 
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_mouse.h>
+#include <vmath/vmath.h>
 
 static void set_mouse_capture(AppState& state, bool capture) {
     state.controls->isCameraCaptured = capture;
@@ -108,16 +108,16 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
             yaw += 360.f;
         }
 
-        vec3& front = state.camera->front;
-        vec3& right = state.camera->right;
-        vec3& up = state.camera->up;
+        vmath::vec3& front = state.camera->front;
+        vmath::vec3& right = state.camera->right;
+        vmath::vec3& up = state.camera->up;
 
-        front.x = std::cos(radians(yaw)) * std::cos(radians(pitch));
-        front.y = std::sin(radians(pitch));
-        front.z = std::sin(radians(yaw)) * std::cos(radians(pitch));
+        front.x = std::cos(vmath::radians(yaw)) * std::cos(vmath::radians(pitch));
+        front.y = std::sin(vmath::radians(pitch));
+        front.z = std::sin(vmath::radians(yaw)) * std::cos(vmath::radians(pitch));
 
         front = normalize(front);
-        right = normalize(cross(front, vec3 { 0.f, 1.f, 0.f }));
+        right = normalize(cross(front, vmath::vec3 { 0.f, 1.f, 0.f }));
         up = normalize(cross(right, front));
 
     } break;
@@ -125,12 +125,12 @@ SDL_AppResult controls_event(AppState& state, SDL_Event const& event) {
         SDL_MouseWheelEvent const& evt = (SDL_MouseWheelEvent&)event;
 
         float& fov = state.camera->fov;
-        fov -= radians(evt.y * 1.25f);
+        fov -= vmath::radians(evt.y * 1.25f);
 
-        if (fov < radians(1.0f)) {
-            fov = radians(1.0f);
-        } else if (fov > radians(120.f)) {
-            fov = radians(120.f);
+        if (fov < vmath::radians(1.0f)) {
+            fov = vmath::radians(1.0f);
+        } else if (fov > vmath::radians(120.f)) {
+            fov = vmath::radians(120.f);
         }
     } break;
     default:

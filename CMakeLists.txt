@@ -149,6 +149,9 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
 
 #  ========== PROJECT ==========
 
+add_library(vmath INTERFACE)
+target_include_directories(vmath INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/libs/vmath)
+
 if (NOT WIN32 AND NOT MSVC)
     # windows cant stop complaining when compiling boreas
     # so we exclude it from windows builds
@@ -166,6 +169,8 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSi
     add_compile_definitions(DEBUG=1)
 endif()
 
+
+
 add_executable(app
     src/main.cpp
     src/camera.cpp
@@ -182,6 +187,7 @@ add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
     SDL3::SDL3
     ImGui
+    vmath
 )
 target_compile_definitions(app PRIVATE
     SHADERS_DIR="${SHADER_OUT_DIR}/"
