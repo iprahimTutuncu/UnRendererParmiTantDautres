@@ -5,7 +5,6 @@
 
 using vec3i = Eigen::Vector3i;
 
-using mat3n = Eigen::Matrix<float, 3, Eigen::Dynamic, Eigen::ColMajor>;
 using vec3 = Eigen::aligned_allocator<Eigen::Vector3f>::value_type;
 using mat3 = Eigen::Matrix3f;
 
