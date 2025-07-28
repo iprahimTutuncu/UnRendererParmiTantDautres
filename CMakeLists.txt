@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
 project(Olaf
-    VERSION 0.1
-    LANGUAGES CXX
+    VERSION 0.2.0
+    LANGUAGES CXX CUDA
 )
 
 #  ========== CMAKE CONFIGURATION ==========
@@ -10,6 +10,8 @@ project(Olaf
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
+set(CMAKE_CUDA_STANDARD 20)
+set(CMAKE_CUDA_ARCHITECTURES "native")
 
 option(OlafEnableLTO "Enable LTO" OFF)
 
@@ -165,10 +167,6 @@ else()
     add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
 endif()
 
-if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"))
-    add_compile_definitions(DEBUG=1)
-endif()
-
 add_executable(app
     src/main.cpp
     src/camera.cpp
@@ -183,9 +181,9 @@ add_executable(app
 
 add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
-    SDL3::SDL3
+    Eigen3::Eigen
     ImGui
-    OpenMP::OpenMP_CXX
+    SDL3::SDL3
     UTL::include
 )
 target_compile_definitions(app PRIVATE
