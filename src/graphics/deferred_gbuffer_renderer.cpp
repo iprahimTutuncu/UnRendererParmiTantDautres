@@ -146,13 +146,13 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
         SDL_BindGPUIndexBuffer(pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
         for (Box& box : graphics.boxes) {
-            vec3 min { box.min[0], box.min[1], box.min[2] };
-            vec3 max { box.max[0], box.max[1], box.max[2] };
+            vmath::vec3 min { box.min[0], box.min[1], box.min[2] };
+            vmath::vec3 max { box.max[0], box.max[1], box.max[2] };
 
-            vec3 size = vec3 { max.x - min.x, max.y - min.y, max.z - min.z };
-            vec3 center = vec3 { max.x + min.x, max.y + min.y, max.z + min.z } * 0.5f;
+            vmath::vec3 size = vmath::vec3 { max.x - min.x, max.y - min.y, max.z - min.z };
+            vmath::vec3 center = vmath::vec3 { max.x + min.x, max.y + min.y, max.z + min.z } * 0.5f;
 
-            mat4 model = mat4::identity();
+            vmath::mat4 model = vmath::mat4::identity();
             model[3].x = center.x;
             model[3].y = center.y;
             model[3].z = center.z;
@@ -195,7 +195,7 @@ void deferred_gbuffer_render(AppState& state, SDL_GPUCommandBuffer* cmdBuf) {
 
         SDL_BindGPUVertexStorageBuffers(pass, 0, &graphics.buffers[ParticlePositionBuffer], 1);
 
-        mat4 model {};
+        vmath::mat4 model {};
         model[0].x = 0.25f;
         model[1].y = 0.25f;
         model[2].z = 0.25f;
@@ -332,13 +332,13 @@ void deferred_gbuffer_create_particles_pipeline(AppState& state) {
 
     SDL_GPUVertexAttribute vertexAttributes[3] = {};
 
-    // position:vec3 ? la location 0
+    // position:vmath::vec3 ? la location 0
     vertexAttributes[0].buffer_slot = 0;
     vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
     vertexAttributes[0].location = 0;
     vertexAttributes[0].offset = offsetof(Vertex, position);
 
-    // normal:vec3 ? la  location 1
+    // normal:vmath::vec3 ? la  location 1
     vertexAttributes[1].buffer_slot = 0;
     vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
     vertexAttributes[1].location = 1;
@@ -414,13 +414,13 @@ void deferred_gbuffer_create_mesh_pipeline(AppState& state) {
 
     SDL_GPUVertexAttribute vertexAttributes[3] = {};
 
-    // position:vec3 ? la location 0
+    // position:vmath::vec3 ? la location 0
     vertexAttributes[0].buffer_slot = 0;
     vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
     vertexAttributes[0].location = 0;
     vertexAttributes[0].offset = 0;
 
-    // normal:vec3 ? la  location 1
+    // normal:vmath::vec3 ? la  location 1
     vertexAttributes[1].buffer_slot = 0;
     vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
     vertexAttributes[1].location = 1;

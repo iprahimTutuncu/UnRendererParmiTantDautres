@@ -83,7 +83,7 @@ void deferred_lighting_render_to_texture(
         { gfx.textures[GeometryAlbedo], sampler }
     };
 
-    state.graphics->geometryBufferUniform.model = mat4::identity();
+    state.graphics->geometryBufferUniform.model = vmath::mat4::identity();
     state.graphics->geometryBufferUniform.view = state.camera->view_matrix();
     state.graphics->geometryBufferUniform.proj = state.camera->projection_matrix();
     state.graphics->geometryBufferUniform.id = 1;
