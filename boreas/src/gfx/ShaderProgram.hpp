@@ -9,6 +9,8 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <Eigen/Dense>
+#include <Eigen/SVD>
 
 #include <glm/gtx/string_cast.hpp>
 

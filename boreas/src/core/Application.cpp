@@ -1,9 +1,11 @@
 #include "Application.hpp"
-#include "../libs/eigen.hpp"
+
 #include "../libs/sdl.hpp"
 #include <iostream>
 #include <random>
 #include <thread>
+
+#include <Eigen/Dense>
 
 const char* title = "Boreas";
 
@@ -33,8 +35,8 @@ void Application::init() {
 }
 
 void Application::init_scene() {
-    const vec3 velocity = vec3(0.0, -5.0, 0.0);
-    const vec3 origin = vec3(0.0, 1.0, 0.0);
+    const Eigen::Vector3f velocity = Eigen::Vector3f(0.0, -5.0, 0.0);
+    const Eigen::Vector3f origin = Eigen::Vector3f(0.0, 1.0, 0.0);
     constexpr double radius = 0.5;
     constexpr size_t nb_particles = 2000;
     constexpr std::uint64_t seed = 33;
@@ -51,7 +53,7 @@ void Application::init_scene() {
         double x = dist6(generator);
         double y = dist6(generator);
         double z = dist6(generator);
-        vec3 relative_pos = vec3(x, y, z);
+        Eigen::Vector3f relative_pos = Eigen::Vector3f(x, y, z);
 
         if (relative_pos.squaredNorm() <= radius * radius) {
             m_mpm_solver.create_particle(origin + relative_pos, velocity);
@@ -125,7 +127,7 @@ void Application::run() {
 
         SDL_GL_SwapWindow(m_main_window.get_handle());
 
-        std::vector<vec3> positions = m_mpm_solver.get_positions();
+        std::vector<Eigen::Vector3f> positions = m_mpm_solver.get_positions();
         m_renderer.update_particles(positions);
     }
 

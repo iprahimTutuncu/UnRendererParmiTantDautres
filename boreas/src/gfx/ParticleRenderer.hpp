@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../libs/eigen.hpp"
 #include "Mesh.hpp"
 #include "ShaderProgram.hpp"
+#include <Eigen/Dense>
 
 struct alignas(16) Particle {
     glm::vec3 position;
@@ -18,7 +18,7 @@ public:
     void init(ShaderProgram* shader) override;
     void init(ShaderProgram* shader, unsigned int nb_particles);
     void deinit() override;
-    void update_particles(std::vector<vec3>& positions);
+    void update_particles(std::vector<Eigen::Vector3f>& positions);
 
 private:
     ShaderProgram* m_shader = nullptr;

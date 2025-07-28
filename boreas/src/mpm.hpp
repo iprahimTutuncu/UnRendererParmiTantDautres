@@ -3,11 +3,6 @@
 #include <Eigen/Dense>
 #include <Eigen/SVD>
 
-using vec3i = Eigen::Vector3i;
-
-using vec3 = Eigen::aligned_allocator<Eigen::Vector3f>::value_type;
-using mat3 = Eigen::Matrix3f;
-
 #include <mutex>
 #include <vector>
 
@@ -28,20 +23,20 @@ static inline constexpr float DEFAULT_POISSON_RATIO = 0.2f;
 
 struct alignas(HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE) MpmGridNode {
     float mass { 0.0f }; // m
-    vec3 momentum = vec3::Zero(); // v*
-    alignas(16) vec3 velocity_star = vec3::Zero(); // v
-    alignas(16) vec3 velocity = vec3::Zero(); // v*
-    alignas(16) vec3 force = vec3::Zero(); // F (stress)
+    Eigen::Vector3f momentum = Eigen::Vector3f::Zero(); // v*
+    alignas(16) Eigen::Vector3f velocity_star = Eigen::Vector3f::Zero(); // v
+    alignas(16) Eigen::Vector3f velocity = Eigen::Vector3f::Zero(); // v*
+    alignas(16) Eigen::Vector3f force = Eigen::Vector3f::Zero(); // F (stress)
 };
 
 struct MpmParticlesState {
-    std::vector<vec3> p_position; // p
-    std::vector<vec3> p_velocity; // v
+    std::vector<Eigen::Vector3f> p_position; // p
+    std::vector<Eigen::Vector3f> p_velocity; // v
     std::vector<float> p_mass; // m
     std::vector<float> p_volume_0; // V
-    std::vector<mat3> p_deform_elastic; // F_E
-    std::vector<mat3> p_deform_plastic; // F_P
-    std::vector<mat3> p_deform_affine; // B
+    std::vector<Eigen::Matrix3f> p_deform_elastic; // F_E
+    std::vector<Eigen::Matrix3f> p_deform_plastic; // F_P
+    std::vector<Eigen::Matrix3f> p_deform_affine; // B
 
     void ensure_capacity(size_t new_size) {
         p_position.reserve(new_size);
@@ -60,11 +55,11 @@ struct MpmGrid {
     int width;
     int height;
     int depth;
-    vec3 origin; // world space origin of the grid
+    Eigen::Vector3f origin; // world space origin of the grid
     std::vector<MpmGridNode> nodes;
     std::vector<std::uint32_t> active_nodes;
 
-    MpmGrid(vec3 origin, float size_x, float size_y, float size_z,
+    MpmGrid(Eigen::Vector3f origin, float size_x, float size_y, float size_z,
         float spacing)
         : origin { origin }
         , spacing { spacing }
@@ -158,7 +153,7 @@ static constexpr float mu_0 = params.initial_youngs_modulus / (static_cast<float
 static constexpr float lambda_0 = (params.initial_youngs_modulus * params.poisson_ratio) / ((1.0 + params.poisson_ratio) * (static_cast<float>(1) - static_cast<float>(2) * params.poisson_ratio));
 
 struct MpmSolver {
-    MpmGrid grid = MpmGrid(vec3(params.grid_origin[0], params.grid_origin[1],
+    MpmGrid grid = MpmGrid(Eigen::Vector3f(params.grid_origin[0], params.grid_origin[1],
                                params.grid_origin[2]),
         params.grid_size[0], params.grid_size[1],
         params.grid_size[2], params.grid_spacing);
@@ -169,14 +164,14 @@ struct MpmSolver {
     std::mutex p_state_mutex;
 
     std::vector<std::array<float, 64>> p_weights;
-    std::vector<std::array<vec3, 64>> p_weights_gradient;
+    std::vector<std::array<Eigen::Vector3f, 64>> p_weights_gradient;
 
-    void create_particle(vec3 position, vec3 velocity);
+    void create_particle(Eigen::Vector3f position, Eigen::Vector3f velocity);
     void initialize();
     void iterate();
 
-    inline std::vector<vec3> get_positions() {
-        std::vector<vec3> positions(p_current_state.p_position.size());
+    inline std::vector<Eigen::Vector3f> get_positions() {
+        std::vector<Eigen::Vector3f> positions(p_current_state.p_position.size());
 
         {
             std::lock_guard<std::mutex> lock(p_state_mutex);
