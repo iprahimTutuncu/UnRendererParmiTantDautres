@@ -618,15 +618,17 @@ static void step6_solve_linear_system(MpmSolver& solver) {
     Solver::solveCR<params.max_iterations_solver, params.tolerance_solver>(solver, b, nb_active_nodes);
 
 #pragma omp parallel
+    {
 #pragma omp for schedule(static) nowait
-    for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
-        solver.global_to_active_map[i] = -1; // reset the map
-    }
+        for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
+            solver.global_to_active_map[i] = -1; // reset the map
+        }
 
 #pragma omp for nowait
-    for (size_t i = 0; i < nb_active_nodes; ++i) {
-        const auto& index = active_nodes[i];
-        solver.grid.nodes[index].velocity_star = b.col(i);
+        for (size_t i = 0; i < nb_active_nodes; ++i) {
+            const auto& index = active_nodes[i];
+            solver.grid.nodes[index].velocity_star = b.col(i);
+        }
     }
 }
 
