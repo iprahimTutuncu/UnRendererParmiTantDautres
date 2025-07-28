@@ -1,11 +1,15 @@
 #include "Application.hpp"
 
-#include "../libs/sdl.hpp"
+#include <glad/glad.h>
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
+#include <Eigen/Dense>
+
 #include <iostream>
 #include <random>
 #include <thread>
 
-#include <Eigen/Dense>
 
 const char* title = "Boreas";
 
