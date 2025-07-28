@@ -1,2 +1,2 @@
 CompileFlags:
-  Remove: [-ipo, -fiopenmp]
+  Remove: [-ipo, -fiopenmp, -forward-unknown-to-host-compiler, -arch=native]
