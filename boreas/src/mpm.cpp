@@ -152,9 +152,8 @@ namespace Solver {
                 if (df[(start + i) % actives_nodes_size] == Eigen::Vector3f::Zero()) continue;
 
                 const auto index = solver.grid.active_nodes[(start + i) % actives_nodes_size];
-                const float& node_mass = solver.grid.nodes[index].mass;
-                if (node_mass > EPSILON) [[likely]] {
-                    Av_next[(start + i) % actives_nodes_size] -= params.beta_integration * simulation_dt * df[(start + i) % actives_nodes_size] / node_mass;
+                if (solver.grid.nodes[index].mass > EPSILON) [[likely]] {
+                    Av_next[(start + i) % actives_nodes_size] -= params.beta_integration * simulation_dt * df[(start + i) % actives_nodes_size] * solver.grid.nodes[index].one_over_mass;
                 }
             }
 
@@ -389,6 +388,7 @@ static inline void reset_nodes(MpmSolver& solver) {
             solver.grid.nodes[i].velocity.setZero();
             solver.grid.nodes[i].momentum.setZero();
             solver.grid.nodes[i].force.setZero();
+            solver.grid.nodes[i].one_over_mass = static_cast<float>(0);
         }
     }
 }
@@ -521,8 +521,8 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
         // p = mv -> v = p/m
         MpmGridNode& node = solver.grid.nodes[index];
         if (node.mass > static_cast<float>(0)) [[unlikely]] {
-
-            Eigen::Vector3f velocity_star = (node.velocity = node.momentum / node.mass) + simulation_dt * (node.force + (node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2]))) / node.mass;
+            node.one_over_mass = static_cast<float>(1.0) / node.mass;
+            Eigen::Vector3f velocity_star = (node.velocity = node.momentum *node.one_over_mass) + simulation_dt * (node.force + (node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2]))) * node.one_over_mass;
 
             // check for collision with the worlf floor
             if (solver.grid.origin.y() + static_cast<float>((index / solver.grid.width) % solver.grid.height) * solver.grid.spacing <= params.world_floor) [[unlikely]] {

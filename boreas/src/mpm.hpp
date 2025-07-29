@@ -27,6 +27,7 @@ struct alignas(HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE) MpmGridNode {
     alignas(16) Eigen::Vector3f velocity_star = Eigen::Vector3f::Zero(); // v
     alignas(16) Eigen::Vector3f velocity = Eigen::Vector3f::Zero(); // v*
     alignas(16) Eigen::Vector3f force = Eigen::Vector3f::Zero(); // F (stress)
+    float one_over_mass { 0.0f }; // 1 / m
 };
 
 struct MpmParticlesState {
