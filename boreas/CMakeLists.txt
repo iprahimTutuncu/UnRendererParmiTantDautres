@@ -34,7 +34,6 @@ target_link_libraries(boreas
     OpenGL::GL
     OpenMP::OpenMP_CXX
     SDL2::SDL2
-    vmath
     UTL::include
 )
 target_compile_definitions(boreas PRIVATE SHADERS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
