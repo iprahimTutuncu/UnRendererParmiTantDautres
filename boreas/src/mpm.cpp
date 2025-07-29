@@ -143,7 +143,7 @@ namespace Solver {
 
                 // 3.25 - df
                 for (const auto& d : param.gradient) {
-                    df[d.active_id] -= Ap * d.wip_grad;
+                    df[d.active_id] += Ap * d.wip_grad;
                 }
             }
 
@@ -152,9 +152,8 @@ namespace Solver {
                 if (df[(start + i) % actives_nodes_size] == Eigen::Vector3f::Zero()) continue;
 
                 const auto index = solver.grid.active_nodes[(start + i) % actives_nodes_size];
-                const float& node_mass = solver.grid.nodes[index].mass;
-                if (node_mass > EPSILON) [[likely]] {
-                    Av_next[(start + i) % actives_nodes_size] -= params.beta_integration * simulation_dt * df[(start + i) % actives_nodes_size] / node_mass;
+                if (solver.grid.nodes[index].mass > EPSILON) [[likely]] {
+                    Av_next[(start + i) % actives_nodes_size] += params.beta_integration * simulation_dt * df[(start + i) % actives_nodes_size] * solver.grid.nodes[index].one_over_mass;
                 }
             }
 
@@ -382,13 +381,15 @@ static inline void reset_nodes(MpmSolver& solver) {
         {
             solver.grid.active_nodes.clear();
         }
-#pragma omp for schedule(dynamic, 64)
-        for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
+#pragma omp for nowait
+        for (size_t i = 0; i < solver.grid.size(); ++i) {
+            solver.grid.nodes[i].atomic_flag.clear(std::memory_order::seq_cst);
             solver.grid.nodes[i].mass = static_cast<float>(0);
             solver.grid.nodes[i].velocity_star.setZero();
             solver.grid.nodes[i].velocity.setZero();
             solver.grid.nodes[i].momentum.setZero();
             solver.grid.nodes[i].force.setZero();
+            solver.grid.nodes[i].one_over_mass = static_cast<float>(0);
         }
     }
 }
@@ -424,126 +425,151 @@ static inline constexpr float d_N(float x) {
 // Transfer mass using the weighing function
 // Transfer velocity using normalized weights
 static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
-#pragma omp parallel for
-    for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
 
-        const Eigen::Matrix3f& Fe = solver.p_current_state.p_deform_elastic[i];
-        const Eigen::Matrix3f& Fp = solver.p_current_state.p_deform_plastic[i];
+    size_t min_index = solver.grid.size() - 1;
+    size_t active_nodes_count = 0;
 
-        const Eigen::Matrix3f R = fast_polar_decompose_R<Eigen::Matrix3f, 2>(Fe);
+    size_t max_index = 0;
+    UTL_PROFILER("step1 - parallel") {
+#pragma omp parallel reduction(+ : active_nodes_count)
+        {
+#pragma omp for reduction(min : min_index) reduction(max : max_index)
+            for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
 
-        const auto Jp = Fp.determinant();
-        const auto mu = mu_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1.0) - Jp));
-        const auto lambda = lambda_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1.0) - Jp));
+                const Eigen::Matrix3f& Fe = solver.p_current_state.p_deform_elastic[i];
+                const Eigen::Matrix3f& Fp = solver.p_current_state.p_deform_plastic[i];
 
-        const auto Fe_invT = Fe.inverse().transpose();
+                const Eigen::Matrix3f R = fast_polar_decompose_R<Eigen::Matrix3f, 2>(Fe);
 
-        const float Je = Fe.determinant();
-        const Eigen::Matrix3f dPsi = static_cast<float>(2.0) * mu * (Fe - R) + lambda * (Je - static_cast<float>(1.0)) * Je * Fe_invT;
-        const Eigen::Matrix3f stress_force = solver.p_current_state.p_volume_0[i] * (dPsi * Fe.transpose());
+                const auto Jp = Fp.determinant();
+                const auto mu = mu_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1.0) - Jp));
+                const auto lambda = lambda_0 * std::exp(params.hardening_coefficient * (static_cast<float>(1.0) - Jp));
 
-        // find the closest bottom-left node to the current cell
-        Eigen::Vector3f p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
-        Eigen::Vector3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
+                const auto Fe_invT = Fe.inverse().transpose();
 
-        // look at the neighbor 4x4 grid
-        for (int z = 0; z < 4; ++z) {
-            for (int y = 0; y < 4; ++y) {
-                for (int x = 0; x < 4; ++x) {
-                    auto weight_id = x + y * 4 + z * 4 * 4;
-                    if ((base_position.x() + x) < 0 || (base_position.x() + x) >= solver.grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= solver.grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= solver.grid.depth) [[unlikely]] {
-                        solver.p_weights[i][weight_id] = 0.0f;
-                        solver.p_weights_gradient[i][weight_id] = Eigen::Vector3f::Zero();
-                        continue;
-                    }
+                const float Je = Fe.determinant();
+                const Eigen::Matrix3f dPsi = static_cast<float>(2.0) * mu * (Fe - R) + lambda * (Je - static_cast<float>(1.0)) * Je * Fe_invT;
+                const Eigen::Matrix3f stress_force = solver.p_current_state.p_volume_0[i] * (dPsi * Fe.transpose());
 
-                    // calculate particle offset
-                    size_t node_index = get_node_id_from_local(
-                        solver.grid, base_position.x() + x, base_position.y() + y,
-                        base_position.z() + z);
-                    MpmGridNode& node = solver.grid.nodes[node_index];
+                // find the closest bottom-left node to the current cell
+                Eigen::Vector3f p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
+                Eigen::Vector3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
-                    const Eigen::Vector3f p_off = p_position_rel - Eigen::Vector3f {
-                        static_cast<float>(base_position.x() + x),
-                        static_cast<float>(base_position.y() + y),
-                        static_cast<float>(base_position.z() + z),
-                    };
+                // look at the neighbor 4x4 grid
+                for (int z = 0; z < 4; ++z) {
+                    for (int y = 0; y < 4; ++y) {
+                        for (int x = 0; x < 4; ++x) {
+                            auto weight_id = x + y * 4 + z * 4 * 4;
+                            if ((base_position.x() + x) < 0 || (base_position.x() + x) >= solver.grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= solver.grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= solver.grid.depth) [[unlikely]] {
+                                solver.p_weights[i][weight_id] = 0.0f;
+                                solver.p_weights_gradient[i][weight_id] = Eigen::Vector3f::Zero();
+                                continue;
+                            }
 
-                    float Ni_x = N(p_off.x());
-                    float Ni_y = N(p_off.y());
-                    float Ni_z = N(p_off.z());
+                            // calculate particle offset
+                            size_t node_index = get_node_id_from_local(
+                                solver.grid, base_position.x() + x, base_position.y() + y,
+                                base_position.z() + z);
 
-                    float dNi_x = d_N(p_off.x());
-                    float dNi_y = d_N(p_off.y());
-                    float dNi_z = d_N(p_off.z());
+                            if (node_index < min_index) [[unlikely]] {
+                                min_index = node_index;
+                            } else if (node_index > max_index) [[unlikely]] {
+                                max_index = node_index;
+                            }
 
-                    const float w_ip = solver.p_weights[i][weight_id] = Ni_x * Ni_y * Ni_z;
-                    const auto& w_ip_grad = solver.p_weights_gradient[i][weight_id] = solver.grid.one_over_h * Eigen::Vector3f(dNi_x * Ni_y * Ni_z, Ni_x * dNi_y * Ni_z, Ni_x * Ni_y * dNi_z);
+                            MpmGridNode& node = solver.grid.nodes[node_index];
 
-                    // m_i = sum( m_p * w_ip )
-                    // where w_ip = N_i(x_p)
-                    float m_i = solver.p_current_state.p_mass[i] * w_ip;
+                            const Eigen::Vector3f p_off = p_position_rel - Eigen::Vector3f {
+                                static_cast<float>(base_position.x() + x),
+                                static_cast<float>(base_position.y() + y),
+                                static_cast<float>(base_position.z() + z),
+                            };
+
+                            float Ni_x = N(p_off.x());
+                            float Ni_y = N(p_off.y());
+                            float Ni_z = N(p_off.z());
+
+                            float dNi_x = d_N(p_off.x());
+                            float dNi_y = d_N(p_off.y());
+                            float dNi_z = d_N(p_off.z());
+
+                            const float w_ip = solver.p_weights[i][weight_id] = Ni_x * Ni_y * Ni_z;
+                            const auto& w_ip_grad = solver.p_weights_gradient[i][weight_id] = solver.grid.one_over_h * Eigen::Vector3f(dNi_x * Ni_y * Ni_z, Ni_x * dNi_y * Ni_z, Ni_x * Ni_y * dNi_z);
+
+                            // m_i = sum( m_p * w_ip )
+                            // where w_ip = N_i(x_p)
+                            float m_i = solver.p_current_state.p_mass[i] * w_ip;
 
 #if USE_APIC
-                    Eigen::Vector3f node_pos = get_node_world_coords(solver.grid, base_position.x() + x,
-                                                   base_position.y() + y,
-                                                   base_position.z() + z)
-                        - solver.p_current_state.p_position[i];
-                    Eigen::Vector3f apic = (solver.p_current_state.p_velocity[i] + solver.p_current_state.p_deform_affine[i] * (3 * solver.grid.one_over_h * solver.grid.one_over_h * node_pos));
-                    Eigen::Vector3f momentum = m_i * apic;
+                            Eigen::Vector3f node_pos = get_node_world_coords(solver.grid, base_position.x() + x,
+                                                           base_position.y() + y,
+                                                           base_position.z() + z)
+                                - solver.p_current_state.p_position[i];
+                            Eigen::Vector3f apic = (solver.p_current_state.p_velocity[i] + solver.p_current_state.p_deform_affine[i] * (3 * solver.grid.one_over_h * solver.grid.one_over_h * node_pos));
+                            Eigen::Vector3f momentum = m_i * apic;
 #else
-                    Eigen::Vector3f momentum = m_i * solver.p_current_state.p_velocity[i];
+                            Eigen::Vector3f momentum = m_i * solver.p_current_state.p_velocity[i];
 #endif
 
-                    Eigen::Vector3f force = stress_force * w_ip_grad;
-#pragma omp atomic
-                    node.force.x() -= force.x();
-#pragma omp atomic
-                    node.force.y() -= force.y();
-#pragma omp atomic
-                    node.force.z() -= force.z();
+                            Eigen::Vector3f force = stress_force * w_ip_grad;
 
-#pragma omp atomic
-                    node.mass += m_i;
-#pragma omp atomic
-                    node.momentum.x() += momentum.x();
-#pragma omp atomic
-                    node.momentum.y() += momentum.y();
-#pragma omp atomic
-                    node.momentum.z() += momentum.z();
+                            while (node.atomic_flag.test_and_set(std::memory_order::acquire)) [[likely]] {
+                                _mm_pause();
+                            }
+
+                            node.mass += m_i;
+                            node.force.x() += force.x();
+                            node.force.y() += force.y();
+                            node.force.z() += force.z();
+
+                            node.momentum.x() += momentum.x();
+                            node.momentum.y() += momentum.y();
+                            node.momentum.z() += momentum.z();
+
+                            node.atomic_flag.clear(std::memory_order::release);
+                        }
+                    }
+                }
+            }
+
+#pragma omp for nowait
+            for (size_t index = min_index; index < max_index; ++index) {
+                // v_i = sum( v_p * m_p * w_ip / m_i )
+                // p = mv -> v = p/m
+                MpmGridNode& node = solver.grid.nodes[index];
+                if (node.mass > static_cast<float>(0)) [[unlikely]] {
+                    active_nodes_count += 1;
+                    node.one_over_mass = static_cast<float>(1.0) / node.mass;
+                    Eigen::Vector3f velocity_star = (node.velocity = node.momentum * node.one_over_mass) + simulation_dt * ((node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2])) - node.force) * node.one_over_mass;
+
+                    // check for collision with the worlf floor
+                    if (solver.grid.origin.y() + static_cast<float>((index / solver.grid.width) % solver.grid.height) * solver.grid.spacing <= params.world_floor) [[unlikely]] {
+                        Eigen::Vector3f v_rel = velocity_star - Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
+                        float v_n = v_rel.dot(Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
+
+                        // if moving towards collider
+                        if (v_n < static_cast<float>(0.0)) {
+                            Eigen::Vector3f v_t = v_rel - (v_n * Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
+                            float v_t_norm = v_t.norm();
+
+                            if (v_t_norm > params.mu_surface * v_n) {
+                                velocity_star = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
+                            } else {
+                                velocity_star = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]) + v_t + params.mu_surface * v_n * (v_t / v_t_norm);
+                            }
+                        }
+                    }
+                    node.velocity_star = velocity_star;
                 }
             }
         }
     }
 
-    for (size_t index = 0; index < solver.grid.nodes.size(); ++index) {
-        // v_i = sum( v_p * m_p * w_ip / m_i )
-        // p = mv -> v = p/m
-        MpmGridNode& node = solver.grid.nodes[index];
-        if (node.mass > static_cast<float>(0)) [[unlikely]] {
-
-            Eigen::Vector3f velocity_star = (node.velocity = node.momentum / node.mass) + simulation_dt * (node.force + (node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2]))) / node.mass;
-
-            // check for collision with the worlf floor
-            if (solver.grid.origin.y() + static_cast<float>((index / solver.grid.width) % solver.grid.height) * solver.grid.spacing <= params.world_floor) [[unlikely]] {
-                Eigen::Vector3f v_rel = velocity_star - Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
-                float v_n = v_rel.dot(Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
-
-                // if moving towards collider
-                if (v_n < static_cast<float>(0.0)) {
-                    Eigen::Vector3f v_t = v_rel - (v_n * Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
-                    float v_t_norm = v_t.norm();
-
-                    if (v_t_norm > params.mu_surface * v_n) {
-                        velocity_star = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
-                    } else {
-                        velocity_star = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]) + v_t + params.mu_surface * v_n * (v_t / v_t_norm);
-                    }
-                }
-            }
-            node.velocity_star = velocity_star;
-
-            solver.grid.active_nodes.push_back(index);
+    // solver.grid.active_nodes.reserve(active_nodes_count);
+    UTL_PROFILER("step1 - sequencial")
+    for (size_t i = min_index; i < max_index; ++i) {
+        if (solver.grid.nodes[i].mass > 0) {
+            solver.grid.active_nodes.push_back(i);
         }
     }
 }
@@ -601,7 +627,7 @@ static void step6_solve_linear_system(MpmSolver& solver) {
 #pragma omp parallel
     {
 #pragma omp for nowait
-        for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
+        for (size_t i = 0; i < solver.grid.size(); ++i) {
             solver.global_to_active_map[i] = -1; // reset the map
         }
 
@@ -806,7 +832,7 @@ static void _iterate(MpmSolver& solver) {
 
     static int count = 0;
 
-    if (++count == 512) {
+    if (++count == MpmSolver::MAX_ITERATION) {
         print_duration("grid.reset_nodes", t0, t1);
         print_duration("step1_rasterize_particles_to_grid", t1, t2);
         print_duration("step3_compute_grid_forces", t2, t3);
@@ -828,7 +854,7 @@ void MpmSolver::initialize() {
     const size_t nb_particles = p_current_state.p_position.size();
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
-    global_to_active_map.assign(grid.nodes.size(), -1);
+    global_to_active_map.assign(grid.size(), -1);
 
     _iterate<true>(*this);
 }

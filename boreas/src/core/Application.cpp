@@ -2,14 +2,13 @@
 
 #include <glad/glad.h>
 
+#include <Eigen/Dense>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
-#include <Eigen/Dense>
 
 #include <iostream>
 #include <random>
 #include <thread>
-
 
 const char* title = "Boreas";
 
@@ -42,7 +41,7 @@ void Application::init_scene() {
     const Eigen::Vector3f velocity = Eigen::Vector3f(0.0, -5.0, 0.0);
     const Eigen::Vector3f origin = Eigen::Vector3f(0.0, 1.0, 0.0);
     constexpr double radius = 0.5;
-    constexpr size_t nb_particles = 2000;
+    constexpr size_t nb_particles = 2048;
     constexpr std::uint64_t seed = 33;
 
     std::random_device rd;
@@ -146,7 +145,7 @@ void Application::process_events() {
 
 void Application::iterate_particles() {
     using clock = std::chrono::high_resolution_clock;
-    double delays[512] {};
+    double delays[MpmSolver::MAX_ITERATION] {};
     size_t i = 0;
 
     double total_delay = 0.0;
@@ -164,11 +163,11 @@ void Application::iterate_particles() {
         total_delay += delay.count();
         total_delay -= delays[i % (sizeof(delays) / sizeof(delays[0]))];
 
-        std::cout << "Iteration delay: " << delay.count() << " ms, "
-                  << "Average: " << (total_delay / i) << " ms"
-                  << " (count: " << i << ")\n\n"
-                  << std::endl;
         if (i > sizeof(delays) / sizeof(delays[0])) [[unlikely]] {
+            std::cout << "Iteration delay: " << delay.count() << " ms, "
+                      << "Average: " << (total_delay / i) << " ms"
+                      << " (count: " << i << ")\n\n"
+                      << std::endl;
             m_main_window.close();
             std::cout << "INFO: Simulation finished after " << this->iteration_count - 1 << " iterations." << std::endl;
             return;

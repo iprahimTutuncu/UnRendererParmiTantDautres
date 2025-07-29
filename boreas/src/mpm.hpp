@@ -3,7 +3,7 @@
 #include <Eigen/Dense>
 #include <Eigen/SVD>
 
-#include <mutex>
+#include <atomic>
 #include <vector>
 
 const float EPSILON = 1E-12;
@@ -22,11 +22,18 @@ static inline constexpr float DEFAULT_POISSON_RATIO = 0.2f;
 #define HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE 64
 
 struct alignas(HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE) MpmGridNode {
+    std::atomic_flag atomic_flag;
     float mass { 0.0f }; // m
     Eigen::Vector3f momentum = Eigen::Vector3f::Zero(); // v*
-    alignas(16) Eigen::Vector3f velocity_star = Eigen::Vector3f::Zero(); // v
-    alignas(16) Eigen::Vector3f velocity = Eigen::Vector3f::Zero(); // v*
-    alignas(16) Eigen::Vector3f force = Eigen::Vector3f::Zero(); // F (stress)
+    Eigen::Vector3f velocity_star = Eigen::Vector3f::Zero(); // v
+    Eigen::Vector3f velocity = Eigen::Vector3f::Zero(); // v*
+    Eigen::Vector3f force = Eigen::Vector3f::Zero(); // F (stress)
+    float one_over_mass { 0.0f }; // 1 / m
+
+    MpmGridNode(const MpmGridNode&) = delete;
+    MpmGridNode& operator=(const MpmGridNode&) = delete;
+    MpmGridNode(MpmGridNode&&) = delete;
+    MpmGridNode& operator=(MpmGridNode&&) = delete;
 };
 
 struct MpmParticlesState {
@@ -56,7 +63,7 @@ struct MpmGrid {
     int height;
     int depth;
     Eigen::Vector3f origin; // world space origin of the grid
-    std::vector<MpmGridNode> nodes;
+    MpmGridNode* nodes;
     std::vector<std::uint32_t> active_nodes;
 
     MpmGrid(Eigen::Vector3f origin, float size_x, float size_y, float size_z,
@@ -68,7 +75,11 @@ struct MpmGrid {
         , height { static_cast<int>(std::ceil(size_y / spacing)) + 1 }
         , depth { static_cast<int>(std::ceil(size_z / spacing)) + 1 } {
         size_t nb_nodes = width * height * depth;
-        nodes.resize(nb_nodes, MpmGridNode());
+        nodes = static_cast<MpmGridNode*>(malloc(sizeof(MpmGridNode) * nb_nodes));
+    }
+
+    size_t size() const {
+        return width * height * depth;
     }
 };
 
@@ -181,4 +192,7 @@ struct MpmSolver {
 
         return positions;
     }
+
+    // DEBUG ONLY
+    static constexpr size_t MAX_ITERATION = 1024;
 };
