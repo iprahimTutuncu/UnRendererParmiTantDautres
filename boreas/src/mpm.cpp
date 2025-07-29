@@ -143,7 +143,7 @@ namespace Solver {
 
                 // 3.25 - df
                 for (const auto& d : param.gradient) {
-                    df[d.active_id] -= Ap * d.wip_grad;
+                    df[d.active_id] += Ap * d.wip_grad;
                 }
             }
 
@@ -153,7 +153,7 @@ namespace Solver {
 
                 const auto index = solver.grid.active_nodes[(start + i) % actives_nodes_size];
                 if (solver.grid.nodes[index].mass > EPSILON) [[likely]] {
-                    Av_next[(start + i) % actives_nodes_size] -= params.beta_integration * simulation_dt * df[(start + i) % actives_nodes_size] * solver.grid.nodes[index].one_over_mass;
+                    Av_next[(start + i) % actives_nodes_size] += params.beta_integration * simulation_dt * df[(start + i) % actives_nodes_size] * solver.grid.nodes[index].one_over_mass;
                 }
             }
 
@@ -497,11 +497,11 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 
                     Eigen::Vector3f force = stress_force * w_ip_grad;
 #pragma omp atomic
-                    node.force.x() -= force.x();
+                        node.force.x() += force.x();
 #pragma omp atomic
-                    node.force.y() -= force.y();
+                        node.force.y() += force.y();
 #pragma omp atomic
-                    node.force.z() -= force.z();
+                        node.force.z() += force.z();
 
 #pragma omp atomic
                     node.mass += m_i;
@@ -522,7 +522,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
         MpmGridNode& node = solver.grid.nodes[index];
         if (node.mass > static_cast<float>(0)) [[unlikely]] {
             node.one_over_mass = static_cast<float>(1.0) / node.mass;
-            Eigen::Vector3f velocity_star = (node.velocity = node.momentum *node.one_over_mass) + simulation_dt * (node.force + (node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2]))) * node.one_over_mass;
+            Eigen::Vector3f velocity_star = (node.velocity = node.momentum * node.one_over_mass) + simulation_dt * ((node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2])) - node.force) * node.one_over_mass;
 
             // check for collision with the worlf floor
             if (solver.grid.origin.y() + static_cast<float>((index / solver.grid.width) % solver.grid.height) * solver.grid.spacing <= params.world_floor) [[unlikely]] {
