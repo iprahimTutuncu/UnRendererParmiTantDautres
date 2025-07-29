@@ -381,8 +381,9 @@ static inline void reset_nodes(MpmSolver& solver) {
         {
             solver.grid.active_nodes.clear();
         }
-#pragma omp for schedule(dynamic, 64)
-        for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
+#pragma omp for nowait
+        for (size_t i = 0; i < solver.grid.size(); ++i) {
+            solver.grid.nodes[i].atomic_flag.clear(std::memory_order::seq_cst);
             solver.grid.nodes[i].mass = static_cast<float>(0);
             solver.grid.nodes[i].velocity_star.setZero();
             solver.grid.nodes[i].velocity.setZero();
@@ -425,12 +426,14 @@ static inline constexpr float d_N(float x) {
 // Transfer velocity using normalized weights
 static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 
-    size_t min_index = solver.grid.nodes.size() - 1;
+    size_t min_index = solver.grid.size() - 1;
+    size_t active_nodes_count = 0;
+
     size_t max_index = 0;
     UTL_PROFILER("step1 - parallel") {
-#pragma omp parallel reduction(min : min_index) reduction(max : max_index)
+#pragma omp parallel reduction(+ : active_nodes_count)
         {
-#pragma omp for
+#pragma omp for reduction(min : min_index) reduction(max : max_index)
             for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
 
                 const Eigen::Matrix3f& Fe = solver.p_current_state.p_deform_elastic[i];
@@ -509,57 +512,64 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 #endif
 
                             Eigen::Vector3f force = stress_force * w_ip_grad;
-#pragma omp atomic
+
+                            while (node.atomic_flag.test_and_set(std::memory_order::acquire)) [[likely]] {
+                                _mm_pause();
+                            }
+
+                            node.mass += m_i;
                             node.force.x() += force.x();
-#pragma omp atomic
                             node.force.y() += force.y();
-#pragma omp atomic
                             node.force.z() += force.z();
 
-#pragma omp atomic
-                            node.mass += m_i;
-#pragma omp atomic
                             node.momentum.x() += momentum.x();
-#pragma omp atomic
                             node.momentum.y() += momentum.y();
-#pragma omp atomic
                             node.momentum.z() += momentum.z();
+
+                            node.atomic_flag.clear(std::memory_order::release);
                         }
                     }
+                }
+            }
+
+#pragma omp for nowait
+            for (size_t index = min_index; index < max_index; ++index) {
+                // v_i = sum( v_p * m_p * w_ip / m_i )
+                // p = mv -> v = p/m
+                MpmGridNode& node = solver.grid.nodes[index];
+                if (node.mass > static_cast<float>(0)) [[unlikely]] {
+                    active_nodes_count += 1;
+                    node.one_over_mass = static_cast<float>(1.0) / node.mass;
+                    Eigen::Vector3f velocity_star = (node.velocity = node.momentum * node.one_over_mass) + simulation_dt * ((node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2])) - node.force) * node.one_over_mass;
+
+                    // check for collision with the worlf floor
+                    if (solver.grid.origin.y() + static_cast<float>((index / solver.grid.width) % solver.grid.height) * solver.grid.spacing <= params.world_floor) [[unlikely]] {
+                        Eigen::Vector3f v_rel = velocity_star - Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
+                        float v_n = v_rel.dot(Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
+
+                        // if moving towards collider
+                        if (v_n < static_cast<float>(0.0)) {
+                            Eigen::Vector3f v_t = v_rel - (v_n * Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
+                            float v_t_norm = v_t.norm();
+
+                            if (v_t_norm > params.mu_surface * v_n) {
+                                velocity_star = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
+                            } else {
+                                velocity_star = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]) + v_t + params.mu_surface * v_n * (v_t / v_t_norm);
+                            }
+                        }
+                    }
+                    node.velocity_star = velocity_star;
                 }
             }
         }
     }
 
-    UTL_PROFILER("step1 - sequentiel")
-    for (size_t index = min_index; index < max_index; ++index) {
-        // v_i = sum( v_p * m_p * w_ip / m_i )
-        // p = mv -> v = p/m
-        MpmGridNode& node = solver.grid.nodes[index];
-        if (node.mass > static_cast<float>(0)) [[unlikely]] {
-            node.one_over_mass = static_cast<float>(1.0) / node.mass;
-            Eigen::Vector3f velocity_star = (node.velocity = node.momentum * node.one_over_mass) + simulation_dt * ((node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2])) - node.force) * node.one_over_mass;
-
-            // check for collision with the worlf floor
-            if (solver.grid.origin.y() + static_cast<float>((index / solver.grid.width) % solver.grid.height) * solver.grid.spacing <= params.world_floor) [[unlikely]] {
-                Eigen::Vector3f v_rel = velocity_star - Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
-                float v_n = v_rel.dot(Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
-
-                // if moving towards collider
-                if (v_n < static_cast<float>(0.0)) {
-                    Eigen::Vector3f v_t = v_rel - (v_n * Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
-                    float v_t_norm = v_t.norm();
-
-                    if (v_t_norm > params.mu_surface * v_n) {
-                        velocity_star = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
-                    } else {
-                        velocity_star = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]) + v_t + params.mu_surface * v_n * (v_t / v_t_norm);
-                    }
-                }
-            }
-            node.velocity_star = velocity_star;
-
-            solver.grid.active_nodes.push_back(index);
+    // solver.grid.active_nodes.reserve(active_nodes_count);
+    UTL_PROFILER("step1 - sequencial")
+    for (size_t i = min_index; i < max_index; ++i) {
+        if (solver.grid.nodes[i].mass > 0) {
+            solver.grid.active_nodes.push_back(i);
         }
     }
 }
@@ -617,7 +627,7 @@ static void step6_solve_linear_system(MpmSolver& solver) {
 #pragma omp parallel
     {
 #pragma omp for nowait
-        for (size_t i = 0; i < solver.grid.nodes.size(); ++i) {
+        for (size_t i = 0; i < solver.grid.size(); ++i) {
             solver.global_to_active_map[i] = -1; // reset the map
         }
 
@@ -844,7 +854,7 @@ void MpmSolver::initialize() {
     const size_t nb_particles = p_current_state.p_position.size();
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
-    global_to_active_map.assign(grid.nodes.size(), -1);
+    global_to_active_map.assign(grid.size(), -1);
 
     _iterate<true>(*this);
 }
