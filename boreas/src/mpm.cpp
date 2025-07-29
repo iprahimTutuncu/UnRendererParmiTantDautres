@@ -806,7 +806,7 @@ static void _iterate(MpmSolver& solver) {
 
     static int count = 0;
 
-    if (++count == 512) {
+    if (++count == MpmSolver::MAX_ITERATION) {
         print_duration("grid.reset_nodes", t0, t1);
         print_duration("step1_rasterize_particles_to_grid", t1, t2);
         print_duration("step3_compute_grid_forces", t2, t3);

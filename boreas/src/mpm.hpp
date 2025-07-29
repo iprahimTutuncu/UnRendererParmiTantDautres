@@ -182,4 +182,7 @@ struct MpmSolver {
 
         return positions;
     }
+
+    // DEBUG ONLY
+    static constexpr size_t MAX_ITERATION = 1024;
 };
