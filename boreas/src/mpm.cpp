@@ -783,7 +783,7 @@ static void _iterate(MpmSolver& solver) {
     t6 = std::chrono::high_resolution_clock::now();
 
     //    step6_solve_linear_system_preconditioned<SolverPCR>();
-    UTL_PROFILER("step78_update_deformation_gradient")
+    UTL_PROFILER("step789_10_update_deformation_gradient")
     step78910_update_deformation_gradient(solver);
     t7 = std::chrono::high_resolution_clock::now();
 
