@@ -54,7 +54,7 @@ namespace Solver {
         int active_id;
         Eigen::Vector3f wip_grad;
     };
-    struct calculate_ar_params {
+    struct params_car {
         float svd_det_invt;
         float Fe_det;
         float mu_2x;
@@ -70,7 +70,7 @@ namespace Solver {
 
     // see
     // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-    void calculate_Ar(MpmSolver const& solver, Eigen::Vector3f* Av_next, const Eigen::Vector3f* v_next, const std::vector<calculate_ar_params>& _params) {
+    void calculate_Ar(MpmSolver const& solver, Eigen::Vector3f* Av_next, const Eigen::Vector3f* v_next, const std::vector<params_car>& _params) {
         const size_t actives_nodes_size = solver.grid.active_nodes.size();
 
 #pragma omp parallel
@@ -199,7 +199,7 @@ namespace Solver {
 
     template <size_t max_iterations, float tolerance>
     static void solveCR(MpmSolver const& solver, Eigen::Vector3f* x, size_t nb_active_nodes) {
-        std::vector<calculate_ar_params> w_ip_gradient(solver.p_current_state.p_position.size());
+        std::vector<params_car> w_ip_gradient(solver.p_current_state.p_position.size());
 
         Eigen::Vector3f* Ap = x + nb_active_nodes;
         Eigen::Vector3f* r = Ap + nb_active_nodes;
