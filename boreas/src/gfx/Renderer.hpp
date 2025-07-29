@@ -1,10 +1,11 @@
 #pragma once
 
-#include "../libs/eigen.hpp"
 #include "CameraPerspective.hpp"
 #include "FloorRenderer.hpp"
 #include "ParticleRenderer.hpp"
 #include "ShaderProgram.hpp"
+
+#include <Eigen/Dense>
 
 #include <memory>
 
@@ -17,7 +18,7 @@ public:
     void render_particles();
     void render_scene();
     void resize(int width, int height);
-    void update_particles(std::vector<vec3>& positions);
+    void update_particles(std::vector<Eigen::Vector3f>& positions);
     void clear();
 
     void process_input(double dt);

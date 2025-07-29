@@ -71,7 +71,7 @@ void Renderer::clear() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void Renderer::update_particles(std::vector<vec3>& positions) {
+void Renderer::update_particles(std::vector<Eigen::Vector3f>& positions) {
     m_particleRenderer->update_particles(positions);
 }
 

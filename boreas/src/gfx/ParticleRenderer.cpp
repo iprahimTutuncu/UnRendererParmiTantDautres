@@ -82,10 +82,10 @@ void ParticleRenderer::deinit() {
     Mesh::deinit();
 }
 
-void ParticleRenderer::update_particles(std::vector<vec3>& positions) {
+void ParticleRenderer::update_particles(std::vector<Eigen::Vector3f>& positions) {
     float* dst = static_cast<float*>(m_bufferPointer);
     for (size_t i = 0; i < positions.size(); ++i) {
-        const vec3& p = positions[i];
+        const Eigen::Vector3f& p = positions[i];
         dst[4 * i + 0] = p.x();
         dst[4 * i + 1] = p.y();
         dst[4 * i + 2] = p.z();

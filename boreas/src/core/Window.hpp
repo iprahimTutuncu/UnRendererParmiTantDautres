@@ -1,6 +1,10 @@
 #pragma once
 
-#include "../libs/sdl.hpp"
+#include <glad/glad.h>
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
+
 #include <atomic>
 
 class Window {

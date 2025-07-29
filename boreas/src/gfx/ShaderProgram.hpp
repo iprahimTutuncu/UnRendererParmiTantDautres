@@ -3,14 +3,18 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include "../libs/sdl.hpp"
+#include <glad/glad.h>
+
+#include <Eigen/Dense>
+#include <Eigen/SVD>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
 #include <glm/glm.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include <iostream>
 #include <map>
 #include <string>
-
-#include <glm/gtx/string_cast.hpp>
 
 // Macro for detecting an openGL error.
 // Only works if the program is compiled in debug mode.
