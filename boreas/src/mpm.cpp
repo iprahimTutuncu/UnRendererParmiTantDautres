@@ -17,6 +17,8 @@
 
 #include "mpm.hpp"
 
+#include <UTL/profiler.hpp>
+
 #include <chrono>
 #include <iostream>
 
@@ -518,8 +520,8 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 
 #if USE_APIC
                     Eigen::Vector3f node_pos = get_node_world_coords(solver.grid, base_position.x() + x,
-                                        base_position.y() + y,
-                                        base_position.z() + z)
+                                                   base_position.y() + y,
+                                                   base_position.z() + z)
                         - solver.p_current_state.p_position[i];
                     Eigen::Vector3f apic = (solver.p_current_state.p_velocity[i] + solver.p_current_state.p_deform_affine[i] * (3 * solver.grid.one_over_h * solver.grid.one_over_h * node_pos));
                     Eigen::Vector3f momentum = m_i * apic;
@@ -682,8 +684,8 @@ static void step7_update_deformation_gradient(MpmSolver& solver) {
         Eigen::Matrix3f const& U = svd.matrixU();
 
         Eigen::Vector3f sigma = svd.singularValues()
-                         .cwiseMin(1.f + params.critical_stretch)
-                         .cwiseMax(1.f - params.critical_compression);
+                                    .cwiseMin(1.f + params.critical_stretch)
+                                    .cwiseMax(1.f - params.critical_compression);
 
         solver.p_current_state.p_deform_plastic[i] = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * (tmp_FE * tmp_FP);
         solver.p_current_state.p_deform_elastic[i] = U * sigma.asDiagonal() * V.transpose();
@@ -715,8 +717,8 @@ static void step8_update_particle_velocities(MpmSolver& solver) {
                     const MpmGridNode& node = solver.grid.nodes[index];
 
                     Eigen::Vector3f node_pos = get_node_world_coords(solver.grid, base_position.x() + x,
-                                        base_position.y() + y,
-                                        base_position.z() + z)
+                                                   base_position.y() + y,
+                                                   base_position.z() + z)
                         - solver.p_current_state.p_position[i];
                     float const& w_ip = solver.p_weights[i][x + y * 4 + z * 4 * 4];
 
@@ -789,34 +791,44 @@ static void _iterate(MpmSolver& solver) {
     auto t9 = t0;
     auto t10 = t0;
 
+    UTL_PROFILER("reset_nodes")
     reset_nodes(solver);
     t1 = std::chrono::high_resolution_clock::now();
 
+    UTL_PROFILER("step1_rasterize_particles_to_grid")
     step1_rasterize_particles_to_grid(solver);
     t2 = std::chrono::high_resolution_clock::now();
 
     //  step3_compute_grid_forces();
+    UTL_PROFILER("step3_compute_grid_forces")
     t3 = std::chrono::high_resolution_clock::now();
 
     // step4_update_grid_velocities();
+    UTL_PROFILER("step4_update_grid_velocities")
     t4 = std::chrono::high_resolution_clock::now();
 
     // step5_grid_based_collisions();
+    UTL_PROFILER("step5_grid_based_collisions")
     t5 = std::chrono::high_resolution_clock::now();
 
+    UTL_PROFILER("step6_solve_linear_system")
     step6_solve_linear_system(solver);
     t6 = std::chrono::high_resolution_clock::now();
 
     //    step6_solve_linear_system_preconditioned<SolverPCR>();
+    UTL_PROFILER("step7_update_deformation_gradient")
     step7_update_deformation_gradient(solver);
     t7 = std::chrono::high_resolution_clock::now();
 
+    UTL_PROFILER("step8_update_particle_velocities")
     step8_update_particle_velocities(solver);
     t8 = std::chrono::high_resolution_clock::now();
 
+    UTL_PROFILER("step9_particle_based_collisions")
     step9_particle_based_collisions(solver);
     t9 = std::chrono::high_resolution_clock::now();
 
+    UTL_PROFILER("step10_update_particle_positions")
     step10_update_particle_positions(solver);
     t10 = std::chrono::high_resolution_clock::now();
 
