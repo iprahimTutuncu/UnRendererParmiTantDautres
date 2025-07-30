@@ -380,23 +380,15 @@ static void create_particle_state(MpmParticlesState& state,
 }
 
 static inline void reset_nodes(MpmSolver& solver) {
-
-#pragma omp parallel
-    {
-#pragma omp single nowait
-        {
-            solver.grid.active_nodes.clear();
-        }
-#pragma omp for nowait
-        for (size_t i = 0; i < solver.grid.size(); ++i) {
-            solver.grid.nodes[i].atomic_flag.clear(std::memory_order::seq_cst);
-            solver.grid.nodes[i].mass = static_cast<float>(0);
-            solver.grid.nodes[i].velocity_star.setZero();
-            solver.grid.nodes[i].velocity.setZero();
-            solver.grid.nodes[i].momentum.setZero();
-            solver.grid.nodes[i].force.setZero();
-            solver.grid.nodes[i].one_over_mass = static_cast<float>(0);
-        }
+#pragma omp parallel for
+    for (size_t i = solver.min_index; i < solver.max_index; ++i) {
+        solver.grid.nodes[i].atomic_flag.clear(std::memory_order::seq_cst);
+        solver.grid.nodes[i].mass = static_cast<float>(0);
+        solver.grid.nodes[i].velocity_star.setZero();
+        solver.grid.nodes[i].velocity.setZero();
+        solver.grid.nodes[i].momentum.setZero();
+        solver.grid.nodes[i].force.setZero();
+        solver.grid.nodes[i].one_over_mass = static_cast<float>(0);
     }
 }
 
@@ -437,7 +429,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 
     size_t max_index = 0;
     UTL_PROFILER("step1 - parallel") {
-#pragma omp parallel reduction(+ : active_nodes_count)
+#pragma omp parallel
         {
 #pragma omp for reduction(min : min_index) reduction(max : max_index)
             for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
@@ -538,7 +530,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
                 }
             }
 
-#pragma omp for nowait
+#pragma omp for nowait reduction(+ : active_nodes_count)
             for (size_t index = min_index; index < max_index; ++index) {
                 // v_i = sum( v_p * m_p * w_ip / m_i )
                 // p = mv -> v = p/m
@@ -571,11 +563,17 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
         }
     }
 
+    solver.min_index = min_index;
+    solver.max_index = max_index;
+
+    solver.grid.active_nodes.resize(active_nodes_count);
+    size_t j = 0;
+
     // solver.grid.active_nodes.reserve(active_nodes_count);
     UTL_PROFILER("step1 - sequencial")
     for (size_t i = min_index; i < max_index; ++i) {
         if (solver.grid.nodes[i].mass > 0) {
-            solver.grid.active_nodes.push_back(i);
+            solver.grid.active_nodes[j++] = i;
         }
     }
 }
@@ -633,7 +631,7 @@ static void step6_solve_linear_system(MpmSolver& solver) {
 #pragma omp parallel
     {
 #pragma omp for nowait
-        for (size_t i = 0; i < solver.grid.size(); ++i) {
+        for (size_t i = solver.min_index; i < solver.max_index; ++i) {
             solver.global_to_active_map[i] = -1; // reset the map
         }
 

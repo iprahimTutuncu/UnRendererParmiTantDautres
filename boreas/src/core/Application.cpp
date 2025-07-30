@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
+#include <UTL/profiler.hpp>
 
 #include <iostream>
 #include <random>
@@ -12,8 +13,8 @@
 
 const char* title = "Boreas";
 
-const int width = 640;
-const int height = 480;
+const int width = 1080;
+const int height = 720;
 
 Application::Application()
     : m_action_man {}
@@ -22,10 +23,17 @@ Application::Application()
     , m_mpm_solver() { }
 
 void Application::init() {
-    init_keymap();
+    UTL_PROFILER("init_keymap") {
+        init_keymap();
+    }
 
-    init_scene();
-    m_mpm_solver.initialize();
+    UTL_PROFILER("init_scene") {
+        init_scene();
+    }
+
+    UTL_PROFILER("mpm_solver.initialize") {
+        m_mpm_solver.initialize();
+    }
 
     int nb_particles = m_mpm_solver.p_current_state.p_position.size();
     std::cout << "INFO: Initialized simulation with " << nb_particles << " particles." << std::endl;
@@ -121,17 +129,23 @@ void Application::run() {
         double delta_time = (new_time - old_time) / frequency;
         old_time = new_time;
 
-        process_events();
+        UTL_PROFILER("Process events") {
+            process_events();
+            m_renderer.process_input(delta_time);
+        }
 
-        m_renderer.process_input(delta_time);
-        m_renderer.clear();
-        m_renderer.render_scene();
-        m_renderer.render_particles();
+        UTL_PROFILER("Update particles positions") {
+            std::vector<Eigen::Vector3f> positions = m_mpm_solver.get_positions();
+            m_renderer.update_particles(positions);
+        }
+
+        UTL_PROFILER("Render scene") {
+            m_renderer.clear();
+            m_renderer.render_scene();
+            m_renderer.render_particles();
+        }
 
         SDL_GL_SwapWindow(m_main_window.get_handle());
-
-        std::vector<Eigen::Vector3f> positions = m_mpm_solver.get_positions();
-        m_renderer.update_particles(positions);
     }
 
     simulation.join();
