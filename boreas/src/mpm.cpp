@@ -93,7 +93,6 @@ namespace Solver {
                 // 3.31 - dR
 
                 const Eigen::Matrix3f& Fe = solver.p_current_state.p_deform_elastic[i];
-                const Eigen::Matrix3f& Fp = solver.p_current_state.p_deform_plastic[i];
                 float const& Je = param.Fe_det;
 
                 // JFinvT

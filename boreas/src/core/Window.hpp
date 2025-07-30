@@ -10,7 +10,7 @@
 class Window {
 
 public:
-    Window(const char* title, int width, int height, bool vsync = true, bool windowed = true);
+    Window(const char* title, int width, int height, bool vsync = true);
     ~Window();
 
     const char* glsl_version = "#version 460 core";
@@ -18,7 +18,6 @@ public:
 
 private:
     SDL_Window* _window = nullptr;
-    SDL_Cursor* _cursor = nullptr;
     SDL_GLContext _gl_context = nullptr;
 
     int m_width;
@@ -26,7 +25,6 @@ private:
 
     bool m_active = true;
     bool m_vsync = false;
-    bool m_windowed = true;
 
 public:
     int get_width() const {

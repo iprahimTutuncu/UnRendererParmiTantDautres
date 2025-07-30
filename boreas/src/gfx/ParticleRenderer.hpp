@@ -15,7 +15,6 @@ public:
     ~ParticleRenderer() override;
 
     void render() const override;
-    void init(ShaderProgram* shader) override;
     void init(ShaderProgram* shader, unsigned int nb_particles);
     void deinit() override;
     void update_particles(std::vector<Eigen::Vector3f>& positions);

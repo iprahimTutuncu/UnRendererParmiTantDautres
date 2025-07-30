@@ -1,7 +1,6 @@
 #include "Renderer.hpp"
 
 const glm::vec3 camera_pos = glm::vec3(0.0f, 0.5f, 2.0f);
-const glm::vec3 camera_at = glm::vec3(0.0);
 
 bool Renderer::init(int width, int height, int nb_particles) {
     glEnable(GL_DEPTH_TEST);
@@ -13,7 +12,7 @@ bool Renderer::init(int width, int height, int nb_particles) {
         return false;
     }
 
-    m_camera = std::make_shared<CameraPerspective>(width, height, camera_pos, camera_at);
+    m_camera = std::make_shared<CameraPerspective>(width, height, camera_pos);
 
     m_floorRenderer = std::make_unique<FloorRenderer>(0.0f, 20.0f);
     m_floorRenderer->init(m_floorShader.get());

@@ -14,7 +14,7 @@ public:
     ~FloorRenderer() override;
 
     void render() const override;
-    void init(ShaderProgram* shader) override;
+    void init(ShaderProgram* shader);
     void deinit() override;
 
 private:

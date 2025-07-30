@@ -37,3 +37,4 @@ target_link_libraries(boreas
     UTL::include
 )
 target_compile_definitions(boreas PRIVATE SHADERS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
+target_compile_options(boreas PRIVATE -Wall -Wextra -pedantic)

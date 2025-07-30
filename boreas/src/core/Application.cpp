@@ -17,10 +17,11 @@ const int width = 1080;
 const int height = 720;
 
 Application::Application()
-    : m_action_man {}
-    , m_main_window { title, width, height }
+    : m_main_window { title, width, height }
     , m_renderer {}
-    , m_mpm_solver() { }
+    , m_mpm_solver()
+    , m_action_man() {
+}
 
 void Application::init() {
     UTL_PROFILER("init_keymap") {
@@ -164,7 +165,6 @@ void Application::iterate_particles() {
 
     double total_delay = 0.0;
 
-    auto last_time = clock::now();
     while (m_main_window.is_active()) {
         auto start_time = clock::now();
 

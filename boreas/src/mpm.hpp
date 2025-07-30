@@ -92,7 +92,6 @@ and Young’s modulus, with the opposite producing muddy snow.
 
 struct MpmSolverParams {
     const unsigned int particles_per_cell;
-    const float particle_spacing;
     const float grid_spacing;
     const float grid_origin[3];
     const float grid_size[3];

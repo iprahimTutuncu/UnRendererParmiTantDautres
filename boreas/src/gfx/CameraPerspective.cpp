@@ -7,18 +7,19 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
-CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at)
-    : CameraPerspective(width, height, position, at, DEFAULT_YAW, DEFAULT_PITCH) { }
+CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position)
+    : CameraPerspective(width, height, position, DEFAULT_YAW, DEFAULT_PITCH) { }
 
-CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at, float yaw, float pitch)
+CameraPerspective::CameraPerspective(int width, int height, glm::vec3 position, float yaw, float pitch)
     : _aspect_ratio { (float)width / (float)height }
-    , position { position }
     , yaw { yaw }
-    , pitch { pitch } {
+    , pitch { pitch }
+    , position { position }
+    {
     update();
 }
 
-const float CameraPerspective::get_aspect_ratio() const {
+float CameraPerspective::get_aspect_ratio() const {
     return _aspect_ratio;
 }
 
