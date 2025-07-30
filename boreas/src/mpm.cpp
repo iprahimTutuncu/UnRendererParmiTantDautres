@@ -172,6 +172,7 @@ namespace Solver {
 
         const size_t nb_particles = solver.p_current_state.p_position.size();
 
+        UTL_PROFILER("Setup SVD and gradient weights")
 #pragma omp parallel for
         for (size_t i = 0; i < nb_particles; i++) {
             auto& param = w_ip_gradient[i];
@@ -274,32 +275,35 @@ namespace Solver {
             }
         }
 
-        for (size_t i = 0; i < nb_active_nodes; i++) {
-            Ap[i] = x[i];
-        }
+        float rAr_old, accf;
+        UTL_PROFILER("before loop") {
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                Ap[i] = x[i];
+            }
 
-        calculate_Ar(solver, Ap, x, w_ip_gradient);
+            calculate_Ar(solver, Ap, x, w_ip_gradient);
 
-        for (size_t i = 0; i < nb_active_nodes; i++) {
-            r[i] = x[i] - Ap[i];
-        }
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                r[i] = x[i] - Ap[i];
+            }
 
-        for (size_t i = 0; i < nb_active_nodes; i++) {
-            Ap[i] = r[i];
-        }
-        for (size_t i = 0; i < nb_active_nodes; i++) {
-            p[i] = r[i];
-        }
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                Ap[i] = r[i];
+            }
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                p[i] = r[i];
+            }
 
-        calculate_Ar(solver, Ap, r, w_ip_gradient);
+            calculate_Ar(solver, Ap, r, w_ip_gradient);
 
-        float rAr_old = 0.f;
-        for (size_t i = 0; i < nb_active_nodes; i++) {
-            rAr_old += r[i].cwiseProduct(Ap[i]).sum();
-        }
-        float accf = 0.f;
-        for (size_t i = 0; i < nb_active_nodes; i++) {
-            accf += x[i].squaredNorm();
+            rAr_old = 0.f;
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                rAr_old += r[i].cwiseProduct(Ap[i]).sum();
+            }
+            accf = 0.f;
+            for (size_t i = 0; i < nb_active_nodes; i++) {
+                accf += x[i].squaredNorm();
+            }
         }
 
         const float b_norm = std::sqrt(accf);
@@ -307,6 +311,8 @@ namespace Solver {
         constexpr float t_sq = tolerance * tolerance;
 
         Eigen::Vector3f acc;
+
+        UTL_PROFILER("solver loop")
         for (size_t k = 0; k < max_iterations; ++k) {
             acc = Eigen::Vector3f::Zero();
             for (size_t i = 0; i < nb_active_nodes; i++) {
@@ -640,63 +646,19 @@ static void step6_solve_linear_system(MpmSolver& solver) {
     delete[] b;
 }
 
-static void step7_update_deformation_gradient(MpmSolver& solver) {
-
+static void step78910_update_deformation_gradient(MpmSolver& solver) {
 #pragma omp parallel for
     for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
-        Eigen::Vector3f p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
-        Eigen::Vector3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
-        // 3.23 - velolity gradient
         Eigen::Matrix3f velocities_grad = Eigen::Matrix3f::Zero();
-
-        // look at the neighbor 4x4 grid
-        for (int z = 0; z < 4; ++z) {
-            for (int y = 0; y < 4; ++y) {
-                for (int x = 0; x < 4; ++x) {
-                    if ((base_position.x() + x) < 0 || (base_position.x() + x) >= solver.grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= solver.grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= solver.grid.depth) [[unlikely]]
-                        continue;
-                    const size_t index = get_node_id_from_local(
-                        solver.grid, base_position.x() + x, base_position.y() + y,
-                        base_position.z() + z);
-                    const MpmGridNode& node = solver.grid.nodes[index];
-
-                    const Eigen::Vector3f& w_ip_grad = solver.p_weights_gradient[i][x + y * 4 + z * 4 * 4];
-                    velocities_grad += node.velocity_star * w_ip_grad.transpose();
-                }
-            }
-        }
-
-        Eigen::Matrix3f tmp_FE = (Eigen::Matrix3f::Identity() + simulation_dt * velocities_grad) * solver.p_current_state.p_deform_elastic[i];
-        Eigen::Matrix3f const& tmp_FP = solver.p_current_state.p_deform_plastic[i];
-
-        Eigen::JacobiSVD<Eigen::Matrix3f> svd { tmp_FE,
-            Eigen::ComputeFullU | Eigen::ComputeFullV };
-        Eigen::Matrix3f const& V = svd.matrixV();
-        Eigen::Matrix3f const& U = svd.matrixU();
-
-        Eigen::Vector3f sigma = svd.singularValues()
-                                    .cwiseMin(1.f + params.critical_stretch)
-                                    .cwiseMax(1.f - params.critical_compression);
-
-        solver.p_current_state.p_deform_plastic[i] = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * (tmp_FE * tmp_FP);
-        solver.p_current_state.p_deform_elastic[i] = U * sigma.asDiagonal() * V.transpose();
-    }
-}
-
-static void step8_update_particle_velocities(MpmSolver& solver) {
-#pragma omp parallel for
-    for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
-        Eigen::Vector3f p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
-        Eigen::Vector3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
-
         Eigen::Vector3f v_pic = Eigen::Vector3f::Zero();
         Eigen::Vector3f v_flip = Eigen::Vector3f::Zero();
-
 #if USE_APIC
         Eigen::Matrix3f deform_affine = Eigen::Matrix3f::Zero();
-        // p_current_state.p_deform_affine[i] = Eigen::Matrix3f::Zero();
 #endif
+
+        Eigen::Vector3f p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
+        Eigen::Vector3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
         for (int z = 0; z < 4; ++z) {
             for (int y = 0; y < 4; ++y) {
@@ -720,45 +682,58 @@ static void step8_update_particle_velocities(MpmSolver& solver) {
 #if USE_APIC
                     deform_affine += w_ip * node.velocity_star * node_pos.transpose();
 #endif
+                    const Eigen::Vector3f& w_ip_grad = solver.p_weights_gradient[i][x + y * 4 + z * 4 * 4];
+                    velocities_grad += node.velocity_star * w_ip_grad.transpose();
+                }
+            }
+        }
+        {
+            // step8 update particle velocity
+            solver.p_current_state.p_velocity[i] = (static_cast<float>(1.0) - params.alpha_blend) * v_pic + params.alpha_blend * (v_flip + solver.p_current_state.p_velocity[i]);
+#if USE_APIC
+            solver.p_current_state.p_deform_affine[i] = deform_affine;
+#endif
+        }
+
+        { // step 7 - update deformation gradient
+            Eigen::Matrix3f tmp_FE = (Eigen::Matrix3f::Identity() + simulation_dt * velocities_grad) * solver.p_current_state.p_deform_elastic[i];
+            Eigen::Matrix3f const& tmp_FP = solver.p_current_state.p_deform_plastic[i];
+
+            Eigen::JacobiSVD<Eigen::Matrix3f> svd { tmp_FE,
+                Eigen::ComputeFullU | Eigen::ComputeFullV };
+            Eigen::Matrix3f const& V = svd.matrixV();
+            Eigen::Matrix3f const& U = svd.matrixU();
+
+            Eigen::Vector3f sigma = svd.singularValues()
+                                        .cwiseMin(1.f + params.critical_stretch)
+                                        .cwiseMax(1.f - params.critical_compression);
+
+            solver.p_current_state.p_deform_plastic[i] = V * sigma.cwiseInverse().asDiagonal() * U.transpose() * (tmp_FE * tmp_FP);
+            solver.p_current_state.p_deform_elastic[i] = U * sigma.asDiagonal() * V.transpose();
+        }
+        // step9 - particle based collisions
+        if (solver.p_current_state.p_position[i].y() + simulation_dt * solver.p_current_state.p_velocity[i].y() <= params.world_floor) [[unlikely]] {
+
+            // velocity relative to collider (ground)
+            Eigen::Vector3f v_rel = solver.p_current_state.p_velocity[i] - Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
+            float v_n = v_rel.dot(Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
+
+            // if moving towards collider
+            if (v_n < static_cast<float>(0.0)) {
+                Eigen::Vector3f v_t = v_rel - (v_n * Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
+                float v_t_norm = v_t.norm();
+
+                if (v_t_norm > (params.mu_surface * v_n)) {
+                    solver.p_current_state.p_velocity[i] = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
+                } else {
+                    solver.p_current_state.p_velocity[i] = v_t + params.mu_surface * v_n * (v_t / v_t_norm) + Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
                 }
             }
         }
 
-#if USE_APIC
-        solver.p_current_state.p_deform_affine[i] = deform_affine;
-#endif
-        solver.p_current_state.p_velocity[i] = (static_cast<float>(1.0) - params.alpha_blend) * v_pic + params.alpha_blend * (v_flip + solver.p_current_state.p_velocity[i]);
-    }
-}
-
-static void step9_particle_based_collisions(MpmSolver& solver) {
-    for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
-        if (solver.p_current_state.p_position[i].y() + simulation_dt * solver.p_current_state.p_velocity[i].y() > params.world_floor) [[unlikely]] {
-            continue;
+        { // step10 update particle positions
+            solver.p_current_state.p_position[i] += simulation_dt * solver.p_current_state.p_velocity[i];
         }
-
-        // velocity relative to collider (ground)
-        Eigen::Vector3f v_rel = solver.p_current_state.p_velocity[i] - Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
-        float v_n = v_rel.dot(Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
-
-        // if moving towards collider
-        if (v_n < static_cast<float>(0.0)) {
-            Eigen::Vector3f v_t = v_rel - (v_n * Eigen::Vector3f(params.n_co[0], params.n_co[1], params.n_co[2]));
-            float v_t_norm = v_t.norm();
-
-            if (v_t_norm > (params.mu_surface * v_n)) {
-                solver.p_current_state.p_velocity[i] = Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
-            } else {
-                solver.p_current_state.p_velocity[i] = v_t + params.mu_surface * v_n * (v_t / v_t_norm) + Eigen::Vector3f(params.v_co[0], params.v_co[1], params.v_co[2]);
-            }
-        }
-    }
-}
-
-static void step10_update_particle_positions(MpmSolver& solver) {
-    std::lock_guard<std::mutex> lock(solver.p_state_mutex);
-    for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
-        solver.p_current_state.p_position[i] += simulation_dt * solver.p_current_state.p_velocity[i];
     }
 }
 
@@ -808,20 +783,19 @@ static void _iterate(MpmSolver& solver) {
     t6 = std::chrono::high_resolution_clock::now();
 
     //    step6_solve_linear_system_preconditioned<SolverPCR>();
-    UTL_PROFILER("step7_update_deformation_gradient")
-    step7_update_deformation_gradient(solver);
+    UTL_PROFILER("step789_10_update_deformation_gradient")
+    step78910_update_deformation_gradient(solver);
     t7 = std::chrono::high_resolution_clock::now();
 
     UTL_PROFILER("step8_update_particle_velocities")
-    step8_update_particle_velocities(solver);
     t8 = std::chrono::high_resolution_clock::now();
 
     UTL_PROFILER("step9_particle_based_collisions")
-    step9_particle_based_collisions(solver);
+    // step9_particle_based_collisions(solver);
     t9 = std::chrono::high_resolution_clock::now();
 
     UTL_PROFILER("step10_update_particle_positions")
-    step10_update_particle_positions(solver);
+    // step10_update_particle_positions(solver);
     t10 = std::chrono::high_resolution_clock::now();
 
     const auto print_duration = [](const char* name, auto t_start, auto t_end) {
