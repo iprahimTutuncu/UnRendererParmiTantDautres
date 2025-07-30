@@ -60,8 +60,7 @@ struct MpmGrid {
     std::vector<std::uint32_t> active_nodes;
 
     ~MpmGrid() {
-        free(nodes);
-        nodes = nullptr;
+        std::free(nodes);
     }
 
     MpmGrid(Eigen::Vector3f origin, float size_x, float size_y, float size_z,
@@ -73,7 +72,7 @@ struct MpmGrid {
         , height { static_cast<int>(std::ceil(size_y / spacing)) + 1 }
         , depth { static_cast<int>(std::ceil(size_z / spacing)) + 1 } {
         size_t nb_nodes = width * height * depth;
-        nodes = static_cast<MpmGridNode*>(malloc(sizeof(MpmGridNode) * nb_nodes));
+        nodes = static_cast<MpmGridNode*>(std::malloc(sizeof(MpmGridNode) * nb_nodes));
     }
 
     size_t size() const {
@@ -169,6 +168,7 @@ struct MpmSolver {
     std::vector<int> global_to_active_map;
     size_t min_index = 0;
     size_t max_index = 0;
+    size_t nb_particles = 0;
 
     // Particles
     MpmParticlesState p_current_state;

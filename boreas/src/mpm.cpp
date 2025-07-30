@@ -81,7 +81,7 @@ namespace Solver {
             Eigen::Vector3f* df = new Eigen::Vector3f[actives_nodes_size]();
 
 #pragma omp for nowait
-            for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+            for (size_t i = 0; i < solver.nb_particles; ++i) {
 
                 const auto& param = _params[i];
 
@@ -163,18 +163,16 @@ namespace Solver {
 
     template <size_t max_iterations, float tolerance>
     static void solveCR(MpmSolver const& solver, Eigen::Vector3f* x, size_t nb_active_nodes) {
-        std::vector<params_car> w_ip_gradient(solver.p_current_state.p_position.size());
+        std::vector<params_car> w_ip_gradient(solver.nb_particles);
 
         Eigen::Vector3f* Ap = x + nb_active_nodes;
         Eigen::Vector3f* r = Ap + nb_active_nodes;
         Eigen::Vector3f* p = r + nb_active_nodes;
         Eigen::Vector3f* Ar = p + nb_active_nodes;
 
-        const size_t nb_particles = solver.p_current_state.p_position.size();
-
         UTL_PROFILER("Setup SVD and gradient weights")
 #pragma omp parallel for
-        for (size_t i = 0; i < nb_particles; i++) {
+        for (size_t i = 0; i < solver.nb_particles; i++) {
             auto& param = w_ip_gradient[i];
             param.volume = solver.p_current_state.p_volume_0[i];
 
@@ -432,7 +430,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 #pragma omp parallel
         {
 #pragma omp for reduction(min : min_index) reduction(max : max_index)
-            for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+            for (size_t i = 0; i < solver.nb_particles; ++i) {
 
                 const Eigen::Matrix3f& Fe = solver.p_current_state.p_deform_elastic[i];
                 const Eigen::Matrix3f& Fp = solver.p_current_state.p_deform_plastic[i];
@@ -582,7 +580,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 static void step2_compute_volumes_and_densities(MpmSolver& solver) {
 
 #pragma omp parallel for
-    for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+    for (size_t i = 0; i < solver.nb_particles; ++i) {
         Eigen::Vector3f p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
         Eigen::Vector3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
@@ -646,7 +644,7 @@ static void step6_solve_linear_system(MpmSolver& solver) {
 
 static void step78910_update_deformation_gradient(MpmSolver& solver) {
 #pragma omp parallel for
-    for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+    for (size_t i = 0; i < solver.nb_particles; ++i) {
 
         Eigen::Matrix3f velocities_grad = Eigen::Matrix3f::Zero();
         Eigen::Vector3f v_pic = Eigen::Vector3f::Zero();
@@ -823,7 +821,8 @@ void MpmSolver::iterate() {
 }
 
 void MpmSolver::initialize() {
-    const size_t nb_particles = p_current_state.p_position.size();
+    nb_particles = p_current_state.p_position.size();
+
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
     global_to_active_map.assign(grid.size(), -1);
