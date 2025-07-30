@@ -371,9 +371,8 @@ static inline void reset_nodes(MpmSolver& solver) {
     for (size_t i = solver.min_index; i < solver.max_index; ++i) {
         solver.grid.nodes[i].atomic_flag.clear(std::memory_order::seq_cst);
         solver.grid.nodes[i].mass = static_cast<float>(0);
-        solver.grid.nodes[i].velocity_star.setZero();
-        solver.grid.nodes[i].velocity.setZero();
         solver.grid.nodes[i].momentum.setZero();
+        solver.grid.nodes[i].velocity_star.setZero();
         solver.grid.nodes[i].force.setZero();
         solver.grid.nodes[i].one_over_mass = static_cast<float>(0);
     }
@@ -525,7 +524,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
                 if (node.mass > static_cast<float>(0)) [[unlikely]] {
                     active_nodes_count += 1;
                     node.one_over_mass = static_cast<float>(1.0) / node.mass;
-                    Eigen::Vector3f velocity_star = (node.velocity = node.momentum * node.one_over_mass) + simulation_dt * ((node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2])) - node.force) * node.one_over_mass;
+                    Eigen::Vector3f velocity_star = (node.momentum = node.momentum * node.one_over_mass) + simulation_dt * ((node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2])) - node.force) * node.one_over_mass;
 
                     // check for collision with the worlf floor
                     if (solver.grid.origin.y() + static_cast<float>((index / solver.grid.width) % solver.grid.height) * solver.grid.spacing <= params.world_floor) [[unlikely]] {
@@ -662,7 +661,7 @@ static void step78910_update_deformation_gradient(MpmSolver& solver) {
                     float const& w_ip = solver.p_weights[i][x + y * 4 + z * 4 * 4];
 
                     v_pic += node.velocity_star * w_ip;
-                    v_flip += (node.velocity_star - node.velocity) * w_ip;
+                    v_flip += (node.velocity_star - node.momentum) * w_ip;
 
 #if USE_APIC
                     deform_affine += w_ip * node.velocity_star * node_pos.transpose();

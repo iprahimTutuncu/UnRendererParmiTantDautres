@@ -19,7 +19,6 @@ struct alignas(HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE) MpmGridNode {
     float mass { 0.0f }; // m
     Eigen::Vector3f momentum = Eigen::Vector3f::Zero(); // v*
     Eigen::Vector3f velocity_star = Eigen::Vector3f::Zero(); // v
-    Eigen::Vector3f velocity = Eigen::Vector3f::Zero(); // v*
     Eigen::Vector3f force = Eigen::Vector3f::Zero(); // F (stress)
     float one_over_mass { 0.0f }; // 1 / m
 
