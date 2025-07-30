@@ -50,30 +50,11 @@ static inline Eigen::Vector3f get_node_world_coords(MpmGrid const& grid, int x, 
 }
 
 namespace Solver {
-
-    struct solveCR_params {
-        int active_id;
-        Eigen::Vector3f wip_grad;
-    };
-    struct params_car {
-        float svd_det_invt;
-        float Fe_det;
-        float mu_2x;
-        float lambda;
-        float volume;
-        Eigen::Matrix3f Fe_inverse;
-        Eigen::Matrix3f R;
-        Eigen::Matrix3f U;
-        Eigen::Matrix3f V;
-        Eigen::Matrix3f A_inverse;
-        std::array<solveCR_params, 64> gradient;
-    };
-
     // see
     // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-    void calculate_Ar(MpmSolver const& solver, Eigen::Vector3f* Av_next, const Eigen::Vector3f* v_next, const std::vector<params_car>& _params) {
+    void calculate_Ar(MpmSolver const& solver, Eigen::Vector3f* Av_next, const Eigen::Vector3f* v_next) {
         const size_t actives_nodes_size = solver.grid.active_nodes.size();
-
+        const params_car* _params = solver.ar_params;
         UTL_PROFILER("calculate_Ar")
 
 #pragma omp parallel
@@ -162,8 +143,8 @@ namespace Solver {
     }
 
     template <size_t max_iterations, float tolerance>
-    static void solveCR(MpmSolver const& solver, Eigen::Vector3f* x, size_t nb_active_nodes) {
-        std::vector<params_car> w_ip_gradient(solver.nb_particles);
+    static void solveCR(MpmSolver& solver, Eigen::Vector3f* x, size_t nb_active_nodes) {
+        params_car* w_ip_gradient = solver.ar_params;
 
         Eigen::Vector3f* Ap = x + nb_active_nodes;
         Eigen::Vector3f* r = Ap + nb_active_nodes;
@@ -256,17 +237,25 @@ namespace Solver {
             for (int z = 0; z < 4; ++z) {
                 for (int y = 0; y < 4; ++y) {
                     for (int x = 0; x < 4; ++x) {
-                        if ((base_position.x() + x) < 0 || (base_position.x() + x) >= solver.grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= solver.grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= solver.grid.depth) [[unlikely]]
+                        if ((base_position.x() + x) < 0 || (base_position.x() + x) >= solver.grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= solver.grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= solver.grid.depth) [[unlikely]] {
+
+                            param.gradient[count].wip_grad = Eigen::Vector3f::Zero();
+                            param.gradient[count].active_id = 0;
                             continue;
+                        }
 
                         size_t index = get_node_id_from_local(
                             solver.grid, base_position.x() + x, base_position.y() + y,
                             base_position.z() + z);
                         int active_id = solver.global_to_active_map[index];
-                        if (active_id < 0) continue;
+                        if (active_id < 0) {
+                            param.gradient[count].wip_grad = Eigen::Vector3f::Zero();
+                            param.gradient[count].active_id = 0;
+                            continue;
+                        }
 
                         param.gradient[count].active_id = active_id;
-                        param.gradient[count].wip_grad = solver.p_weights_gradient[i][x + y * 4 + z * 4 * 4];
+                        param.gradient[count].wip_grad = solver.p_weights_gradient[i][count];
                         count += 1;
                     }
                 }
@@ -279,7 +268,7 @@ namespace Solver {
                 Ap[i] = x[i];
             }
 
-            calculate_Ar(solver, Ap, x, w_ip_gradient);
+            calculate_Ar(solver, Ap, x);
 
             for (size_t i = 0; i < nb_active_nodes; i++) {
                 r[i] = x[i] - Ap[i];
@@ -292,7 +281,7 @@ namespace Solver {
                 p[i] = r[i];
             }
 
-            calculate_Ar(solver, Ap, r, w_ip_gradient);
+            calculate_Ar(solver, Ap, r);
 
             rAr_old = 0.f;
             for (size_t i = 0; i < nb_active_nodes; i++) {
@@ -346,7 +335,7 @@ namespace Solver {
                 Ar[i] = r[i];
             }
 
-            calculate_Ar(solver, Ar, r, w_ip_gradient);
+            calculate_Ar(solver, Ar, r);
 
             acc = Eigen::Vector3f::Zero();
             for (size_t i = 0; i < nb_active_nodes; i++) {
@@ -826,6 +815,7 @@ void MpmSolver::initialize() {
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
     global_to_active_map.assign(grid.size(), -1);
+    ar_params = static_cast<params_car*>(std::malloc(nb_particles * sizeof(ar_params[0])));
 
     _iterate<true>(*this);
 }
