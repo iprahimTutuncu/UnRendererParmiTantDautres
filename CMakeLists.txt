@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 
-option(OlafEnableLTO "Enable LTO" OFF)
+option(OlafEnableLTO "Enable LTO" ON)
 
 # Set build type
 if (NOT CMAKE_BUILD_TYPE)
@@ -46,6 +46,7 @@ endif()
 # Simple DirectMedia Layer (SDL for short)
 set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
+set(SDL_X11 OFF)
 add_subdirectory(libs/SDL EXCLUDE_FROM_ALL)
 
 # ImGui: bloat-free graphical user interface library for C++
@@ -152,25 +153,6 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPIRV_FILES})
 add_library(vmath INTERFACE)
 target_include_directories(vmath INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/libs/vmath)
 
-if (NOT WIN32 AND NOT MSVC)
-    # windows cant stop complaining when compiling boreas
-    # so we exclude it from windows builds
-    add_subdirectory(boreas)
-endif()
-
-# Add warning flags for Windows and Linux
-if (WIN32 OR MSVC)
-add_compile_options(/EHsc /W4 /WX /wd4458 /wd4324)
-else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror -Wconversion)
-endif()
-
-if (NOT (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"))
-    add_compile_definitions(DEBUG=1)
-endif()
-
-
-
 add_executable(app
     src/main.cpp
     src/camera.cpp
@@ -182,6 +164,19 @@ add_executable(app
     src/graphics/shaders.cpp
     src/physics/physics.cpp
 )
+
+if (NOT WIN32 AND NOT MSVC)
+    # windows cant stop complaining when compiling boreas
+    # so we exclude it from windows builds
+    add_subdirectory(boreas)
+endif()
+
+# Add warning flags for Windows and Linux
+if (WIN32 OR MSVC)
+    target_compile_options(app PRIVATE /EHsc /W4 /WX /wd4458 /wd4324)
+else()
+    target_compile_options(app PRIVATE -Wall -Wextra -pedantic -Werror -Wconversion)
+endif()
 
 add_dependencies(app compile_shaders)
 target_link_libraries(app PRIVATE
