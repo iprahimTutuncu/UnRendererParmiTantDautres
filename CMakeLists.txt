@@ -64,17 +64,6 @@ target_link_libraries(ImGui PRIVATE
     SDL3::SDL3
 )
 
-# stb_image: C library for loading images into memory with minimal dependencies
-set(GENERATED_STB_WRAPPER ${CMAKE_CURRENT_BINARY_DIR}/stb_wrapper.cpp)
-add_custom_command(
-    OUTPUT ${GENERATED_STB_WRAPPER}
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/libs/stb/stb_image.h
-        ${GENERATED_STB_WRAPPER}
-    DEPENDS libs/stb/stb_image.h
-    COMMENT "Generating stb_wrapper.cpp"
-)
-
 # OpenGL Mathematics (GLM)
 add_subdirectory(libs/glm EXCLUDE_FROM_ALL)
 target_compile_definitions(glm INTERFACE GLM_ENABLE_EXPERIMENTAL)
