@@ -130,8 +130,10 @@ void Application::run() {
 
         SDL_GL_SwapWindow(m_main_window.get_handle());
 
+        UTL_PROFILER("Update particles positions") {
         std::vector<Eigen::Vector3f> positions = m_mpm_solver.get_positions();
         m_renderer.update_particles(positions);
+        }
     }
 
     simulation.join();

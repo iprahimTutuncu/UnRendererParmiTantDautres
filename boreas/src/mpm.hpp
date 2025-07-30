@@ -12,13 +12,6 @@ const float EPSILON = 1E-12;
 // Semi-implicit:       dt ~= 0.5e-3
 static inline constexpr float simulation_dt = 0.5e-3f;
 
-static inline constexpr float DEFAULT_COMPRESSION = 2.5e-2f;
-static inline constexpr float DEFAULT_STRETCH = 7.5e-3f;
-static inline constexpr float DEFAULT_HARDENING = 10.0f;
-static inline constexpr float DEFAULT_DENSITY = 4.0e2f;
-static inline constexpr float DEFAULT_YOUNGS_MODULUS = 1.4e5f;
-static inline constexpr float DEFAULT_POISSON_RATIO = 0.2f;
-
 #define HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE 64
 
 struct alignas(HARDWARE_DESTRUCTIVE_INTERFERENCE_SIZE) MpmGridNode {
@@ -65,6 +58,11 @@ struct MpmGrid {
     Eigen::Vector3f origin; // world space origin of the grid
     MpmGridNode* nodes;
     std::vector<std::uint32_t> active_nodes;
+
+    ~MpmGrid() {
+        free(nodes);
+        nodes = nullptr;
+    }
 
     MpmGrid(Eigen::Vector3f origin, float size_x, float size_y, float size_z,
         float spacing)
@@ -134,12 +132,12 @@ static constexpr MpmSolverParams params {
     .grid_origin = { -2.5, 0.0, -2.5 },
     .grid_size = { 5.0, 3.0, 5.0 },
 
-    .critical_compression = DEFAULT_COMPRESSION,
-    .critical_stretch = DEFAULT_STRETCH,
-    .hardening_coefficient = DEFAULT_HARDENING * 1.0,
-    .initial_density = DEFAULT_DENSITY,
-    .initial_youngs_modulus = DEFAULT_YOUNGS_MODULUS * 1.0,
-    .poisson_ratio = DEFAULT_POISSON_RATIO * 1.0,
+    .critical_compression = 2.5e-2f,
+    .critical_stretch = 7.5e-3f,
+    .hardening_coefficient = 10.0f * 1.0f,
+    .initial_density = 4.0e2f,
+    .initial_youngs_modulus = 1.4e5f * 1.0,
+    .poisson_ratio = 0.2f * 1.0,
     .gravity = { 0.0, -20.0, 0.0 },
 
     .world_floor = 0.0,
@@ -169,10 +167,11 @@ struct MpmSolver {
         params.grid_size[0], params.grid_size[1],
         params.grid_size[2], params.grid_spacing);
     std::vector<int> global_to_active_map;
+    size_t min_index = 0;
+    size_t max_index = 0;
 
     // Particles
     MpmParticlesState p_current_state;
-    std::mutex p_state_mutex;
 
     std::vector<std::array<float, 64>> p_weights;
     std::vector<std::array<Eigen::Vector3f, 64>> p_weights_gradient;
@@ -184,11 +183,8 @@ struct MpmSolver {
     inline std::vector<Eigen::Vector3f> get_positions() {
         std::vector<Eigen::Vector3f> positions(p_current_state.p_position.size());
 
-        {
-            std::lock_guard<std::mutex> lock(p_state_mutex);
-            std::memcpy(static_cast<void*>(positions.data()), p_current_state.p_position.data(),
-                p_current_state.p_position.size() * sizeof(decltype(positions[0])));
-        }
+        std::memcpy(static_cast<void*>(positions.data()), p_current_state.p_position.data(),
+            p_current_state.p_position.size() * sizeof(decltype(positions[0])));
 
         return positions;
     }
