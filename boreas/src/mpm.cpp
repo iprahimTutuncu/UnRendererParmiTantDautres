@@ -573,7 +573,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
     UTL_PROFILER("step1 - sequencial")
     for (size_t i = min_index; i < max_index; ++i) {
         if (solver.grid.nodes[i].mass > 0) {
-            solver.grid.active_nodes[j] = i;
+            solver.grid.active_nodes[j++] = i;
         }
     }
 }
