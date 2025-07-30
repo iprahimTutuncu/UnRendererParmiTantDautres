@@ -185,10 +185,13 @@ struct MpmSolver {
     size_t max_index = 0;
     size_t nb_particles = 0;
     std::vector<int> global_to_active_map;
-    params_car* ar_params;
+    params_car* ar_params = nullptr;
+    Eigen::Vector3f* av_next = nullptr;
+    size_t av_next_capacity = 0;
 
     ~MpmSolver() {
         std::free(ar_params);
+        std::free(av_next);
     }
 
     // Particles

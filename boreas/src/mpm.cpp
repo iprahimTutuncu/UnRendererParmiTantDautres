@@ -604,7 +604,21 @@ static void step6_solve_linear_system(MpmSolver& solver) {
 
     const auto& active_nodes = solver.grid.active_nodes;
     const size_t nb_active_nodes = active_nodes.size();
-    Eigen::Vector3f* b = new Eigen::Vector3f[nb_active_nodes * 5];
+
+    if (solver.av_next_capacity < nb_active_nodes * 5) [[unlikely]] {
+        solver.av_next_capacity = (nb_active_nodes + nb_active_nodes / 2) * 5;
+        if (solver.av_next == nullptr) {
+            solver.av_next = static_cast<Eigen::Vector3f*>(std::malloc(solver.av_next_capacity * sizeof(Eigen::Vector3f)));
+        } else {
+            solver.av_next = static_cast<Eigen::Vector3f*>(std::realloc(solver.av_next, solver.av_next_capacity * sizeof(Eigen::Vector3f)));
+        }
+        if (solver.av_next == nullptr) [[unlikely]] {
+            std::cerr << "Failed to allocate memory for b vector in step6_solve_linear_system." << std::endl;
+            return;
+        }
+    }
+
+    Eigen::Vector3f*& b = solver.av_next;
 
     for (size_t i = 0; i < nb_active_nodes; ++i) {
         const auto index = active_nodes[i];
@@ -626,7 +640,6 @@ static void step6_solve_linear_system(MpmSolver& solver) {
             solver.grid.nodes[index].velocity_star = b[i];
         }
     }
-    delete[] b;
 }
 
 static void step78910_update_deformation_gradient(MpmSolver& solver) {
