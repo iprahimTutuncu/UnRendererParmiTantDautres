@@ -801,20 +801,19 @@ static void _iterate(MpmSolver& solver) {
                   << " us\n";
     };
 
-    static int count = 0;
+    static size_t count = 0;
 
-    if (++count == MpmSolver::MAX_ITERATION) {
-        print_duration("grid.reset_nodes", t0, t1);
-        print_duration("step1_rasterize_particles_to_grid", t1, t2);
-        print_duration("step3_compute_grid_forces", t2, t3);
-        print_duration("step4_update_grid_velocities", t3, t4);
-        print_duration("step5_grid_based_collisions", t4, t5);
-        print_duration("step6_solve_linear_system", t5, t6);
-        print_duration("step7_update_deformation_gradient", t6, t7);
-        print_duration("step8_update_particle_velocities", t7, t8);
-        print_duration("step9_particle_based_collisions", t8, t9);
-        print_duration("step10_update_particle_positions", t9, t10);
-    }
+    std::cout << "\nIteration: " << ++count << "\n";
+    print_duration("grid.reset_nodes", t0, t1);
+    print_duration("step1_rasterize_particles_to_grid", t1, t2);
+    print_duration("step3_compute_grid_forces", t2, t3);
+    print_duration("step4_update_grid_velocities", t3, t4);
+    print_duration("step5_grid_based_collisions", t4, t5);
+    print_duration("step6_solve_linear_system", t5, t6);
+    print_duration("step7_update_deformation_gradient", t6, t7);
+    print_duration("step8_update_particle_velocities", t7, t8);
+    print_duration("step9_particle_based_collisions", t8, t9);
+    print_duration("step10_update_particle_positions", t9, t10);
 }
 
 void MpmSolver::iterate() {
