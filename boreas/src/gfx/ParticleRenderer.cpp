@@ -20,8 +20,6 @@ void ParticleRenderer::render() const {
     glDrawArrays(GL_POINTS, 0, m_particleCount);
 }
 
-void ParticleRenderer::init(ShaderProgram* shader) { }
-
 void ParticleRenderer::init(ShaderProgram* shader, unsigned int nb_particles) {
     m_shader = shader;
     m_shader->bind();
@@ -42,7 +40,7 @@ void ParticleRenderer::init(ShaderProgram* shader, unsigned int nb_particles) {
     }
 
     m_bufferLocation = glGetProgramResourceIndex(shader->programId(), GL_SHADER_STORAGE_BLOCK, "particleInstances");
-    if (m_bufferLocation == GL_INVALID_INDEX) {
+    if (m_bufferLocation == static_cast<int>(GL_INVALID_INDEX)) {
         std::cerr << "ERROR: ParticleRenderer SSBO block 'particleInstances' not found in shader!" << std::endl;
     }
 

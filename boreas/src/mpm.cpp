@@ -50,30 +50,11 @@ static inline Eigen::Vector3f get_node_world_coords(MpmGrid const& grid, int x, 
 }
 
 namespace Solver {
-
-    struct solveCR_params {
-        int active_id;
-        Eigen::Vector3f wip_grad;
-    };
-    struct params_car {
-        float svd_det_invt;
-        float Fe_det;
-        float mu_2x;
-        float lambda;
-        float volume;
-        Eigen::Matrix3f Fe_inverse;
-        Eigen::Matrix3f R;
-        Eigen::Matrix3f U;
-        Eigen::Matrix3f V;
-        Eigen::Matrix3f A_inverse;
-        std::array<solveCR_params, 64> gradient;
-    };
-
     // see
     // https://berkeley.mintkit.net/cs284b-projects/mpm-snow/assets/files/docs.pdf
-    void calculate_Ar(MpmSolver const& solver, Eigen::Vector3f* Av_next, const Eigen::Vector3f* v_next, const std::vector<params_car>& _params) {
+    void calculate_Ar(MpmSolver const& solver, Eigen::Vector3f* Av_next, const Eigen::Vector3f* v_next) {
         const size_t actives_nodes_size = solver.grid.active_nodes.size();
-
+        const params_car* _params = solver.ar_params;
         UTL_PROFILER("calculate_Ar")
 
 #pragma omp parallel
@@ -81,7 +62,7 @@ namespace Solver {
             Eigen::Vector3f* df = new Eigen::Vector3f[actives_nodes_size]();
 
 #pragma omp for nowait
-            for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+            for (size_t i = 0; i < solver.nb_particles; ++i) {
 
                 const auto& param = _params[i];
 
@@ -112,7 +93,6 @@ namespace Solver {
                 // 3.31 - dR
 
                 const Eigen::Matrix3f& Fe = solver.p_current_state.p_deform_elastic[i];
-                const Eigen::Matrix3f& Fp = solver.p_current_state.p_deform_plastic[i];
                 float const& Je = param.Fe_det;
 
                 // JFinvT
@@ -162,19 +142,17 @@ namespace Solver {
     }
 
     template <size_t max_iterations, float tolerance>
-    static void solveCR(MpmSolver const& solver, Eigen::Vector3f* x, size_t nb_active_nodes) {
-        std::vector<params_car> w_ip_gradient(solver.p_current_state.p_position.size());
+    static void solveCR(MpmSolver& solver, Eigen::Vector3f* x, size_t nb_active_nodes) {
+        params_car* w_ip_gradient = solver.ar_params;
 
         Eigen::Vector3f* Ap = x + nb_active_nodes;
         Eigen::Vector3f* r = Ap + nb_active_nodes;
         Eigen::Vector3f* p = r + nb_active_nodes;
         Eigen::Vector3f* Ar = p + nb_active_nodes;
 
-        const size_t nb_particles = solver.p_current_state.p_position.size();
-
         UTL_PROFILER("Setup SVD and gradient weights")
 #pragma omp parallel for
-        for (size_t i = 0; i < nb_particles; i++) {
+        for (size_t i = 0; i < solver.nb_particles; i++) {
             auto& param = w_ip_gradient[i];
             param.volume = solver.p_current_state.p_volume_0[i];
 
@@ -258,17 +236,25 @@ namespace Solver {
             for (int z = 0; z < 4; ++z) {
                 for (int y = 0; y < 4; ++y) {
                     for (int x = 0; x < 4; ++x) {
-                        if ((base_position.x() + x) < 0 || (base_position.x() + x) >= solver.grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= solver.grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= solver.grid.depth) [[unlikely]]
+                        if ((base_position.x() + x) < 0 || (base_position.x() + x) >= solver.grid.width || (base_position.y() + y) < 0 || (base_position.y() + y) >= solver.grid.height || (base_position.z() + z) < 0 || (base_position.z() + z) >= solver.grid.depth) [[unlikely]] {
+
+                            param.gradient[count].wip_grad = Eigen::Vector3f::Zero();
+                            param.gradient[count].active_id = 0;
                             continue;
+                        }
 
                         size_t index = get_node_id_from_local(
                             solver.grid, base_position.x() + x, base_position.y() + y,
                             base_position.z() + z);
                         int active_id = solver.global_to_active_map[index];
-                        if (active_id < 0) continue;
+                        if (active_id < 0) {
+                            param.gradient[count].wip_grad = Eigen::Vector3f::Zero();
+                            param.gradient[count].active_id = 0;
+                            continue;
+                        }
 
                         param.gradient[count].active_id = active_id;
-                        param.gradient[count].wip_grad = solver.p_weights_gradient[i][x + y * 4 + z * 4 * 4];
+                        param.gradient[count].wip_grad = solver.p_weights_gradient[i][count];
                         count += 1;
                     }
                 }
@@ -281,7 +267,7 @@ namespace Solver {
                 Ap[i] = x[i];
             }
 
-            calculate_Ar(solver, Ap, x, w_ip_gradient);
+            calculate_Ar(solver, Ap, x);
 
             for (size_t i = 0; i < nb_active_nodes; i++) {
                 r[i] = x[i] - Ap[i];
@@ -294,7 +280,7 @@ namespace Solver {
                 p[i] = r[i];
             }
 
-            calculate_Ar(solver, Ap, r, w_ip_gradient);
+            calculate_Ar(solver, Ap, r);
 
             rAr_old = 0.f;
             for (size_t i = 0; i < nb_active_nodes; i++) {
@@ -348,7 +334,7 @@ namespace Solver {
                 Ar[i] = r[i];
             }
 
-            calculate_Ar(solver, Ar, r, w_ip_gradient);
+            calculate_Ar(solver, Ar, r);
 
             acc = Eigen::Vector3f::Zero();
             for (size_t i = 0; i < nb_active_nodes; i++) {
@@ -384,9 +370,8 @@ static inline void reset_nodes(MpmSolver& solver) {
     for (size_t i = solver.min_index; i < solver.max_index; ++i) {
         solver.grid.nodes[i].atomic_flag.clear(std::memory_order::seq_cst);
         solver.grid.nodes[i].mass = static_cast<float>(0);
-        solver.grid.nodes[i].velocity_star.setZero();
-        solver.grid.nodes[i].velocity.setZero();
         solver.grid.nodes[i].momentum.setZero();
+        solver.grid.nodes[i].velocity_star.setZero();
         solver.grid.nodes[i].force.setZero();
         solver.grid.nodes[i].one_over_mass = static_cast<float>(0);
     }
@@ -432,7 +417,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 #pragma omp parallel
         {
 #pragma omp for reduction(min : min_index) reduction(max : max_index)
-            for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+            for (size_t i = 0; i < solver.nb_particles; ++i) {
 
                 const Eigen::Matrix3f& Fe = solver.p_current_state.p_deform_elastic[i];
                 const Eigen::Matrix3f& Fp = solver.p_current_state.p_deform_plastic[i];
@@ -469,9 +454,10 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
                                 solver.grid, base_position.x() + x, base_position.y() + y,
                                 base_position.z() + z);
 
-                            if (node_index < min_index) [[unlikely]] {
+                            if (node_index < min_index) {
                                 min_index = node_index;
-                            } else if (node_index > max_index) [[unlikely]] {
+                            }
+                            if (node_index > max_index) {
                                 max_index = node_index;
                             }
 
@@ -511,7 +497,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 
                             Eigen::Vector3f force = stress_force * w_ip_grad;
 
-                            while (node.atomic_flag.test_and_set(std::memory_order::acquire)) [[likely]] {
+                            while (node.atomic_flag.test_and_set(std::memory_order::acquire)) {
                                 _mm_pause();
                             }
 
@@ -538,7 +524,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
                 if (node.mass > static_cast<float>(0)) [[unlikely]] {
                     active_nodes_count += 1;
                     node.one_over_mass = static_cast<float>(1.0) / node.mass;
-                    Eigen::Vector3f velocity_star = (node.velocity = node.momentum * node.one_over_mass) + simulation_dt * ((node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2])) - node.force) * node.one_over_mass;
+                    Eigen::Vector3f velocity_star = (node.momentum = node.momentum * node.one_over_mass) + simulation_dt * ((node.mass * Eigen::Vector3f(params.gravity[0], params.gravity[1], params.gravity[2])) - node.force) * node.one_over_mass;
 
                     // check for collision with the worlf floor
                     if (solver.grid.origin.y() + static_cast<float>((index / solver.grid.width) % solver.grid.height) * solver.grid.spacing <= params.world_floor) [[unlikely]] {
@@ -582,7 +568,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 static void step2_compute_volumes_and_densities(MpmSolver& solver) {
 
 #pragma omp parallel for
-    for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+    for (size_t i = 0; i < solver.nb_particles; ++i) {
         Eigen::Vector3f p_position_rel = (solver.p_current_state.p_position[i] - solver.grid.origin) * solver.grid.one_over_h;
         Eigen::Vector3i base_position(p_position_rel.x() - 1, p_position_rel.y() - 1, p_position_rel.z() - 1);
 
@@ -619,7 +605,21 @@ static void step6_solve_linear_system(MpmSolver& solver) {
 
     const auto& active_nodes = solver.grid.active_nodes;
     const size_t nb_active_nodes = active_nodes.size();
-    Eigen::Vector3f* b = new Eigen::Vector3f[nb_active_nodes * 5];
+
+    if (solver.av_next_capacity < nb_active_nodes * 5) [[unlikely]] {
+        solver.av_next_capacity = (nb_active_nodes + nb_active_nodes / 2) * 5;
+        if (solver.av_next == nullptr) {
+            solver.av_next = static_cast<Eigen::Vector3f*>(std::malloc(solver.av_next_capacity * sizeof(Eigen::Vector3f)));
+        } else {
+            solver.av_next = static_cast<Eigen::Vector3f*>(std::realloc(solver.av_next, solver.av_next_capacity * sizeof(Eigen::Vector3f)));
+        }
+        if (solver.av_next == nullptr) [[unlikely]] {
+            std::cerr << "Failed to allocate memory for b vector in step6_solve_linear_system." << std::endl;
+            return;
+        }
+    }
+
+    Eigen::Vector3f*& b = solver.av_next;
 
     for (size_t i = 0; i < nb_active_nodes; ++i) {
         const auto index = active_nodes[i];
@@ -641,12 +641,11 @@ static void step6_solve_linear_system(MpmSolver& solver) {
             solver.grid.nodes[index].velocity_star = b[i];
         }
     }
-    delete[] b;
 }
 
 static void step78910_update_deformation_gradient(MpmSolver& solver) {
 #pragma omp parallel for
-    for (size_t i = 0; i < solver.p_current_state.p_position.size(); ++i) {
+    for (size_t i = 0; i < solver.nb_particles; ++i) {
 
         Eigen::Matrix3f velocities_grad = Eigen::Matrix3f::Zero();
         Eigen::Vector3f v_pic = Eigen::Vector3f::Zero();
@@ -675,7 +674,7 @@ static void step78910_update_deformation_gradient(MpmSolver& solver) {
                     float const& w_ip = solver.p_weights[i][x + y * 4 + z * 4 * 4];
 
                     v_pic += node.velocity_star * w_ip;
-                    v_flip += (node.velocity_star - node.velocity) * w_ip;
+                    v_flip += (node.velocity_star - node.momentum) * w_ip;
 
 #if USE_APIC
                     deform_affine += w_ip * node.velocity_star * node_pos.transpose();
@@ -802,20 +801,19 @@ static void _iterate(MpmSolver& solver) {
                   << " us\n";
     };
 
-    static int count = 0;
+    static size_t count = 0;
 
-    if (++count == MpmSolver::MAX_ITERATION) {
-        print_duration("grid.reset_nodes", t0, t1);
-        print_duration("step1_rasterize_particles_to_grid", t1, t2);
-        print_duration("step3_compute_grid_forces", t2, t3);
-        print_duration("step4_update_grid_velocities", t3, t4);
-        print_duration("step5_grid_based_collisions", t4, t5);
-        print_duration("step6_solve_linear_system", t5, t6);
-        print_duration("step7_update_deformation_gradient", t6, t7);
-        print_duration("step8_update_particle_velocities", t7, t8);
-        print_duration("step9_particle_based_collisions", t8, t9);
-        print_duration("step10_update_particle_positions", t9, t10);
-    }
+    std::cout << "\nIteration: " << ++count << "\n";
+    print_duration("grid.reset_nodes", t0, t1);
+    print_duration("step1_rasterize_particles_to_grid", t1, t2);
+    print_duration("step3_compute_grid_forces", t2, t3);
+    print_duration("step4_update_grid_velocities", t3, t4);
+    print_duration("step5_grid_based_collisions", t4, t5);
+    print_duration("step6_solve_linear_system", t5, t6);
+    print_duration("step7_update_deformation_gradient", t6, t7);
+    print_duration("step8_update_particle_velocities", t7, t8);
+    print_duration("step9_particle_based_collisions", t8, t9);
+    print_duration("step10_update_particle_positions", t9, t10);
 }
 
 void MpmSolver::iterate() {
@@ -823,10 +821,12 @@ void MpmSolver::iterate() {
 }
 
 void MpmSolver::initialize() {
-    const size_t nb_particles = p_current_state.p_position.size();
+    nb_particles = p_current_state.p_position.size();
+
     p_weights.resize(nb_particles);
     p_weights_gradient.resize(nb_particles);
     global_to_active_map.assign(grid.size(), -1);
+    ar_params = static_cast<params_car*>(std::malloc(nb_particles * sizeof(ar_params[0])));
 
     _iterate<true>(*this);
 }

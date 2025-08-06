@@ -3,12 +3,11 @@
 #include <format>
 #include <stdexcept>
 
-Window::Window(const char* title, int width, int height, bool vsync, bool windowed)
+Window::Window(const char* title, int width, int height, bool vsync)
     : title { title }
     , m_width { width }
     , m_height { height }
-    , m_vsync(vsync)
-    , m_windowed(windowed) {
+    , m_vsync(vsync) {
     try {
         init_sdl();
         init_opengl();
@@ -87,7 +86,7 @@ void Window::init_sdl() {
     printf("Version:  %s\n", glGetString(GL_VERSION));
 }
 
-static void GLAPIENTRY message_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
+static void GLAPIENTRY message_callback([[maybe_unused]] GLenum source, GLenum type, [[maybe_unused]] GLuint id, GLenum severity, [[maybe_unused]] GLsizei length, const GLchar* message, [[maybe_unused]] const void* userParam) {
     fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
         (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type, severity, message);
 }

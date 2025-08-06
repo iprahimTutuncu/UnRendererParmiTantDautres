@@ -19,8 +19,8 @@ const glm::vec3 DEFAULT_WORLD_UP = glm::vec3(0.0f, 1.0f, 0.0f);
 class CameraPerspective {
 public:
     CameraPerspective() = delete;
-    CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at);
-    CameraPerspective(int width, int height, glm::vec3 position, glm::vec3 at, float yaw, float pitch);
+    CameraPerspective(int width, int height, glm::vec3 position);
+    CameraPerspective(int width, int height, glm::vec3 position, float yaw, float pitch);
 
     ~CameraPerspective() = default;
 
@@ -31,7 +31,7 @@ public:
     void process_mouse(float x, float y);
     void process_wheel(float y);
 
-    const float get_aspect_ratio() const;
+    float get_aspect_ratio() const;
     void set_aspect_ratio(int width, int height);
 
 private:
@@ -42,14 +42,12 @@ private:
     bool _first_mouse = true;
 
     float movement_speed = DEFAULT_SPEED;
-    float mouse_sensitivity = DEFAULT_SENSITIVITY;
     float zoom = DEFAULT_ZOOM;
     float yaw = DEFAULT_YAW;
     float pitch = DEFAULT_PITCH;
 
     float _near = DEFAULT_NEAR;
     float _far = DEFAULT_FAR;
-    float _fov = DEFAULT_FOV;
 
     glm::vec3 world_up = DEFAULT_WORLD_UP;
     glm::vec3 position;

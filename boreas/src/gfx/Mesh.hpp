@@ -14,13 +14,13 @@ class Mesh {
 public:
     virtual ~Mesh();
 
-    const GLuint vao() const {
+    GLuint vao() const {
         return m_vao;
     }
-    const GLuint* vbo() const {
-        return m_vbo;
+    GLuint const* vbo() const {
+        return &m_vbo[0];
     }
-    const GLuint ebo() const {
+    GLuint ebo() const {
         return m_ebo;
     }
 
@@ -32,6 +32,5 @@ protected:
     bool m_initialized = false;
 
     virtual void render() const = 0;
-    virtual void init(ShaderProgram* shader) = 0;
     virtual void deinit();
 };
