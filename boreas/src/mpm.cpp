@@ -497,7 +497,7 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
 
                             Eigen::Vector3f force = stress_force * w_ip_grad;
 
-                            while (node.atomic_flag.test_and_set(std::memory_order::acquire)) [[likely]] {
+                            while (node.atomic_flag.test_and_set(std::memory_order::acquire)) {
                                 _mm_pause();
                             }
 
