@@ -454,9 +454,10 @@ static void step1_rasterize_particles_to_grid(MpmSolver& solver) {
                                 solver.grid, base_position.x() + x, base_position.y() + y,
                                 base_position.z() + z);
 
-                            if (node_index < min_index) [[unlikely]] {
+                            if (node_index < min_index) {
                                 min_index = node_index;
-                            } else if (node_index > max_index) [[unlikely]] {
+                            }
+                            if (node_index > max_index) {
                                 max_index = node_index;
                             }
 
